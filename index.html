@@ -183,6 +183,8 @@
   }
 
   .row[data-launch="spidercraft"] { --row-accent: #f5b83d; }
+  .row[data-launch="polytrack"] { --row-accent: #7272c2; }
+  .row[data-launch="fluid"] { --row-accent: #38bdf8; }
 
   .row-icon {
     width: 48px;
@@ -683,6 +685,35 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
         </span>
       </button>
+      <button class="row" data-launch="polytrack">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 16v-4l2.5-4h8l4 4H21v4"/><circle cx="7" cy="16" r="1.75"/><circle cx="17" cy="16" r="1.75"/><path d="M8.75 16h6.5"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">PolyTrack</span>
+          <span class="row-desc">Low-poly racing with loops, jumps and a track editor</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+
+      <button class="row" data-launch="fluid">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3s6 6.5 6 11a6 6 0 1 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Fluid Sim</span>
+          <span class="row-desc">Play with colorful fluids right in your browser</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
     </div>
 
     <div class="community" data-grid-avoid>
@@ -987,8 +1018,26 @@ const SPIDER_PARTS = [
 const SPIDER_BASE = "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/";
 const SPIDER_SPLASH_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}#sProg{color:#b0b0b3;font-size:12.5px;margin:0;min-height:1.4em;font-variant-numeric:tabular-nums}</style></head><body><div class="ring"></div><p>Loading sp1dercraft</p><p id="sProg"></p></body></html>`;
 
+function appSplashHtml(label) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}</style></head><body><div class="ring"></div><p>Loading ${label}</p></body></html>`;
+}
+
+function appErrorHtml(title, reason) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Arial,sans-serif"><div style="text-align:center;color:#b0b0b3;max-width:440px;padding:20px"><h2 style="color:#fafafa;font-size:17px;font-weight:600;margin:0 0 10px">${title} couldn't load</h2><p style="font-size:14px;line-height:1.6;margin:0 0 8px">${reason}</p><p style="font-size:13px;color:#9a9a9d;margin:0">Close this window and relaunch from Fishes Arcade.</p></div></body></html>`;
+}
+
 function spiderErrorHtml(reason) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Arial,sans-serif"><div style="text-align:center;color:#b0b0b3;max-width:440px;padding:20px"><h2 style="color:#fafafa;font-size:17px;font-weight:600;margin:0 0 10px">sp1dercraft couldn't load</h2><p style="font-size:14px;line-height:1.6;margin:0 0 8px">${reason}</p><p style="font-size:13px;color:#9a9a9d;margin:0">Close this window and relaunch from Fishes Arcade.</p></div></body></html>`;
+  return appErrorHtml("sp1dercraft", reason);
+}
+
+/* Inject a <base> tag so a fetched app's relative files (script.js, images,
+   models, workers...) resolve against its GitHub repo instead of this page. */
+function injectBase(html, base) {
+  if (/<base\s/i.test(html)) return html;
+  const baseTag = '<base href="' + base + '">';
+  return /<head[^>]*>/i.test(html)
+    ? html.replace(/<head[^>]*>/i, m => m + baseTag)
+    : baseTag + html;
 }
 
 function looksLikeBundle(text) {
@@ -1072,14 +1121,7 @@ async function launchSp1dercraft() {
     const frame = d.createElement("iframe");
     frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
     frame.setAttribute("allow", FRAME_ALLOW);
-    let finalHtml = text;
-    if (!/<base\s/i.test(finalHtml)) {
-      const baseTag = '<base href="' + SPIDER_BASE + '">';
-      finalHtml = /<head[^>]*>/i.test(finalHtml)
-        ? finalHtml.replace(/<head[^>]*>/i, m => m + baseTag)
-        : baseTag + finalHtml;
-    }
-    frame.srcdoc = finalHtml;
+    frame.srcdoc = injectBase(text, SPIDER_BASE);
     d.body.appendChild(frame);
     applySpoof(d, spoof);
     console.info("[Fishes Arcade] sp1dercraft bundle (" + fmtMB(got) + " MB) served from raw.githubusercontent.com");
@@ -1090,9 +1132,59 @@ async function launchSp1dercraft() {
 
 document.querySelectorAll("[data-launch]").forEach(function (btn) {
   btn.addEventListener("click", function () {
-    if (btn.getAttribute("data-launch") === "spidercraft") launchSp1dercraft();
+    var id = btn.getAttribute("data-launch");
+    if (id === "spidercraft") launchSp1dercraft();
+    else if (REPO_APPS[id]) launchRepoApp(id);
   });
 });
+
+/* ---- single-file apps served straight from a GitHub repo ----
+   Each entry lists [htmlUrl, baseUrl] pairs tried in order. The fetched HTML
+   is injected with a <base> pointing at the repo, so relative assets load too. */
+const REPO_APPS = {
+  /* PolyTrack needs a CDN that serves real JS/WASM mime types for its module
+     bundle, so it runs off statically.io (which serves the GitHub repo). */
+  polytrack: [
+    ["https://cdn.statically.io/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.statically.io/gh/fish01-jpg/polytrack@main/"]
+  ],
+  fluid: [
+    ["https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/index.html", "https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/"],
+    ["https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"]
+  ]
+};
+
+async function launchRepoApp(appId) {
+  const app = REPO_APPS[appId];
+  const label = appId === "fluid" ? "Fluid Sim" : appId.charAt(0).toUpperCase() + appId.slice(1);
+  const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
+  if (!win) { alert("Please allow popups."); return; }
+  const d = win.document, spoof = pickSpoof();
+  armCloseGuard(win); keepSpoofed(d, spoof);
+  d.open(); d.write(appSplashHtml(label)); d.close();
+  try {
+    let html = null, base = null, lastErr = null;
+    for (const [url, b] of app) {
+      try {
+        const res = await fetch(url, { cache: "no-cache" });
+        if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
+        const text = await res.text();
+        if (!looksLikeBundle(text)) throw new Error("didn't look like the " + label + " app");
+        html = text; base = b;
+        break;
+      } catch (e) { lastErr = e; }
+    }
+    if (html === null) throw lastErr || new Error("all sources failed");
+    const frame = d.createElement("iframe");
+    frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
+    frame.setAttribute("allow", FRAME_ALLOW);
+    frame.srcdoc = injectBase(html, base);
+    d.body.appendChild(frame);
+    applySpoof(d, spoof);
+    console.info("[Fishes Arcade] " + label + " served from " + base);
+  } catch (e) {
+    d.open(); d.write(appErrorHtml(label, e && e.message ? e.message : String(e))); d.close();
+  }
+}
 
 (function initBossFish() {
   const svg = document.getElementById("bossFish");
