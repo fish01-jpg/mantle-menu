@@ -607,6 +607,22 @@
             cursor: pointer; transition: var(--transition); font-family: var(--font);
         }
         .game-card-btn:hover { opacity: 0.9; }
+        .game-card-featured {
+            grid-column: span 2; position: relative; border: 1px solid transparent;
+            background: linear-gradient(var(--bg-1), var(--bg-1)) padding-box, linear-gradient(135deg, var(--primary), var(--accent)) border-box;
+            box-shadow: 0 0 34px -10px var(--glow);
+        }
+        .game-card-featured:hover { border-color: transparent; box-shadow: 0 0 46px -8px var(--glow); }
+        .game-card-featured .game-card-name { font-size: 0.95rem; white-space: normal; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .game-card-featured .game-card-desc { font-size: 0.76rem; }
+        .game-card-featured .game-card-icon svg { width: 84px; height: 84px; }
+        .featured-badge {
+            display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px;
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+            color: #fff; background: linear-gradient(135deg, var(--primary), var(--accent));
+            box-shadow: 0 0 12px -3px var(--glow);
+        }
+        @media (max-width: 560px) { .game-card-featured { grid-column: span 1; } }
 
         /* CHAT PANEL */
         .chat-layout { display: flex; height: 100%; overflow: hidden; }
@@ -1201,26 +1217,6 @@
         .winner-empty { text-align:center; padding:60px 20px; color:var(--text-faint); }
         .winner-empty-icon { font-size:3rem; margin-bottom:12px; opacity:0.3; }
         .winner-empty p { font-size:0.9rem; }
-        .sp1der-counter { position:fixed; bottom:16px; left:16px; z-index:99990; background:var(--bg-1); border:1px solid var(--border-active); border-radius:var(--radius); padding:8px 14px; display:flex; align-items:center; gap:8px; font-size:0.78rem; font-weight:600; box-shadow:var(--shadow); }
-        .sp1der-counter .sp1der-icon { font-size:1.1rem; }
-        .sp1der-counter .sp1der-count { color:var(--primary); font-weight:800; }
-
-        /* ===== SP1DER HUNT ===== */
-        .sp1der-hidden { position:absolute; cursor:pointer; opacity:0.15; transition:opacity 0.3s; font-size:0.8rem; z-index:50; user-select:none; }
-        .sp1der-hidden:hover { opacity:0.4; }
-        .sp1der-hidden.found { opacity:0; pointer-events:none; }
-        .sp1der-popup { position:fixed; top:50%; left:50%; transform:translate(-50%, -50%) scale(0.8); z-index:99998; background:var(--bg-1); border:2px solid var(--primary); border-radius:var(--radius-lg); padding:32px 40px; text-align:center; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:all 0.4s cubic-bezier(0.16,1,0.3,1); }
-        .sp1der-popup.show { opacity:1; transform:translate(-50%, -50%) scale(1); pointer-events:auto; }
-        .sp1der-popup-icon { font-size:3rem; margin-bottom:12px; }
-        .sp1der-popup h3 { font-size:1.2rem; font-weight:800; margin-bottom:8px; color:var(--primary); }
-        .sp1der-popup p { font-size:0.85rem; color:var(--text-dim); margin-bottom:16px; }
-        .sp1der-popup .sp1der-points { display:inline-block; padding:4px 16px; border-radius:20px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:var(--success); font-weight:700; font-size:0.85rem; }
-        .sp1der-popup button { margin-top:16px; }
-        .sp1der-hint-banner { background:linear-gradient(135deg, rgba(255,107,26,0.08), rgba(184,134,11,0.08)); border:1px solid rgba(255,107,26,0.2); border-radius:var(--radius); padding:16px 20px; margin-bottom:16px; display:flex; align-items:center; gap:12px; }
-        .sp1der-hint-banner .hint-icon { font-size:1.8rem; }
-        .sp1der-hint-banner .hint-text { flex:1; }
-        .sp1der-hint-banner .hint-text h4 { font-size:0.85rem; font-weight:700; color:var(--primary); margin-bottom:2px; }
-        .sp1der-hint-banner .hint-text p { font-size:0.75rem; color:var(--text-dim); line-height:1.5; }
 
         /* ===== STAFF PAGE ===== */
         .staff-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; }
@@ -1248,7 +1244,6 @@
         .staff-empty p { font-size:0.9rem; }
 
         /* ===== SP1DER INSTRUCTIONS ===== */
-        .sp1der-instructions { background:var(--bg-1); border:1px solid var(--border-active); border-radius:var(--radius-lg); padding:20px; margin-bottom:16px; }
         .sp1der-instructions h3 { font-size:1rem; font-weight:800; margin-bottom:12px; color:var(--primary); }
         .sp1der-instructions ol { padding-left:20px; }
         .sp1der-instructions li { font-size:0.82rem; color:var(--text-dim); line-height:1.8; }
@@ -1471,7 +1466,7 @@
         .aegis-processing-text { color: #00d4ff; font-weight: 700; font-size: 0.85rem; }
 
         /* ---------- Feature pages ---------- */
-        .changelog-item, .user-card, .active-user-card, .staff-card, .winner-card, .leaderboard-row, .event-banner, .sp1der-instructions, .sp1der-counter {
+        .changelog-item, .user-card, .active-user-card, .staff-card, .winner-card, .leaderboard-row, .event-banner {
             background: var(--card-bg); backdrop-filter: blur(14px); border: 1px solid var(--border); border-radius: 18px;
         }
         .user-card:hover, .active-user-card:hover, .staff-card:hover, .winner-card:hover, .leaderboard-row:hover {
@@ -1487,9 +1482,6 @@
         .winner-tag { color: #0b0620; }
         .winner-words { border-left: 3px solid var(--accent); background: rgba(0,0,0,0.35); }
         .staff-desc { background: rgba(0,0,0,0.35); border-radius: 10px; }
-        .sp1der-counter { bottom: 18px; left: 18px; border: 1px solid var(--accent); box-shadow: 0 0 18px rgba(255,215,0,0.25); }
-        .sp1der-popup { background: rgba(15,8,35,0.97); border: 2px solid var(--accent); border-radius: 30px; box-shadow: 0 0 60px rgba(255,215,0,0.35); }
-        .sp1der-popup h3 { color: var(--accent); text-shadow: 0 0 14px rgba(255,215,0,0.6); }
         .cmd-table th { color: var(--accent); }
         .cmd-badge.owner { background: rgba(255,0,85,0.2); color: var(--danger); border: 1px solid var(--danger); }
         .cmd-badge.staff { background: rgba(160,32,240,0.2); color: #d6a4ff; border: 1px solid rgba(160,32,240,0.5); }
@@ -1749,22 +1741,6 @@
 
     <!-- TOAST -->
     <div class="toast" id="toast"></div>
-
-    <!-- SP1DER POPUP -->
-    <div class="sp1der-popup" id="sp1derPopup">
-        <div class="sp1der-popup-icon">🕷️</div>
-        <h3 id="sp1derPopupTitle">Sp1der Found!</h3>
-        <p id="sp1derPopupText">You found a hidden Sp1der!</p>
-        <div class="sp1der-points" id="sp1derPopupPoints">+10 points</div>
-        <br>
-        <button class="composer-btn primary" onclick="closeSp1derPopup()">Nice!</button>
-    </div>
-
-    <!-- SP1DER COUNTER -->
-    <div class="sp1der-counter" id="sp1derCounter" style="display:none;">
-        <span class="sp1der-icon">🕷️</span>
-        <span>Sp1ders: <span class="sp1der-count" id="sp1derCount">0</span>/255</span>
-    </div>
 
     <!-- CANVAS -->
     <canvas id="spaceCanvas"></canvas>
@@ -2112,9 +2088,8 @@
                     </div>
                     <div id="eventsLeaderboardView" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
                         <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">
-                            <span style="font-weight:700;font-size:0.9rem;">Sp1der Hunt Leaderboard</span>
+                            <span style="font-weight:700;font-size:0.9rem;">Leaderboard</span>
                             <button class="composer-btn" onclick="renderEventsLeaderboard()" style="padding:4px 10px;font-size:0.72rem;margin-left:auto;">Refresh</button>
-                            <button class="composer-btn primary" id="syncMyScoreBtn" onclick="syncMyScore()" style="padding:4px 12px;font-size:0.72rem;">Sync My Score</button>
                         </div>
                         <div id="eventsLeaderboardList" style="flex:1;overflow-y:auto;padding:16px;"></div>
                     </div>
@@ -3473,6 +3448,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         // Built-in games each have their own dedicated page in games/<id>.html next to this hub file.
         // Clicking a game card navigates there; the existing appViewer remains for custom/managed apps.
         const LOADED_APPS = [
+            { id:'sp1derrunner', name:'Project Sp1der', category:'games', desc:'Run the whole app in the Sp1der Runner - chat, events and games in their own window', color:'#8b5cf6', featured:true },
             {"id": "conner-polytrack", "name": "Conner's Polytrack Project", "category": "games", "desc": "Conner's Polytrack Project- does not work on school chromebook", "color": "#8b5cf6", "url": "https://education.framer.photos"},
             { id:'2048', name:'2048', category:'games', desc:'Join the tiles, get to 2048!', color:'#f59e0b', url:'https://2048game.com/', page:'2048.html' },
             { id:'chess', name:'Chess', category:'games', desc:'Play chess online', color:'#6b7280', url:'https://pychess-variants.herokuapp.com/', page:'chess.html' },
@@ -3510,11 +3486,13 @@ Furball found a sunbeam and is not moving for anyone.`;
             if ($('appsCount')) $('appsCount').textContent = filtered.length + ' item' + (filtered.length !== 1 ? 's' : '');
             filtered.forEach(app => {
                 const card = document.createElement('div');
-                card.className = 'game-card';
+                card.className = 'game-card' + (app.featured ? ' game-card-featured' : '');
                 card.onclick = () => runApp(app);
                 const initial = (app.name[0] || '?').toUpperCase();
                 const color = app.color || 'var(--primary)';
-                card.innerHTML = `<div class="game-card-icon" style="background:linear-gradient(135deg, ${color}, ${color}99)">${initial}</div><div class="game-card-body"><div class="game-card-name">${app.name}</div><div class="game-card-desc">${app.desc}</div></div>`;
+                card.innerHTML = app.featured
+                    ? `<div class="game-card-icon" style="background:linear-gradient(135deg, ${color}, ${color}44)"><svg viewBox="0 0 96 96" fill="none"><defs><linearGradient id="sp1derLegs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><g stroke="url(#sp1derLegs)" stroke-width="5" stroke-linecap="round" fill="none"><path d="M40 40 C30 32 22 24 24 10"/><path d="M56 40 C66 32 74 24 72 10"/><path d="M46 38 C40 28 38 18 38 6"/><path d="M50 38 C56 28 58 18 58 6"/><path d="M40 56 C30 64 22 72 24 86"/><path d="M56 56 C66 64 74 72 72 86"/><path d="M46 58 C40 68 38 78 38 90"/><path d="M50 58 C56 68 58 78 58 90"/></g><path d="M42 34 L48 24 L56 34 Z" fill="#e8721f"/><path d="M42 62 L48 72 L56 62 Z" fill="#e8721f" opacity="0.9"/><ellipse cx="48" cy="48" rx="24" ry="15" fill="#f5b83d"/><ellipse cx="48" cy="52" rx="16" ry="7" fill="#ffd9a8" opacity="0.45"/><path d="M68 48 L90 35 L90 61 Z" fill="#e8721f"/><circle cx="38" cy="46" r="4.5" fill="#17181c"/><circle cx="39.5" cy="44.5" r="1.4" fill="#fff"/><path d="M30 52 Q34 55 38 52" stroke="#7c4a0e" stroke-width="2" stroke-linecap="round" fill="none"/></svg></div><div class="game-card-body"><div class="game-card-name">${app.name} <span class="featured-badge">Featured</span></div><div class="game-card-desc">${app.desc}</div></div>`
+                    : `<div class="game-card-icon" style="background:linear-gradient(135deg, ${color}, ${color}99)">${initial}</div><div class="game-card-body"><div class="game-card-name">${app.name}</div><div class="game-card-desc">${app.desc}</div></div>`;
                 grid.appendChild(card);
             });
         }
@@ -3532,6 +3510,8 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
 
         const runApp = (app) => {
+            // Featured card opens the Sp1der Runner (the fishes page) in its own window
+            if (app.featured) { openSp1derRunner(); return; }
             if (app.id === 'conner-polytrack') { window.location.assign(app.url); return; }
             if (app.id === 'codeeditor') { showView('editor'); return; }
             if (app.id === 'ytplayer') { openMusicModal(); return; }
@@ -3543,6 +3523,39 @@ Furball found a sunbeam and is not moving for anyone.`;
             }
             if ($('appViewer')) { $('appViewer').classList.add('open'); if ($('appIframe')) { if (app.html) { $('appIframe').src = URL.createObjectURL(new Blob([app.html], {type:'text/html'})); } else { $('appIframe').src = app.url || `https://raw.githack.com/mrfiggs/Arcane-Arena/refs/heads/main/assets/games/${app.id}/index.html`; } } } };
         const closeAppViewer = () => { if ($('appViewer')) $('appViewer').classList.remove('open'); if ($('appIframe')) $('appIframe').src = ''; };
+
+        /* Featured card: open the Sp1der Runner (the fishes page) in its own about:blank window */
+        const SP1DER_RUNNER_SOURCES = [
+            'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/fishes.html',
+            'https://cdn.statically.io/gh/fish01-jpg/mantle-menu/main/fishes.html',
+            'https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html',
+            'https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html',
+            'https://testingcf.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html',
+            'https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/fishes.html',
+            'https://esm.sh/gh/fish01-jpg/mantle-menu@main/fishes.html'
+        ];
+        async function openSp1derRunner() {
+            const win = window.open('about:blank', '_blank', 'width=' + screen.width + ',height=' + screen.height + ',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes,popup=yes');
+            if (!win) { toast('Allow popups to open the Sp1der Runner'); return; }
+            const d = win.document;
+            d.open(); d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:-apple-system,Arial,sans-serif}svg{width:84px;height:84px}.ring{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;margin:0}</style></head><body><svg viewBox="0 0 96 96" fill="none"><g stroke="#8b5cf6" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M40 40 C30 32 22 24 24 10"/><path d="M56 40 C66 32 74 24 72 10"/><path d="M46 38 C40 28 38 18 38 6"/><path d="M50 38 C56 28 58 18 58 6"/><path d="M40 56 C30 64 22 72 24 86"/><path d="M56 56 C66 64 74 72 72 86"/><path d="M46 58 C40 68 38 78 38 90"/><path d="M50 58 C56 68 58 78 58 90"/></g><path d="M42 34 L48 24 L56 34 Z" fill="#e8721f"/><path d="M42 62 L48 72 L56 62 Z" fill="#e8721f" opacity="0.9"/><ellipse cx="48" cy="48" rx="24" ry="15" fill="#f5b83d"/><path d="M68 48 L90 35 L90 61 Z" fill="#e8721f"/><circle cx="38" cy="46" r="4.5" fill="#17181c"/></svg><div class="ring"></div><p>Opening the Sp1der Runner</p></body></html>'); d.close();
+            try {
+                let html = null, lastErr = null;
+                for (const url of SP1DER_RUNNER_SOURCES) {
+                    try {
+                        const res = await fetch(url, { cache: 'no-cache' });
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const text = await res.text();
+                        if (text.length < 500 || !/<html/i.test(text) || !text.includes('Sp1der Runner')) throw new Error('Invalid');
+                        html = text; break;
+                    } catch (e) { lastErr = e; }
+                }
+                if (!html) throw lastErr || new Error('Failed');
+                d.open(); d.write(html); d.close();
+            } catch (e) {
+                d.open(); d.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Arial,sans-serif"><div style="text-align:center;color:#b0b0b3;max-width:440px;padding:20px"><h2 style="color:#fafafa;font-size:17px;font-weight:600;margin:0 0 10px">The Sp1der Runner couldn\'t load</h2><p style="font-size:14px;line-height:1.6;margin:0">' + escapeHtml(e && e.message ? e.message : String(e)) + '</p></div></body></html>'); d.close();
+            }
+        }
         /* toggleAppFullScreen is defined later in this file (function declaration hoists). */
         const openMusicModal = () => { $('ytPlayerFrame').innerHTML = '<iframe src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1" allow="autoplay" allowfullscreen></iframe>'; $('musicModal').classList.add('active'); };
         const stopMusic = () => { $('ytPlayerFrame').innerHTML = ''; closeModal('musicModal'); };
@@ -6172,7 +6185,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
-            { version: '4.5.5', date: '2026-11-02', author: 'fish01-jpg', title: 'Halloween Event Ended, Fishes Arcade Home', changes: ["Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt continues as usual - sp1ders are visible on every theme, no Halloween theme needed", "Sp1der now has a home on the Fishes Arcade: open the featured Project Sp1der card on the arcade menu to run the whole app"] },
+            { version: '4.5.5', date: '2026-11-02', author: 'fish01-jpg', title: 'Halloween Event Ended, Fishes Arcade Home', changes: ["Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt has ended: the hidden sp1ders, the Sp1ders counter, the hunt how-to-play guide and the admin Sp1der Hunt tab are all gone", "New featured Project Sp1der card on the Games page - bigger than the other games, it opens the Sp1der Runner (the fishes page) in its own window"] },
             { version: '4.5.4', date: '2026-11-01', author: 'redfish and p1xelf1n', title: 'Sigma Security Agent + Sigma Remote + Omega AI, testing the AIs', changes: ["Sigma:", "Sigma is the new security agent for Aegis / Sp1der - when Aegis calls it (@sigma in chat, or from the Sigma Remote) it can pause the current chat for review", "While Sigma is engaged the selected page (or every page) turns red with a border, a SIGMA banner appears and all user input is locked out", "The AI can select specific users who are allowed to talk during the review - everyone else stays locked until Sigma releases the chat", "Sigma can save and view all raw user data from the Remote, scan recent chat for suspicious activity and run a full network audit", "Remote:", "New separate page: the Sigma Remote - it connects to the main site chats, lets the AI type in them as Aegis AI, and runs every Sigma command", "The Remote can highlight any element on the main site in red so you can see exactly what Sigma is doing", "Sigma commands exist in the main site code but can only be executed through the Remote - typing them in chat just points you to the Remote", "Over 25 remote commands: pause, lock, allow, highlight, scan, audit, viewdata, savedata, broadcast, alert, banner, redirect, reload, slowmode, chatlock and more", "Games:", "Added Conner's Polytrack Project to the Games panel; clicking the card redirects to https://education.framer.photos in the current tab.", "Card description: Conner's Polytrack Project- does not work on school chromebook", "", "Typing bar (added November 1):", "When someone is writing a message in the conversation you have open, a small line appears above the composer: Allison is typing... with animated dots", "Shows for the Global chat, DMs and group chats; you never see your own typing indicator", "The indicator starts when a draft has text, refreshes about every 2.5 seconds while typing continues, disappears when the message is sent or the draft is cleared, and expires by itself after 6 seconds", "Each member's typing entry is stored under their own user ID, so nobody can fake someone else typing", "", "Notification numbers (added November 1):", "Every conversation in the Community sidebar now shows a red number badge with the count of unread messages", "The Community item in the sidebar shows the total number of unread messages across all your conversations", "The Events item shows a 1 badge until you open the newest event", "New notification bell in the top bar with the number of unread personal notifications - click it to see announcements, broadcasts and staff messages, and they are marked read when you open it", "Unread counts are remembered per conversation, survive page refreshes, and clear when you open that conversation while it is on screen", "", "Community Theme Vote event (added November 1):", "New event: vote for the site's next look - Fall (warm autumn oranges and gold), Blue (cool deep-blue night), or keep Arcane (classic violet and gold)", "Both new themes are already available to preview in Settings - Appearance - Theme", "One vote per account and you can change it while the event is active; AI accounts do not vote", "Live tallies with vote counts and percentage bars are shown to everyone, and the final result is displayed when the event ends", "", "Furry title (added November 1):", "The Furry title (cosmeticTitle furry on an account) now grants the Furry bonus commands to whoever holds it - /dragon, /purr, /cat, /nap, /yarn, /zoomies, /fortune and /furhelp", "The title gives ONLY those commands: it grants no staff, moderation or any other powers anywhere on the site", "All staff roles keep access to the Furry commands, and the title never overrides rank - a member with the title stays a member, and staff with the title keep their staff status displayed", "Granting the title is owner/AI only: set cosmeticTitle to furry on the account's user document (Remote Manager raw editor); regular members and staff cannot set it on themselves", "The cyan Furry badge now shows on messages and profiles for anyone holding the title, not just the Furball accounts"] },
             { version: '4.5.3', date: '2026-10-24', author: 'P1xelF1n', title: 'User Data Sync - Customization Saved to Your Account, Redstone Rush Puzzle Game, Lava Arena Game', changes: ["Customization now saves to your account:", "Every settings change (theme, colors, animations, notifications, profile look) now saves automatically to your account in the cloud", "Signing out and signing back in no longer loses your customization - everything comes back automatically", "This also fixes customization disappearing on refresh or when the app updates, since storage inside the Runner is temporary and only the cloud save keeps it", "", "Profile pictures:", "Profile pictures now restore automatically when you sign in - they were already synced but never came back after re-login", "", "Custom backgrounds:", "Custom background images now save to your account too - they are compressed automatically so they fit", "A background that is too large to sync is rejected with a clear message instead of quietly not saving", "", "Safety:", "Signing out now finishes saving your changes first, and warns you if a save fails so you can choose to stay signed in", "One account's customization never leaks into another account on the same browser", "", "Older accounts:", "Accounts that saved their profile look before this update carry it over automatically", "", "Redstone Rush:", "New puzzle game: rotate the redstone wires to connect the power source to every target", "10 handcrafted levels that get harder as you go - corners, junctions, crossing wires and stone blocks in the way", "Star ratings based on how few moves you use, a level select screen, and your progress and best scores are saved when browser storage is available (the game still works fully without it)", "Opens like the other games: the Redstone Rush card in the Games hub explains that you type redstoneRush in the Runner box to play", "The back button on the game page is labeled main, and clicking it reminds you to type main in the Runner box to return to the hub", "", "Lava Arena:", "New battle game: the floor is lava - touch it and you die instantly", "Multiplayer wizard arena - enter a room name, pick RED or BLUE team, and select 2 spells to deploy", "All spells have increased knockback: blast your enemies into the lava instead of just damaging them", "Standing still burns you for damage ticks, so keep moving - die and you respawn 3 seconds later with the death on your scoreboard", "Track your kills and deaths on the scoreboard, and chat with the room by pressing Enter", "Opens like the other games: the Lava Arena card in the Games hub explains that you type lava in the Runner box to play"] },
             { version: '4.5.2', date: '2026-10-18', author: 'P1xelF1n', title: 'Manual Update Banner, Feedback Statuses, Animation Controls', changes: ["Update banner:", "A new version no longer force-reloads the page after three seconds", "The banner now has a Reload to update button plus a Later button that hides it, so you can finish what you are doing first", "Feedback & Ideas:", "New Feedback & Ideas card on the Home page so the tab is easier to find", "The Feedback & Ideas tab is highlighted (and pulses when animations are enabled) until you open it once, then it stops", "Every idea now shows a status pill: New idea, Considering, Planned or Shipped, visible to everyone", "Staff can set or clear an idea's status right from the Feedback tab, and the staff member who set it is recorded",
@@ -6532,7 +6545,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             { title: 'Sidebar Navigation', desc: 'Use the sidebar to navigate between Home, Community, Games, Active Users, Events, Staff, Aegis AI, and Updates.', target: '#sidebar' },
             { title: 'Community Chat', desc: 'Chat with friends, join channels, and send messages with multi-line support and ASCII art.', target: '[data-view="community"]' },
             { title: 'Games', desc: 'Browse and play games in a CrazyGames-style grid. No more separate tab launchers.', target: '[data-view="games"]' },
-            { title: 'Events & Sp1der Hunt', desc: 'View ongoing events, check the leaderboard, see winners, and hunt for 255 hidden Sp1ders across the site.', target: '[data-view="events"]' },
+            { title: 'Events', desc: 'View ongoing events, check the leaderboard, and see the winners hall.', target: '[data-view="events"]' },
             { title: 'Staff', desc: 'Meet the team. View staff roles, status, and send them a message directly.', target: '[data-view="staff"]' },
             { title: 'Aegis AI', desc: 'Chat with Aegis AI in its own dedicated panel.', target: '[data-view="aegis"]' },
             { title: 'Settings', desc: 'Customize your theme, background, profile, username appearance, and more.', target: '#settingsModal' },
@@ -7452,8 +7465,6 @@ Furball found a sunbeam and is not moving for anyone.`;
                 } catch (e) {}
             }
             if (viewName !== 'community') { try { ComposerPresence.stop(); } catch (e) {} }
-            // Place sp1ders for the current view
-            setTimeout(function() { placeSp1dersForView(viewName); }, 100);
         }
 
         /* ===== 18. CANVAS ANIMATED BACKGROUND ===== */
@@ -7538,7 +7549,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 p = document.createElement('div');
                 p.id = 'serverMgmtPage';
                 p.style.cssText = 'position:fixed;inset:0;z-index:100000;background:var(--bg-0);display:none;flex-direction:column;overflow:hidden;';
-                p.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:var(--bg-1);border-bottom:1px solid var(--border);flex-shrink:0;"><span style="font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Server Command Center</span><div style="flex:1;"></div><button class="topbar-btn" onclick="closeServerMgmt()">Close</button></div><div style="display:flex;flex:1;overflow:hidden;"><div style="width:200px;flex-shrink:0;background:var(--bg-1);border-right:1px solid var(--border);padding:12px 8px;display:flex;flex-direction:column;gap:4px;"><button class="nav-item active" onclick="switchMgmtTab(\'updates\')" style="font-size:0.82rem;">Updates</button><button class="nav-item" onclick="switchMgmtTab(\'events\')" style="font-size:0.82rem;">Events</button><button class="nav-item" onclick="switchMgmtTab(\'staff\')" style="font-size:0.82rem;">Staff</button><button class="nav-item" onclick="switchMgmtTab(\'sp1ders\')" style="font-size:0.82rem;">Sp1der Hunt</button><button class="nav-item" onclick="switchMgmtTab(\'users\')" style="font-size:0.82rem;">Users</button><button class="nav-item" onclick="switchMgmtTab(\'apps\')" style="font-size:0.82rem;">Apps & Games</button><button class="nav-item" onclick="switchMgmtTab(\'aegis\')" style="font-size:0.82rem;">Aegis Web</button><button class="nav-item" onclick="switchMgmtTab(\'editor\')" style="font-size:0.82rem;">Site Editor</button></div><div id="mgmtContent" style="flex:1;overflow-y:auto;padding:24px;"></div></div>';
+                p.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:var(--bg-1);border-bottom:1px solid var(--border);flex-shrink:0;"><span style="font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Server Command Center</span><div style="flex:1;"></div><button class="topbar-btn" onclick="closeServerMgmt()">Close</button></div><div style="display:flex;flex:1;overflow:hidden;"><div style="width:200px;flex-shrink:0;background:var(--bg-1);border-right:1px solid var(--border);padding:12px 8px;display:flex;flex-direction:column;gap:4px;"><button class="nav-item active" onclick="switchMgmtTab(\'updates\')" style="font-size:0.82rem;">Updates</button><button class="nav-item" onclick="switchMgmtTab(\'events\')" style="font-size:0.82rem;">Events</button><button class="nav-item" onclick="switchMgmtTab(\'staff\')" style="font-size:0.82rem;">Staff</button><button class="nav-item" onclick="switchMgmtTab(\'users\')" style="font-size:0.82rem;">Users</button><button class="nav-item" onclick="switchMgmtTab(\'apps\')" style="font-size:0.82rem;">Apps & Games</button><button class="nav-item" onclick="switchMgmtTab(\'aegis\')" style="font-size:0.82rem;">Aegis Web</button><button class="nav-item" onclick="switchMgmtTab(\'editor\')" style="font-size:0.82rem;">Site Editor</button></div><div id="mgmtContent" style="flex:1;overflow-y:auto;padding:24px;"></div></div>';
                 document.body.appendChild(p);
                 _mgmtInitialized = true;
             }
@@ -7549,9 +7560,8 @@ Furball found a sunbeam and is not moving for anyone.`;
         function switchMgmtTab(tab) {
             const c = document.getElementById('mgmtContent'); if (!c) return;
             document.querySelectorAll('#serverMgmtPage .nav-item').forEach(function(n) { n.classList.remove('active'); });
-            if (tab === 'events') { c.innerHTML = '<div style="padding:12px;"><h3>Event Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Create / Update Event</h4><input type="text" id="mgmtEventName" placeholder="Event name (e.g. Sp1der Hunt)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtEventDesc" placeholder="Event description..." style="width:100%;height:80px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><select id="mgmtEventStatus" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><option value="upcoming">Upcoming</option><option value="active">Active</option><option value="ended">Ended</option></select><input type="text" id="mgmtEventEndNote" placeholder="End dedication note (shown when ended)..." style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><button class="composer-btn primary" onclick="mgmtSaveEvent()" style="padding:8px 16px;">Save Event</button></div><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add Winner to Hall</h4><input type="text" id="mgmtWinnerName" placeholder="Winner name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerTag" placeholder="Winner tag (e.g. Sp1der Master)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerStat" placeholder="Stat (e.g. Found 200 sp1ders)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerPhoto" placeholder="Photo URL (optional)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtWinnerWords" placeholder="Winner words (their quote)..." style="width:100%;height:60px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><button class="composer-btn primary" onclick="mgmtAddWinner()" style="padding:8px 16px;">Add Winner</button></div><div id="mgmtEventStatus"></div></div>'; mgmtRefreshEventStatus(); }
+            if (tab === 'events') { c.innerHTML = '<div style="padding:12px;"><h3>Event Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Create / Update Event</h4><input type="text" id="mgmtEventName" placeholder="Event name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtEventDesc" placeholder="Event description..." style="width:100%;height:80px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><select id="mgmtEventStatus" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><option value="upcoming">Upcoming</option><option value="active">Active</option><option value="ended">Ended</option></select><input type="text" id="mgmtEventEndNote" placeholder="End dedication note (shown when ended)..." style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><button class="composer-btn primary" onclick="mgmtSaveEvent()" style="padding:8px 16px;">Save Event</button></div><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add Winner to Hall</h4><input type="text" id="mgmtWinnerName" placeholder="Winner name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerTag" placeholder="Winner tag (e.g. Sp1der Master)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerStat" placeholder="Stat (e.g. Found 200 sp1ders)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerPhoto" placeholder="Photo URL (optional)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtWinnerWords" placeholder="Winner words (their quote)..." style="width:100%;height:60px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><button class="composer-btn primary" onclick="mgmtAddWinner()" style="padding:8px 16px;">Add Winner</button></div><div id="mgmtEventStatus"></div></div>'; mgmtRefreshEventStatus(); }
             else if (tab === 'staff') { c.innerHTML = '<div style="padding:12px;"><h3>Staff Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add Staff from User List</h4><div id="mgmtStaffUserList" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;"><div style="padding:8px;color:var(--text-dim);">Loading users...</div></div><div id="mgmtStaffSelected" style="display:none;background:var(--bg-1);border:1px solid var(--primary);border-radius:6px;padding:8px;margin-bottom:6px;"><div style="font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Selected User</div><div id="mgmtStaffSelectedName" style="font-weight:700;font-size:0.85rem;"></div></div><input type="text" id="mgmtStaffRole" placeholder="Role (e.g. Admin, Moderator, Support)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtStaffDesc" placeholder="Staff description (optional)..." style="width:100%;height:60px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><button class="composer-btn primary" id="mgmtAddStaffBtn" onclick="mgmtAddStaffFromUser()" style="padding:8px 16px;width:100%;" disabled>Add as Staff</button></div><h4 style="font-size:0.85rem;margin-bottom:8px;">Current Staff</h4><div id="mgmtStaffList" style="max-height:400px;overflow-y:auto;"></div></div>'; mgmtRefreshStaffList().then(function() { mgmtRefreshStaffUserList(); }); }
-            else if (tab === 'sp1ders') { c.innerHTML = '<div style="padding:12px;"><h3>Sp1der Hunt Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;"><div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;">Manage the Sp1der Hunt. There are 255 sp1ders hidden across the site. Users find them by clicking. Each find awards points to their Events leaderboard score.</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;"><div style="background:var(--bg-1);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center;"><div style="font-size:1.5rem;font-weight:800;color:var(--primary);">255</div><div style="font-size:0.68rem;color:var(--text-dim);">Total Sp1ders</div></div><div style="background:var(--bg-1);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center;"><div style="font-size:1.5rem;font-weight:800;color:#00d4ff;" id="mgmtSp1derFound">0</div><div style="font-size:0.68rem;color:var(--text-dim);">Found by Users</div></div><div style="background:var(--bg-1);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center;"><div style="font-size:1.5rem;font-weight:800;color:#f59e0b;" id="mgmtSp1derPlayers">0</div><div style="font-size:0.68rem;color:var(--text-dim);">Players</div></div></div><div style="background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Starter Sp1der Locations</h4><div style="font-size:0.8rem;color:var(--text-dim);line-height:1.8;">1. Home page - in the hero text area (hidden)<br>2. Community page - next to the channel name (plain sight)<br>3. Games page - in the search bar area (plain sight)<br>4. Active Users page - in the online count badge (plain sight)<br>5. Updates page - in the changelog header (plain sight)</div></div><button class="composer-btn primary" onclick="mgmtResetSp1ders()" style="padding:8px 16px;width:100%;margin-bottom:8px;">Reset All Sp1der Finds</button><button class="composer-btn" onclick="mgmtGenerateSp1ders()" style="padding:8px 16px;width:100%;">Regenerate Sp1ders</button></div></div>'; mgmtRefreshSp1ders(); }
             if (tab==='updates') c.innerHTML = '<div style="padding:12px;"><h3>Deploy Update</h3><label for="mgmtUpdateText">Update notes</label><textarea id="mgmtUpdateText" style="width:100%;height:120px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;" placeholder="Paste update notes here..." oninput="calcUpdateTime()"></textarea><label for="mgmtVersionInput" style="display:block;margin-top:8px;">Version</label><input type="text" id="mgmtVersionInput" placeholder="Version e.g. 4.5.1" style="width:120px;max-width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:8px;"><label for="mgmtUpdateBy" style="display:block;margin-top:12px;">Update by (optional)</label><input type="text" id="mgmtUpdateBy" maxlength="80" placeholder="e.g. P1xelF1n" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:4px;"><p style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">Shows an Update by tag on the published notes. Leave blank for no tag on a new version.</p><div id="mgmtTimeCalc" style="padding:10px;background:var(--bg-2);border-radius:8px;margin:8px 0;font-size:0.85rem;">Estimated time: Calculating...</div><button class="composer-btn primary" id="mgmtDeployBtn" onclick="deployUpdate()" style="width:100%;padding:12px;">Deploy Update</button><div id="mgmtDeployStatus" role="status" style="margin-top:10px;"></div></div>';
             else if (tab==='users') { c.innerHTML = '<div style="padding:12px;"><h3>User Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;"><input type="text" id="mgmtUserSearch" placeholder="Search by name or email..." style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;" oninput="mgmtFilterUsers()"></div><div id="mgmtUserList" style="max-height:500px;overflow-y:auto;"><div style="padding:8px;color:var(--text-dim);">Loading...</div></div><button class="composer-btn" onclick="mgmtRefreshUsers()" style="margin-top:8px;">Refresh</button></div>'; mgmtRefreshUsers(); }
             else if (tab==='apps') { c.innerHTML = '<div style="padding:12px;"><h3>Apps & Games</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add from URL</h4><div style="display:flex;gap:6px;flex-wrap:wrap;"><input type="text" id="mgmtAppName" placeholder="App name" style="flex:1;min-width:120px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;"><input type="text" id="mgmtAppUrl" placeholder="https://..." style="flex:2;min-width:180px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;"><button class="composer-btn primary" onclick="mgmtAddApp()" style="padding:8px 16px;">Add URL</button></div></div><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add HTML App</h4><textarea id="mgmtAppHtml" placeholder="Paste HTML code here..." style="width:100%;height:120px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-family:monospace;font-size:0.8rem;resize:vertical;"></textarea><input type="text" id="mgmtHtmlAppName" placeholder="App name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:6px;"><button class="composer-btn primary" onclick="mgmtAddHtmlApp()" style="margin-top:6px;padding:8px 16px;">Create HTML App</button></div><h4 style="font-size:0.85rem;margin-bottom:8px;">Current Apps</h4><div id="mgmtAppList" style="max-height:300px;overflow-y:auto;"></div></div>'; mgmtRefreshApps(); }
@@ -7831,17 +7841,16 @@ Furball found a sunbeam and is not moving for anyone.`;
                 eventsDataUnsub = sp1derDb.collection('system').doc('sp1derData').onSnapshot(doc => {
                     if (doc.exists) {
                         const d = doc.data();
-                        currentEventData = { name: d.eventName || 'Sp1der Hunt', description: d.eventDescription || 'Search the site for hidden Sp1ders! There are 255 hidden across every page. Find them all to climb the leaderboard and win exclusive prizes.', status: d.eventStatus || 'active', endNote: d.eventEndNote || '', themeVote: d.themeVoteActive === true };
+                        currentEventData = { name: d.eventName || 'Events', description: d.eventDescription || 'Join site events, check the leaderboard, and see the Winners Hall.', status: d.eventStatus || 'active', endNote: d.eventEndNote || '', themeVote: d.themeVoteActive === true };
                         winnersData = d.eventWinners || [];
                         staffData = d.staffList || [];
                         sp1derScores = d.sp1derScores || {};
                     } else {
-                        currentEventData = { name: 'Sp1der Hunt', description: 'Search the site for hidden Sp1ders! There are 255 hidden across every page. Find them all to climb the leaderboard and win exclusive prizes.', status: 'active', endNote: '', themeVote: false };
+                        currentEventData = { name: 'Events', description: 'Join site events, check the leaderboard, and see the Winners Hall.', status: 'active', endNote: '', themeVote: false };
                         winnersData = [];
                         staffData = [];
                         sp1derScores = {};
                     }
-                    updateSp1derCounter();
                     try { Sp1derIndicators.updateEventsBadge(); initThemeVoteListener(); renderThemeVoteCard(); } catch (e) {}
                     if (document.querySelector('.panel.active') && document.querySelector('.panel.active').id === 'panel-events') renderEventsCurrent();
                 }, () => {});
@@ -7850,23 +7859,12 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         function renderEventsCurrent() {
             const el = $('eventsCurrentContent'); if (!el) return;
-            const event = currentEventData || { name: 'Sp1der Hunt', description: 'Search the site for hidden Sp1ders! There are 255 hidden across every page. Find them all to climb the leaderboard and win exclusive prizes.', status: 'active', endNote: '' };
+            const event = currentEventData || { name: 'Events', description: 'Join site events, check the leaderboard, and see the Winners Hall.', status: 'active', endNote: '' };
             let html = '';
-            // Sp1der Hunt Instructions
-            html += '<div class="sp1der-instructions">';
-            html += '<h3>🕷️ Sp1der Hunt — How to Play</h3>';
-            html += '<ol>';
-            html += '<li><b>Look for sp1ders</b> — tiny spider icons are hidden all over the site. There are <b>255</b> of them!';
-            html += '<li><b>Click a sp1der</b> when you spot one. A popup will tell you which one you found and how many points you earned.';
-            html += '<li><b>Your finds add up</b> on the Events Leaderboard. Compete with other users for the top spot!';
-            html += '<li><b>Some are easy</b> (in plain sight) and <b>some are hidden</b> — check every corner of every page.';
-            html += '<li><b>5 starter sp1ders</b> are placed as a beginning: 4 in plain sight, 1 hidden. More are scattered throughout.';
-            html += '</ol>';
-            html += '</div>';
             // Event banner
             html += '<div class="event-banner">';
-            html += '<h2>' + escapeHtml(event.name || 'Sp1der Hunt') + '</h2>';
-            html += '<p>' + escapeHtml(event.description || 'Find hidden sp1ders across the site!') + '</p>';
+            html += '<h2>' + escapeHtml(event.name || 'Events') + '</h2>';
+            html += '<p>' + escapeHtml(event.description || '') + '</p>';
             const statusClass = event.status === 'active' ? 'active' : (event.status === 'ended' ? 'ended' : 'upcoming');
             const statusText = event.status === 'active' ? '● Active Now' : (event.status === 'ended' ? '● Ended' : '● Upcoming');
             html += '<div class="event-status-badge ' + statusClass + '">' + statusText + '</div>';
@@ -7874,11 +7872,6 @@ Furball found a sunbeam and is not moving for anyone.`;
             // If ended, show dedication
             if (event.status === 'ended' && event.endNote) {
                 html += '<div style="background:var(--bg-1);border:1px solid var(--border-active);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Dedicated to Our Users</div><div style="font-size:0.9rem;color:var(--text);line-height:1.6;font-style:italic;">' + escapeHtml(event.endNote) + '</div></div>';
-            }
-            // Sp1der counter for user
-            if (currentUser) {
-                const myScore = sp1derScores[currentUser.uid] || { found: 0, points: 0 };
-                html += '<div class="sp1der-hint-banner"><div class="hint-icon">🕷️</div><div class="hint-text"><h4>Your Progress: ' + (myScore.found || 0) + ' / 255 Sp1ders Found</h4><p>' + (myScore.points || 0) + ' points on the leaderboard. Keep hunting!</p></div></div>';
             }
             /* v4.5.4: Community Theme Vote card (shown when the event doc enables it) */
             html += '<div id="themeVoteCard"></div>';
@@ -7895,7 +7888,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 return (b.data.points || 0) - (a.data.points || 0);
             });
             if (!entries.length) {
-                el.innerHTML = '<div class="chat-empty">No scores yet. Start finding sp1ders to appear here!</div>';
+                el.innerHTML = '<div class="chat-empty">No scores yet.</div>';
                 return;
             }
             let html = '<div class="leaderboard-list">';
@@ -7910,53 +7903,6 @@ Furball found a sunbeam and is not moving for anyone.`;
             });
             html += '</div>';
             el.innerHTML = html;
-        }
-
-        async function syncMyScore() {
-            if (!currentUser) { openAuth(); return; }
-            const btn = $('syncMyScoreBtn'); if (btn) { btn.textContent = 'Syncing...'; btn.disabled = true; }
-            // Read local found sp1ders
-            const local = getFoundSp1ders();
-            const localFound = Object.keys(local).length;
-            // Calculate points from found sp1ders
-            let localPoints = 0;
-            const sp1ders = generateSp1derLocations();
-            Object.keys(local).forEach(function(id) {
-                const sp = sp1ders.find(function(s) { return s.id == id; });
-                if (sp) localPoints += sp.hidden ? 20 : 10;
-            });
-            const myName = (userProfile && userProfile.username) || (currentUser.displayName || currentUser.email.split('@')[0]);
-            try {
-                // Read current cloud score from sp1derDb.sp1derData
-                const dataRef = sp1derDb.collection('system').doc('sp1derData');
-                const doc = await dataRef.get();
-                const data = doc.exists ? doc.data() : {};
-                const allScores = data.sp1derScores || {};
-                const myScore = allScores[currentUser.uid] || { found: 0, points: 0 };
-                const cloudFound = myScore.found || 0;
-                const cloudPoints = myScore.points || 0;
-                // Only sync if different
-                if (localFound === cloudFound && localPoints === cloudPoints) {
-                    toast('Your score is already synced!');
-                    if (btn) { btn.textContent = 'Sync My Score'; btn.disabled = false; }
-                    return;
-                }
-                // Write updated score using transaction
-                await sp1derDb.runTransaction(async function(tx) {
-                    const tdoc = await tx.get(dataRef);
-                    const tdata = tdoc.exists ? tdoc.data() : {};
-                    const tscores = tdata.sp1derScores || {};
-                    tscores[currentUser.uid] = { found: localFound, points: localPoints, username: myName, updatedAt: Date.now() };
-                    tx.set(dataRef, { sp1derScores: tscores }, { merge: true });
-                });
-                // Update local cache
-                sp1derScores[currentUser.uid] = { found: localFound, points: localPoints, username: myName };
-                toast('Score synced: ' + localFound + ' sp1ders, ' + localPoints + ' points');
-                renderEventsLeaderboard();
-            } catch(e) {
-                toast('Sync failed: ' + e.message);
-            }
-            if (btn) { btn.textContent = 'Sync My Score'; btn.disabled = false; }
         }
 
         function renderEventsWinners() {
@@ -8108,163 +8054,6 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const idx = staff.findIndex(function(s) { return s.id === staffId; });
                 if (idx >= 0) { staff[idx].status = status; staff[idx].statusText = statusTexts[status] || status; await sp1derDb.collection('system').doc('sp1derData').set({ staffList: staff }, { merge: true }); toast('Status: ' + (statusTexts[status] || status)); } else { toast('Staff not found'); }
             } catch(e) { toast('Failed to update status'); }
-        }
-
-        /* ===== SP1DER HUNT ===== */
-        const SP1DER_TOTAL = 255;
-        const SP1DER_STARTER_LOCATIONS = [
-            { id: 1, name: 'Home Hero Spider', area: 'home', desc: 'Hidden in the hero text area on the Home page', hidden: true, x: 45, y: 30 },
-            { id: 2, name: 'Community Channel Spider', area: 'community', desc: 'In plain sight next to the channel list on the Community page', hidden: false, x: 10, y: 20 },
-            { id: 3, name: 'Games Search Spider', area: 'games', desc: 'In plain sight near the search bar on the Games page', hidden: false, x: 80, y: 15 },
-            { id: 4, name: 'Active Users Spider', area: 'activeusers', desc: 'In plain sight in the online count badge', hidden: false, x: 50, y: 10 },
-            { id: 5, name: 'Updates Header Spider', area: 'updates', desc: 'In plain sight in the changelog header', hidden: false, x: 70, y: 20 }
-        ];
-        let sp1dersPlaced = false;
-        let foundSp1ders = {};
-
-        function getFoundSp1ders() {
-            if (!currentUser) return {};
-            try { return JSON.parse(localStorage.getItem('sp1der_found_' + currentUser.uid) || '{}'); } catch(e) { return {}; }
-        }
-
-        function saveFoundSp1ders(data) {
-            if (!currentUser) return;
-            try { localStorage.setItem('sp1der_found_' + currentUser.uid, JSON.stringify(data)); } catch(e) {}
-        }
-
-        function updateSp1derCounter() {
-            const counter = $('sp1derCounter'); if (!counter) return;
-            if (!currentUser) { counter.style.display = 'none'; return; }
-            foundSp1ders = getFoundSp1ders();
-            const found = Object.keys(foundSp1ders).length;
-            const countEl = $('sp1derCount'); if (countEl) countEl.textContent = found;
-            counter.style.display = found > 0 ? 'flex' : 'none';
-        }
-
-        function generateSp1derLocations() {
-            // Generate 255 sp1der locations across all pages
-            const areas = ['home', 'community', 'games', 'activeusers', 'events', 'staff', 'aegis', 'updates', 'editor'];
-            const sp1ders = [];
-            // First 5 are the starter locations
-            SP1DER_STARTER_LOCATIONS.forEach(function(s) { sp1ders.push(s); });
-            // Generate the remaining 250
-            for (var i = 6; i <= 255; i++) {
-                const area = areas[Math.floor(Math.random() * areas.length)];
-                sp1ders.push({
-                    id: i,
-                    name: 'Sp1der #' + i,
-                    area: area,
-                    desc: 'Hidden on the ' + area + ' page',
-                    hidden: Math.random() > 0.2,
-                    x: Math.random() * 90 + 5,
-                    y: Math.random() * 80 + 10
-                });
-            }
-            return sp1ders;
-        }
-
-        function placeSp1dersInDOM() {
-            if (sp1dersPlaced) return;
-            sp1dersPlaced = true;
-            const sp1ders = generateSp1derLocations();
-            const currentView = document.querySelector('.panel.active');
-            if (!currentView) return;
-            const currentArea = currentView.id.replace('panel-', '');
-            // Place sp1ders for the current view
-            sp1ders.filter(function(s) { return s.area === currentArea; }).forEach(function(sp1der) {
-                placeSp1derInElement(sp1der, currentView);
-            });
-            updateSp1derCounter();
-        }
-
-        function placeSp1derInElement(sp1der, container) {
-            const el = document.createElement('span');
-            el.className = 'sp1der-hidden';
-            el.textContent = '🕷️';
-            el.style.left = sp1der.x + '%';
-            el.style.top = sp1der.y + '%';
-            el.title = 'Click to catch this Sp1der!';
-            el.dataset.sp1derId = sp1der.id;
-            el.dataset.sp1derName = sp1der.name;
-            el.dataset.sp1derHidden = sp1der.hidden;
-            if (sp1der.hidden) el.style.opacity = '0.08';
-            else el.style.opacity = '0.3';
-            el.onclick = function(e) { e.stopPropagation(); catchSp1der(sp1der); };
-            // Make sure container is position relative
-            const scroll = container.querySelector('.panel-scroll') || container;
-            if (getComputedStyle(scroll).position === 'static') scroll.style.position = 'relative';
-            scroll.appendChild(el);
-        }
-
-        function placeSp1dersForView(viewName) {
-            const sp1ders = generateSp1derLocations();
-            const panel = $('panel-' + viewName);
-            if (!panel) return;
-            // Clear old sp1ders
-            panel.querySelectorAll('.sp1der-hidden').forEach(function(el) { el.remove(); });
-            // Place new ones
-            sp1ders.filter(function(s) { return s.area === viewName; }).forEach(function(sp1der) {
-                placeSp1derInElement(sp1der, panel);
-            });
-            updateSp1derCounter();
-        }
-
-        async function catchSp1der(sp1der) {
-            if (!currentUser) { openAuth(); return; }
-            foundSp1ders = getFoundSp1ders();
-            if (foundSp1ders[sp1der.id]) {
-                toast('You already found this Sp1der!');
-                return;
-            }
-            // Mark as found locally
-            foundSp1ders[sp1der.id] = { name: sp1der.name, area: sp1der.area, foundAt: Date.now() };
-            saveFoundSp1ders(foundSp1ders);
-            // Award points
-            const points = sp1der.hidden ? 20 : 10;
-            const myUid = currentUser.uid;
-            const myName = (userProfile && userProfile.username) || (currentUser.displayName || currentUser.email.split('@')[0]);
-            // Write score to sp1derDb (DB2 - public read/write) using transaction
-            try {
-                const dataRef = sp1derDb.collection('system').doc('sp1derData');
-                await sp1derDb.runTransaction(async function(tx) {
-                    const doc = await tx.get(dataRef);
-                    const data = doc.exists ? doc.data() : {};
-                    const scores = data.sp1derScores || {};
-                    const entry = scores[myUid] || { found: 0, points: 0, username: myName };
-                    entry.found = (entry.found || 0) + 1;
-                    entry.points = (entry.points || 0) + points;
-                    entry.username = myName;
-                    entry.updatedAt = Date.now();
-                    scores[myUid] = entry;
-                    tx.set(dataRef, { sp1derScores: scores }, { merge: true });
-                });
-                // Update local cache
-                if (!sp1derScores[myUid]) sp1derScores[myUid] = { found: 0, points: 0, username: myName };
-                sp1derScores[myUid].found = (sp1derScores[myUid].found || 0) + 1;
-                sp1derScores[myUid].points = (sp1derScores[myUid].points || 0) + points;
-                sp1derScores[myUid].username = myName;
-            } catch(e) {}
-            // Show popup
-            showSp1derPopup(sp1der, points);
-            updateSp1derCounter();
-            // Remove the element
-            const el = document.querySelector('[data-sp1der-id="' + sp1der.id + '"]');
-            if (el) el.classList.add('found');
-        }
-
-        function showSp1derPopup(sp1der, points) {
-            const popup = $('sp1derPopup');
-            const title = $('sp1derPopupTitle');
-            const text = $('sp1derPopupText');
-            const pointsEl = $('sp1derPopupPoints');
-            if (title) title.textContent = 'Found ' + sp1der.name + '!';
-            if (text) text.textContent = sp1der.desc + (sp1der.hidden ? ' This was a hidden sp1der!' : '');
-            if (pointsEl) pointsEl.textContent = '+' + points + ' points';
-            if (popup) { popup.classList.add('show'); setTimeout(function() { if (popup.classList.contains('show')) closeSp1derPopup(); }, 5000); }
-        }
-
-        function closeSp1derPopup() {
-            const popup = $('sp1derPopup'); if (popup) popup.classList.remove('show');
         }
 
         /* ===== SERVER MANAGEMENT: EVENTS ===== */
@@ -8419,44 +8208,6 @@ Furball found a sunbeam and is not moving for anyone.`;
         /* old mgmtRemoveStaff moved above mgmtRefreshStaffList */
 
         /* ===== SERVER MANAGEMENT: SP1DERS ===== */
-        async function mgmtRefreshSp1ders() {
-            // Count total found and players from globalPopup.sp1derScores
-            let totalFound = 0;
-            let players = 0;
-            try {
-                const doc = await sp1derDb.collection('system').doc('sp1derData').get();
-                const scores = doc.exists ? (doc.data().sp1derScores || {}) : {};
-                Object.keys(scores).forEach(function(uid) {
-                    const entry = scores[uid];
-                    if (entry && entry.found > 0) { totalFound += entry.found; players++; }
-                });
-            } catch(e) {}
-            const foundEl = document.getElementById('mgmtSp1derFound');
-            const playersEl = document.getElementById('mgmtSp1derPlayers');
-            if (foundEl) foundEl.textContent = totalFound;
-            if (playersEl) playersEl.textContent = players;
-        }
-
-        async function mgmtResetSp1ders() { if (!requireAdminOwner()) return;
-            try {
-                // Reset all sp1der scores in globalPopup
-                await sp1derDb.collection('system').doc('sp1derData').set({ sp1derScores: {} }, { merge: true });
-                sp1derScores = {};
-                toast('All sp1der finds reset');
-                mgmtRefreshSp1ders();
-            } catch(e) { toast('Failed: ' + e.message); }
-        }
-
-        function mgmtGenerateSp1ders() {
-            sp1dersPlaced = false;
-            const activePanel = document.querySelector('.panel.active');
-            if (activePanel) {
-                const viewName = activePanel.id.replace('panel-', '');
-                placeSp1dersForView(viewName);
-            }
-            toast('Sp1ders regenerated for current page');
-        }
-
         /* ===== STAFF STATUS COMMANDS (chat integration) ===== */
         // Staff can use /left, /away, /break, /back in chat to set their status
         // This is handled in the handleCommand function
@@ -8600,7 +8351,6 @@ Furball found a sunbeam and is not moving for anyone.`;
             try { initAegisStatusListener(); } catch(e) {}
             try { initEventsListener(); } catch(e) {}
             try { initStaffListener(); } catch(e) {}
-            try { updateSp1derCounter(); } catch(e) {}
             try { Sp1derIndicators.initBell(); } catch(e) {}
         }, 100);
 
