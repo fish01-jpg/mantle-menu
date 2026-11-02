@@ -1143,8 +1143,10 @@ document.querySelectorAll("[data-launch]").forEach(function (btn) {
    is injected with a <base> pointing at the repo, so relative assets load too. */
 const REPO_APPS = {
   /* PolyTrack needs a CDN that serves real JS/WASM mime types for its module
-     bundle, so it runs off statically.io (which serves the GitHub repo). */
+     bundle + wasm, so it runs off rawcdn.githack.com (which serves the GitHub
+     repo). statically.io is the fallback. */
   polytrack: [
+    ["https://rawcdn.githack.com/fish01-jpg/polytrack/main/index.html", "https://rawcdn.githack.com/fish01-jpg/polytrack/main/"],
     ["https://cdn.statically.io/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.statically.io/gh/fish01-jpg/polytrack@main/"]
   ],
   fluid: [
