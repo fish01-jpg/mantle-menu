@@ -41,7 +41,7 @@
     --text-3: #9a9a9d;
     --text-4: #6e6e71;
     --ease: cubic-bezier(0.4, 0, 0.2, 1);
-    --grid-cell: 24px;
+    --grid-cell: 14px;
   }
 
   * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
@@ -748,7 +748,7 @@
   const ctx = canvas && canvas.getContext("2d");
   if (!el || !canvas || !ctx) return;
 
-  const CELL = 24, REACH = 2.6, MAX_LIT = 540, AVOID = "[data-grid-avoid]", AVOID_BLOCK = "data-grid-avoid-block";
+  const CELL = 14, REACH = 2.6, MAX_LIT = 180, AVOID = "[data-grid-avoid]", AVOID_BLOCK = "data-grid-avoid-block";
   const HUE_TOP = 30, HUE_MID = 220, HUE_BOT = 125;
   const TINTS = [72, 65, 58, 51, 44], FAINT = 0.13, PAD = 14, FADE = 1.1, FADE_IN = 160, FADE_OUT = 750;
   const easeOut = t => 1 - (1 - t) * (1 - t), easeIn = t => t * t;
