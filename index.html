@@ -748,7 +748,7 @@
   const ctx = canvas && canvas.getContext("2d");
   if (!el || !canvas || !ctx) return;
 
-  const CELL = 24, REACH = 2.6, MAX_LIT = 180, AVOID = "[data-grid-avoid]", AVOID_BLOCK = "data-grid-avoid-block";
+  const CELL = 24, REACH = 2.6, MAX_LIT = 540, AVOID = "[data-grid-avoid]", AVOID_BLOCK = "data-grid-avoid-block";
   const HUE_TOP = 30, HUE_MID = 220, HUE_BOT = 125;
   const TINTS = [72, 65, 58, 51, 44], FAINT = 0.13, PAD = 14, FADE = 1.1, FADE_IN = 160, FADE_OUT = 750;
   const easeOut = t => 1 - (1 - t) * (1 - t), easeIn = t => t * t;
@@ -857,18 +857,25 @@
   }
 
   let visible = true, beat = 0;
-  function drift() {
-    beat = window.setTimeout(drift, 1800 + Math.random() * 2200);
-    if (!visible || document.hidden) return;
-    const cx = Math.floor(Math.random() * cols), cy = Math.floor(Math.random() * rows), radius = 1.4 + Math.random() * 1.6, span = Math.ceil(radius);
-    for (let dy = -span; dy <= span; dy++) {
-      for (let dx = -span; dx <= span; dx++) {
-        const away = Math.hypot(dx, dy);
-        if (away > radius) continue;
-        const nearness = 1 - away / radius;
-        light(cx + dx, cy + dy, 500 + nearness * 1300);
-      }
+  function explode(cx, cy, rings) {
+    /* shockwave: light ring after ring, expanding outward like a burst */
+    for (let ring = 0; ring <= rings; ring++) {
+      window.setTimeout(() => {
+        if (!visible || document.hidden) return;
+        for (let dy = -ring; dy <= ring; dy++) {
+          for (let dx = -ring; dx <= ring; dx++) {
+            const away = Math.hypot(dx, dy);
+            if (away > ring || away < ring - 1) continue;
+            light(cx + dx, cy + dy, 380 + Math.random() * 520);
+          }
+        }
+      }, ring * 70);
     }
+  }
+  function drift() {
+    beat = window.setTimeout(drift, 1600 + Math.random() * 2400);
+    if (!visible || document.hidden) return;
+    explode(Math.floor(Math.random() * cols), Math.floor(Math.random() * rows), 2 + Math.floor(Math.random() * 4));
   }
   beat = window.setTimeout(drift, 700);
 
@@ -888,134 +895,41 @@
 })();
 
 const TAGLINES = [
-  "Check out all these amazing lessons (none of these are actually lessons)",
-  "400+ unblocked games for when the teacher isn't looking",
-  "Your favorite games, all in one place... unlike your grades",
-  "The ultimate school gaming hub for professional procrastinators",
-  "Play now, learn never",
-  "Better than doing homework, trust me I checked",
-  "Teacher won't even notice, just keep that tab ready to switch",
-  "Join the Discord or I will touch you...",
-  "Secret games are hidden... you gotta find the secret word...",
-  "Made by the thugs, for the thugs",
-  "Your #1 source for unblocked lessons and bad life choices",
-  "Game on, or whatever the kids say these days",
-  "Chat, is this real?",
-  "Yk people think you actually learn on here?",
-  "If anyone asks, this is a research project",
-  "Hopefully your teacher doesnt check your browser history",
-  "If the site crashes, it's actually a feature",
-  "The code is held together by hopes and prayers",
-  "If you find a bug, just ignore it and keep playing",
-  "This site is 100% safe, I promise",
-  "Heyyyyyy this isnt your math homework",
-  "BOMBOCLATTTTTTTTTTTTTTTTTTTTT",
-  "Look at the cool backrounds @builder267 made",
-  "Ouuuuuh you not my type a lil shitttt",
-  "Ohhhh la laaaaa look at this new site design",
-  "The boss fish is watching. Always.",
-  "Swim with the fishes... literally, they run the place",
-  "Our bouncers have gills and zero patience",
-  "You click the boss fish, you catch these fins",
-  "Whats cookin good lookin?",
-  "Youuuuu are feeling VERYYYYY bored... and you want to play MOREEEE games",
-  "Hey google show me this guys balls please",
-  "My name is anderdingus",
-  "Yo speed my reboot card expires in...",
-  "Yo yo yo its hump day, what ima need you to do is tag three big di-",
-  "Wait what if the dev is really black tho...?",
-  "Hey Alexa how do you say purple in english?",
-  "Put the yager black ice in my ass",
-  "If this site doesnt work out im making an only fans",
-  "I try to add games as quick as possible",
-  "PLEASEEEE DONT WHIP ME ANYMORE",
-  "I miss the old kanye",
-  "Yo who can slide me their penjamin",
-  "Fadded than a hoe fadded than a hoe fadded than a hoe",
-  "If you're seeing this message its for quibby boy heheheheh",
-  "shush baka!~ your so mean to me thug-kun.. this is peak!",
-  "AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH",
-  "What if we kissed at the Fishes Arcade loading screen? Haha jk... unless?",
-  "My lawyer has advised me not to finish this senten—",
-  "Im changing my bloodline with this site frl",
-  "I can see your ip (thats a joke please dont sue me)",
-  "If you want to know my favorite game its bedwars on minecraft",
-  "You miss 95% of the shots you dont take",
-  "95% of gamblers give up right before they win",
-  "You're in a simulation GET OUT GET OUT GET OUT GET OUT GET OUT GET OUT GET OUT GET OUT GET OUT",
-  "We ALL going to tel aviv",
-  "Yo grok show me this guy with his pants off",
-  "If your reading this crtl+shift+q+q ur homies chromie",
-  "blah blah blah bleh bleh bleh blue blue blueeee",
-  "a fawk u mama huevo",
-  "japan is turning footseps into electricity",
-  "SHE GON CALL ME BABY BOO",
-  "ts so crispy",
-  "I WANNA BE A THUGGIE WUGGY",
-  "Do it jiggle doe?",
-  "Im bouta do a money spread",
-  "Teach me how to duggy teach me teach me how to duggy",
-  "W speed ❤️",
-  "Hello im the little goblin thats chained up and writing these quotes",
-  "Theres bug under your skin GET THEM OUT NOW",
-  "Too much radio not enough head",
-  "To be ballin you gotta b-all-in",
-  "lowkey im just better",
-  "It be the ones closest to you with the sharpest fangs",
-  "Yall be complaining about ads when you can LITERALLY turn them off in settings",
-  "Life is hard but im harder",
-  "Hoes mad",
-  "jarvis, more alcohol",
-  "I AM the lion",
-  "If one man can hold you down TWO can....",
-  "B.D.K.M.V",
-  "Dont make me up the pole on you mf",
-  "Alr bro ts was not the wind",
-  "Banana",
-  "Hey el slackero.",
-  "Do your work gng",
-  "Math class is boring why do you think i made this site?",
-  "Work is Overrated",
-  "billions must learn",
-  "If yo leg got cut off, would it hurt?",
-  "Imagine getting the tip of your dih dihheaded😔",
-  "ooouuu shiiii 👀",
-  "Im here with my boy soyung, hey! how you know nam?",
-  "vete a la verga",
-  "F-i-s-h-e-s  A-r-c-a-d-e",
-  "guess what? chicken butt",
-  "to confuse your enemy, u must confuse urself first",
-  "He made a statement so trash his gang CLOWNED on him",
-  "I'm just trinna play some peggle teach 💔",
-  "no YOU whatever",
-  "goddamn vickey I wish I met you 5 years ago",
-  "Tell your teacher I said wsg",
-  "Don't tell my mom I made this",
-  "Thugalicious still owes me 20 bucks",
-  "Might delete later idk",
-  "I think therefore I am",
-  "Thugalicious said I can't add the funny word so just imagine it here",
-  "I keep builder locked up in my basement chained to the wall ❤️❤️",
-  "Who that boy, who him is?",
-  "Is summer over already?",
-  "The dev is enjoying his summer break AS we speak",
-  "maybe.... oh like maybe we'll meet at a bar we'll drive a funky ehhhhhhhh",
-  "I think oliver tree made that song",
-  "So you just gonna bring me a birthday gift on my birthday to my birthday party on my birthday with a birthday gift? Uhhh happy birthday?",
-  "Yo this guy just said the same exact thing as me - Flight",
-  "My name is flight but you can call me ftc",
-  "I be thinkin about my bills and I be thinking about this guys bills.",
-  "Talkin bout me?",
-  "fockin glizzy bit me man!",
-  "excuse me sir, do you have a moment to talk about our lord and savior, Charlie Kirk?",
-  "excuse me sir there must be someone you've confused me for",
-  "excuse me sir i hope my horrible ugliness won't be a distraction to you",
-  "barsman69 on spotify and soundcloud, im the best rapper in the world",
-  "You're insane, You're in pain, I can tell by what you're sayinnng",
-  "DIAMONDS!, DIAMONDS!, DIAMONDS!. Thats la piece.... thats la piece",
-  "So from a distance you think you at it, you think you're looking at a dog and you look close.... why you looking at me like that?",
-  "I AM A F$#@KING ARCHITECT!",
-  "FLITHY PLATE licker"
+  "Warning: side effects include homework loss and unlimited W rizz",
+  "The fishes are judging your aim right now",
+  "These background explosions are emotional support explosions",
+  "Every square you see is a lesson somebody skipped",
+  "Certified fish-approved since approximately five minutes ago",
+  "Do NOT click the boss fish. He remembers faces.",
+  "Fresh out of the fryer, straight into your browser tab",
+  "My grades called. I sent them straight to voicemail.",
+  "Powered by fish oil and pure spite",
+  "If the teacher asks, this is definitely Google Classroom",
+  "One does not simply swim past the Fishes Arcade",
+  "The squares tripled. We take no responsibility for the mess.",
+  "Somewhere a fish just watched you miss that jump",
+  "100% of doctors say you should probably be doing homework",
+  "This tab is now legally classified as a math lesson",
+  "The boss fish would like a word with your manager",
+  "Rumor has it there is a secret word hidden somewhere around here...",
+  "The explosions in the background are load-bearing, do not remove",
+  "Fish genuinely just be swimming, man",
+  "Every color of this text is a whole new personality",
+  "We put the pro in procrastination",
+  "Loading vibes... please stand by",
+  "The bouncer fish checked your ID. You are cool.",
+  "Do not study, play games. Said no teacher ever.",
+  "This is both my villain origin story and an arcade",
+  "Caution: contents may contain fish",
+  "You are not bored, you are just pre-entertained",
+  "In case of fire, keep gaming",
+  "Technically this counts as reading practice",
+  "The new background text is unhinged and we stand by it",
+  "No fish were consulted in the making of these taglines",
+  "Your school filter tried its best and honestly, valid",
+  "Reel in the fun. Get it? Reel? ...I will see myself out.",
+  "The arcade is open 24/7 because fish do not sleep",
+  "Tell your teacher the squares are part of the curriculum",
 ];
 
 (function runTaglines() {
@@ -1031,6 +945,7 @@ const TAGLINES = [
     return TAGLINES[i];
   }
 
+  const randomColor = () => "hsl(" + Math.floor(Math.random() * 360) + " 85% 72%)";
   const speedFor = s => Math.max(24, Math.min(62, Math.round(1700 / Math.max(1, s.length))));
   const whenVisible = cb => {
     if (!document.hidden) return cb();
@@ -1055,12 +970,13 @@ const TAGLINES = [
       if (pos > 0) setTimeout(() => del(text, pos - 1), 11);
       else {
         const next = pick();
+        p.style.color = randomColor();
         setTimeout(() => whenVisible(() => type(next, 0, speedFor(next))), 380);
       }
     });
   }
 
-  setTimeout(() => { const first = pick(); type(first, 0, speedFor(first)); }, 900);
+  setTimeout(() => { const first = pick(); p.style.color = randomColor(); type(first, 0, speedFor(first)); }, 900);
 })();
 
 const SPIDER_PARTS = [

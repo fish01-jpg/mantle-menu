@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Sp1der — 4.5.7</title>
+    <title>Project Sp1der — 4.5.8</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -3578,6 +3578,13 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (!currentUser) return { signedIn: false, allDone: false, riskAccepted: false, items: [] };
             let prof = {};
             try { const snap = await db.collection('users').doc(currentUser.uid).get(); if (snap.exists) prof = snap.data() || {}; } catch (e) {}
+            /* Owners and anyone who sent 50+ messages in the last 2 weeks skip the checklist */
+            let bypass = false;
+            try { bypass = isOwner() || (prof.msgCount14d || 0) >= 50; } catch (e) {}
+            if (bypass) {
+                return { signedIn: true, allDone: true, riskAccepted: prof.arcadeRiskAccepted === true,
+                    items: [{ done: true, label: '👑 Owner or 50+ messages in the last 2 weeks — checklist bypassed' }] };
+            }
             const created = Date.parse(currentUser.metadata.creationTime || '') || Date.now();
             const ageSec = Math.max(0, (Date.now() - created) / 1000);
             const totalSec = Math.max(0, prof.activeSecTotal || 0);
@@ -5010,7 +5017,20 @@ Furball found a sunbeam and is not moving for anyone.`;
                 await msgDocRef.set(msg);
                 DB_MANAGER.incrementWrites(1);
                 setMessageSendStatus('Sent');
-                try { db.collection('users').doc(currentUser.uid).set({ msgCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }); } catch (e) {}
+                (async () => {
+                    /* count messages total + in a rolling 2-week window (for the arcade bypass) */
+                    try {
+                        const ref = db.collection('users').doc(currentUser.uid);
+                        const snap = await ref.get();
+                        const p = snap.exists ? (snap.data() || {}) : {};
+                        const ws = p.msgWindowStart ? new Date(p.msgWindowStart.seconds ? p.msgWindowStart.seconds * 1000 : p.msgWindowStart).getTime() : 0;
+                        const fresh = ws > 0 && (Date.now() - ws) < 14 * 24 * 3600 * 1000;
+                        const upd = { msgCount: firebase.firestore.FieldValue.increment(1) };
+                        if (fresh) upd.msgCount14d = firebase.firestore.FieldValue.increment(1);
+                        else { upd.msgCount14d = 1; upd.msgWindowStart = firebase.firestore.FieldValue.serverTimestamp(); }
+                        await ref.set(upd, { merge: true });
+                    } catch (e) {}
+                })();
                 clearComposerSafely(); if (editingMessage) { cancelEdit(); }
             } catch (e) {
                 // Server overload / rate limit / quota errors get one bounded retry on the same doc ref
@@ -6287,6 +6307,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.5.8', date: '2026-11-02', author: 'fish01-jpg', title: 'Arcade Gate Bypass, Explosive Arcade Background', changes: ["The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines"] },
             { version: '4.5.7', date: '2026-11-02', author: 'fish01-jpg', title: 'Fishes Arcade Active-User Gate, Stay Logged In', changes: ["The Fishes Arcade card on the Games page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox"] },
             { version: '4.5.6', date: '2026-11-02', author: 'fish01-jpg', title: 'Featured Card Opens the Fishes Arcade', changes: ["The featured card on the Games page is now the Fishes Arcade card:", "It still stands out - bigger than the other games, with the gradient border, glow and Featured badge", "Clicking it opens the Fishes Arcade itself in its own window, not the Sp1der Runner", "If your Games page card still says Project Sp1der or opens the Sp1der Runner, you are running an old copy: close the app window and open it again to get 4.5.6"] },
             { version: '4.5.5', date: '2026-11-02', author: 'fish01-jpg', title: 'Halloween Event Ended, Fishes Arcade Home', changes: ["Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt has ended: the hidden sp1ders, the Sp1ders counter, the hunt how-to-play guide and the admin Sp1der Hunt tab are all gone", "New featured Fishes Arcade card on the Games page - bigger than the other games, it opens the Fishes Arcade in its own window"] },
