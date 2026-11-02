@@ -316,7 +316,7 @@
   const branchInput = $("branchInput"), fetchBtn = $("fetchBtn"), notifBtn = $("notifBtn");
   const autoUpdate = $("autoUpdate"), trustedMain = $("trustedMain");
 
-  const LS_KEY = "__sp1der_runner_prefs_v1";
+  const LS_KEY = "__sp1der_runner_prefs_v2";
   const SOURCES = branch => [
     "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
     "https://cdn.statically.io/gh/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
@@ -336,7 +336,9 @@
   function loadPrefs() {
     try {
       const p = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-      if (typeof p.trusted === "boolean") trusted = p.trusted;
+      /* Remember login is ON by default so refreshing the app keeps you signed in.
+         It only turns off if you explicitly switch it off. */
+      trusted = p.trusted !== false;
       if (typeof p.branch === "string" && p.branch) branchInput.value = p.branch;
       if (p.autoUpdate) autoUpdate.checked = true;
     } catch (e) {}

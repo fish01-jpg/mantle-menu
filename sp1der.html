@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Sp1der — 4.5.6</title>
+    <title>Project Sp1der — 4.5.7</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -2649,6 +2649,28 @@
       </div>
     </div>
 
+    <!-- FISHES ARCADE ACTIVE-USER GATE -->
+    <div class="modal-overlay" id="arcadeGateModal">
+      <div class="modal-card" style="max-width:500px;">
+        <h2>Fishes Arcade — Active Users Only 🐟</h2>
+        <p style="margin-bottom:14px;color:var(--text-dim);font-size:0.9rem;">The arcade is for people who actually hang out here, not drive-bys. Complete the checklist — it only takes about five minutes:</p>
+        <div id="arcadeGateList" style="text-align:left;font-size:0.9rem;line-height:1.9;margin-bottom:14px;"></div>
+        <div id="arcadeGateRisk" style="display:none;text-align:left;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;">
+          <b>⚠️ Fair warning</b>
+          <p style="font-size:0.8rem;color:var(--text-dim);margin:8px 0;line-height:1.55;">The Fishes Arcade serves third-party games. We didn't make them, we can't control them, and we are NOT responsible for what they (or you) do. If a game eats your homework, leaks your password, gets your Chromebook confiscated, or deletes your save — that's on you, lol. Fish at your own risk.</p>
+          <label style="display:flex;gap:8px;align-items:flex-start;font-size:0.82rem;cursor:pointer;">
+            <input type="checkbox" id="arcadeRiskCheck" style="margin-top:3px;">
+            <span>I understand the risks of third-party games and promise not to blame Sp1der for my mistakes.</span>
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button class="composer-btn" onclick="closeArcadeGate()">Not yet</button>
+          <button class="composer-btn" id="arcadeGateRefresh" onclick="openFishesArcadeGate()">Re-check</button>
+          <button class="composer-btn primary" id="arcadeGateGo" onclick="acceptArcadeRisk()" style="display:none;">Enter the arcade</button>
+        </div>
+      </div>
+    </div>
+
     <!-- APP VIEWER -->
     <div id="appViewer">
         <div class="viewer-controls">
@@ -3510,8 +3532,8 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
 
         const runApp = (app) => {
-            // Featured card opens the Fishes Arcade in its own window
-            if (app.featured) { openFishesArcade(); return; }
+            // Featured card opens the Fishes Arcade (active users only)
+            if (app.featured) { openFishesArcadeGate(); return; }
             if (app.id === 'conner-polytrack') { window.location.assign(app.url); return; }
             if (app.id === 'codeeditor') { showView('editor'); return; }
             if (app.id === 'ytplayer') { openMusicModal(); return; }
@@ -3523,6 +3545,85 @@ Furball found a sunbeam and is not moving for anyone.`;
             }
             if ($('appViewer')) { $('appViewer').classList.add('open'); if ($('appIframe')) { if (app.html) { $('appIframe').src = URL.createObjectURL(new Blob([app.html], {type:'text/html'})); } else { $('appIframe').src = app.url || `https://raw.githack.com/mrfiggs/Arcane-Arena/refs/heads/main/assets/games/${app.id}/index.html`; } } } };
         const closeAppViewer = () => { if ($('appViewer')) $('appViewer').classList.remove('open'); if ($('appIframe')) $('appIframe').src = ''; };
+
+        /* ===== FISHES ARCADE ACTIVE-USER GATE =====
+           The featured Games card only opens the arcade for users who actually use Sp1der.
+           Progress is stored on the user's profile doc so it survives refreshes even without
+           browser storage (sandboxed host pages). All requirements are doable in ~5 minutes. */
+        const ARCADE_TODAY_KEY = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+        let arcadeActivityDate = null, arcadeActivityTimer = null;
+
+        function trackArcadeViews(viewName) {
+            if (!currentUser || !viewName) return;
+            try { db.collection('users').doc(currentUser.uid).set({ arcadeViews: firebase.firestore.FieldValue.arrayUnion(viewName) }, { merge: true }); } catch (e) {}
+        }
+        async function trackArcadeActivity() {
+            if (!currentUser || document.hidden) return;
+            const today = ARCADE_TODAY_KEY();
+            const reset = arcadeActivityDate !== today;
+            arcadeActivityDate = today;
+            try {
+                const upd = { activeSecTotal: firebase.firestore.FieldValue.increment(60), activeDate: today };
+                upd.activeSecToday = reset ? 60 : firebase.firestore.FieldValue.increment(60);
+                await db.collection('users').doc(currentUser.uid).set(upd, { merge: true });
+            } catch (e) {}
+        }
+        function startArcadeActivityTracking() {
+            if (arcadeActivityTimer) return;
+            trackArcadeActivity();
+            arcadeActivityTimer = setInterval(trackArcadeActivity, 60000);
+        }
+
+        async function getArcadeGateStatus() {
+            if (!currentUser) return { signedIn: false, allDone: false, riskAccepted: false, items: [] };
+            let prof = {};
+            try { const snap = await db.collection('users').doc(currentUser.uid).get(); if (snap.exists) prof = snap.data() || {}; } catch (e) {}
+            const created = Date.parse(currentUser.metadata.creationTime || '') || Date.now();
+            const ageSec = Math.max(0, (Date.now() - created) / 1000);
+            const totalSec = Math.max(0, prof.activeSecTotal || 0);
+            const todaySec = (prof.activeDate === ARCADE_TODAY_KEY()) ? Math.max(0, prof.activeSecToday || 0) : 0;
+            const msgCount = prof.msgCount || 0;
+            const views = (prof.arcadeViews || []).length;
+            const fmt = s => { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+            const items = [
+                { done: true, label: 'Signed in to your account' },
+                { done: ageSec >= 300, label: 'Account at least 5 minutes old', detail: fmt(ageSec) + ' / 5:00' },
+                { done: msgCount >= 1, label: 'Sent at least one chat message', detail: msgCount + ' sent' },
+                { done: totalSec >= 300, label: 'Active at least 5 minutes total', detail: fmt(totalSec) + ' / 5:00' },
+                { done: todaySec >= 300, label: 'Active at least 5 minutes today', detail: fmt(todaySec) + ' / 5:00' },
+                { done: views >= 2, label: 'Visited at least 2 different pages', detail: views + ' / 2' }
+            ];
+            return { signedIn: true, items, allDone: items.every(i => i.done), riskAccepted: prof.arcadeRiskAccepted === true };
+        }
+
+        async function openFishesArcadeGate() {
+            if (!currentUser) { openAuth(); return; }
+            const st = await getArcadeGateStatus();
+            if (st.allDone && st.riskAccepted) { openFishesArcade(); return; }
+            const m = $('arcadeGateModal'); if (!m) return;
+            const list = $('arcadeGateList'), risk = $('arcadeGateRisk'), go = $('arcadeGateGo'), refresh = $('arcadeGateRefresh');
+            list.innerHTML = st.items.map(i => '<div style="display:flex;gap:8px;"><span>' + (i.done ? '✅' : '⬜') + '</span><span>' + i.label + (i.detail ? ' <span style="color:var(--text-faint);font-family:var(--font-mono);font-size:0.76rem;">(' + i.detail + ')</span>' : '') + '</span></div>').join('');
+            if (st.allDone) {
+                risk.style.display = 'block';
+                go.style.display = 'inline-flex';
+                refresh.style.display = 'none';
+            } else {
+                risk.style.display = 'none';
+                go.style.display = 'none';
+                refresh.style.display = 'inline-flex';
+            }
+            m.classList.add('active');
+        }
+        function closeArcadeGate() {
+            const m = $('arcadeGateModal'); if (m) m.classList.remove('active');
+        }
+        async function acceptArcadeRisk() {
+            const check = $('arcadeRiskCheck');
+            if (check && !check.checked) { toast('Tick the box — you have to accept the risk first.'); return; }
+            try { await db.collection('users').doc(currentUser.uid).set({ arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true }); } catch (e) {}
+            closeArcadeGate();
+            openFishesArcade();
+        }
 
         /* Featured card: open the Fishes Arcade in its own about:blank window */
         const FISHES_ARCADE_SOURCES = [
@@ -4909,6 +5010,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 await msgDocRef.set(msg);
                 DB_MANAGER.incrementWrites(1);
                 setMessageSendStatus('Sent');
+                try { db.collection('users').doc(currentUser.uid).set({ msgCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }); } catch (e) {}
                 clearComposerSafely(); if (editingMessage) { cancelEdit(); }
             } catch (e) {
                 // Server overload / rate limit / quota errors get one bounded retry on the same doc ref
@@ -6185,6 +6287,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.5.7', date: '2026-11-02', author: 'fish01-jpg', title: 'Fishes Arcade Active-User Gate, Stay Logged In', changes: ["The Fishes Arcade card on the Games page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox"] },
             { version: '4.5.6', date: '2026-11-02', author: 'fish01-jpg', title: 'Featured Card Opens the Fishes Arcade', changes: ["The featured card on the Games page is now the Fishes Arcade card:", "It still stands out - bigger than the other games, with the gradient border, glow and Featured badge", "Clicking it opens the Fishes Arcade itself in its own window, not the Sp1der Runner", "If your Games page card still says Project Sp1der or opens the Sp1der Runner, you are running an old copy: close the app window and open it again to get 4.5.6"] },
             { version: '4.5.5', date: '2026-11-02', author: 'fish01-jpg', title: 'Halloween Event Ended, Fishes Arcade Home', changes: ["Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt has ended: the hidden sp1ders, the Sp1ders counter, the hunt how-to-play guide and the admin Sp1der Hunt tab are all gone", "New featured Fishes Arcade card on the Games page - bigger than the other games, it opens the Fishes Arcade in its own window"] },
             { version: '4.5.4', date: '2026-11-01', author: 'redfish and p1xelf1n', title: 'Sigma Security Agent + Sigma Remote + Omega AI, testing the AIs', changes: ["Sigma:", "Sigma is the new security agent for Aegis / Sp1der - when Aegis calls it (@sigma in chat, or from the Sigma Remote) it can pause the current chat for review", "While Sigma is engaged the selected page (or every page) turns red with a border, a SIGMA banner appears and all user input is locked out", "The AI can select specific users who are allowed to talk during the review - everyone else stays locked until Sigma releases the chat", "Sigma can save and view all raw user data from the Remote, scan recent chat for suspicious activity and run a full network audit", "Remote:", "New separate page: the Sigma Remote - it connects to the main site chats, lets the AI type in them as Aegis AI, and runs every Sigma command", "The Remote can highlight any element on the main site in red so you can see exactly what Sigma is doing", "Sigma commands exist in the main site code but can only be executed through the Remote - typing them in chat just points you to the Remote", "Over 25 remote commands: pause, lock, allow, highlight, scan, audit, viewdata, savedata, broadcast, alert, banner, redirect, reload, slowmode, chatlock and more", "Games:", "Added Conner's Polytrack Project to the Games panel; clicking the card redirects to https://education.framer.photos in the current tab.", "Card description: Conner's Polytrack Project- does not work on school chromebook", "", "Typing bar (added November 1):", "When someone is writing a message in the conversation you have open, a small line appears above the composer: Allison is typing... with animated dots", "Shows for the Global chat, DMs and group chats; you never see your own typing indicator", "The indicator starts when a draft has text, refreshes about every 2.5 seconds while typing continues, disappears when the message is sent or the draft is cleared, and expires by itself after 6 seconds", "Each member's typing entry is stored under their own user ID, so nobody can fake someone else typing", "", "Notification numbers (added November 1):", "Every conversation in the Community sidebar now shows a red number badge with the count of unread messages", "The Community item in the sidebar shows the total number of unread messages across all your conversations", "The Events item shows a 1 badge until you open the newest event", "New notification bell in the top bar with the number of unread personal notifications - click it to see announcements, broadcasts and staff messages, and they are marked read when you open it", "Unread counts are remembered per conversation, survive page refreshes, and clear when you open that conversation while it is on screen", "", "Community Theme Vote event (added November 1):", "New event: vote for the site's next look - Fall (warm autumn oranges and gold), Blue (cool deep-blue night), or keep Arcane (classic violet and gold)", "Both new themes are already available to preview in Settings - Appearance - Theme", "One vote per account and you can change it while the event is active; AI accounts do not vote", "Live tallies with vote counts and percentage bars are shown to everyone, and the final result is displayed when the event ends", "", "Furry title (added November 1):", "The Furry title (cosmeticTitle furry on an account) now grants the Furry bonus commands to whoever holds it - /dragon, /purr, /cat, /nap, /yarn, /zoomies, /fortune and /furhelp", "The title gives ONLY those commands: it grants no staff, moderation or any other powers anywhere on the site", "All staff roles keep access to the Furry commands, and the title never overrides rank - a member with the title stays a member, and staff with the title keep their staff status displayed", "Granting the title is owner/AI only: set cosmeticTitle to furry on the account's user document (Remote Manager raw editor); regular members and staff cannot set it on themselves", "The cyan Furry badge now shows on messages and profiles for anyone holding the title, not just the Furball accounts"] },
@@ -7442,6 +7545,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         /* ===== 17. VIEW MANAGEMENT ===== */
         function showView(viewName) {
             if (viewName === 'admin' && !isAdminPanelOwner()) { toast('Admin panel is for owners only'); viewName = 'home'; }
+            try { trackArcadeViews(viewName); } catch (e) {}
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             const panel = $('panel-' + viewName);
@@ -8352,6 +8456,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             try { initAegisStatusListener(); } catch(e) {}
             try { initEventsListener(); } catch(e) {}
             try { initStaffListener(); } catch(e) {}
+            try { startArcadeActivityTracking(); } catch(e) {}
             try { Sp1derIndicators.initBell(); } catch(e) {}
         }, 100);
 
