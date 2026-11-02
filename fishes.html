@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sp1der Runner</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96' fill='none'%3E%3Cg stroke='%238b5cf6' stroke-width='6' stroke-linecap='round' fill='none'%3E%3Cpath d='M40 40 C30 32 22 24 24 10'/%3E%3Cpath d='M56 40 C66 32 74 24 72 10'/%3E%3Cpath d='M46 38 C40 28 38 18 38 6'/%3E%3Cpath d='M50 38 C56 28 58 18 58 6'/%3E%3Cpath d='M40 56 C30 64 22 72 24 86'/%3E%3Cpath d='M56 56 C66 64 74 72 72 86'/%3E%3Cpath d='M46 58 C40 68 38 78 38 90'/%3E%3Cpath d='M50 58 C56 68 58 78 58 90'/%3E%3C/g%3E%3Cellipse cx='48' cy='48' rx='24' ry='15' fill='%23f5b83d'/%3E%3Cpath d='M68 48 L90 35 L90 61 Z' fill='%23e8721f'/%3E%3Ccircle cx='38' cy='46' r='4.5' fill='%2317181c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0a0b;
+    --surface: #111112;
+    --surface-hover: #171718;
+    --border: rgba(255,255,255,0.08);
+    --text-1: #fafafa;
+    --text-2: #b0b0b3;
+    --text-3: #9a9a9d;
+    --text-4: #6e6e71;
+    --accent: #8b5cf6;
+    --accent-2: #f5b83d;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(620px 300px at 18% -10%, rgba(139,92,246,0.10), transparent 70%),
+      radial-gradient(560px 280px at 88% 110%, rgba(245,184,61,0.06), transparent 70%);
+    z-index: 0;
+  }
+  .bar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    background: rgba(10,10,11,0.92);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: 6px; }
+  .brand svg { width: 34px; height: 34px; display: block; }
+  .brand-name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .brand-name em { font-style: normal; color: var(--accent); }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-4);
+  }
+  .field input {
+    width: 86px;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    color: var(--text-1);
+    font: 500 13px 'Geist Mono', ui-monospace, monospace;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  .btn {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-1);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease);
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-hover); border-color: rgba(255,255,255,0.16); }
+  .btn:active { background: #1d1d1e; }
+  .btn-primary {
+    background: linear-gradient(135deg, #8b5cf6, #7c5cff);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 600;
+  }
+  .btn-primary:hover { background: linear-gradient(135deg, #9d76f8, #8d6dff); border-color: transparent; }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-2);
+    cursor: pointer;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .toggle:hover { border-color: rgba(255,255,255,0.16); }
+  .toggle input { position: absolute; opacity: 0; pointer-events: none; }
+  .toggle .switch {
+    width: 26px;
+    height: 15px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    position: relative;
+    transition: background-color 0.15s var(--ease);
+    flex: none;
+  }
+  .toggle .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #d4d4d8;
+    transition: transform 0.15s var(--ease), background-color 0.15s var(--ease);
+  }
+  .toggle input:checked + .switch { background: var(--accent); }
+  .toggle input:checked + .switch::after { transform: translateX(11px); background: #fff; }
+  .toggle input:checked ~ .toggle-label { color: var(--text-1); }
+  .toggle-label { white-space: nowrap; }
+  .status {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 18px;
+    background: rgba(10,10,11,0.92);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-3);
+    font: 400 12px/1.4 'Geist Mono', ui-monospace, monospace;
+    letter-spacing: 0.01em;
+    min-height: 30px;
+  }
+  .status .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #6e6e71;
+    flex: none;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .status .dot.live { background: #4ade80; box-shadow: 0 0 8px rgba(74,222,128,0.5); }
+  .status .dot.err { background: #f87171; box-shadow: 0 0 8px rgba(248,113,113,0.5); }
+  .stage { position: relative; z-index: 1; flex: 1; min-height: 0; }
+  #app {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #000;
+  }
+  #splash {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    background: var(--bg);
+    transition: opacity 0.25s var(--ease);
+  }
+  #splash svg { width: 84px; height: 84px; }
+  #splash .ring {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.10);
+    border-top-color: rgba(255,255,255,0.55);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #splash p { margin: 0; color: var(--text-3); font-size: 13px; letter-spacing: 0.02em; }
+  @media (max-width: 720px) {
+    .bar { gap: 8px; padding: 10px 12px; }
+    .field input { width: 64px; }
+  }
+</style>
+</head>
+<body>
+<div id="glow" aria-hidden="true"></div>
+
+<header class="bar">
+  <div class="brand">
+    <svg viewBox="0 0 96 96" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="spLegs" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#7c5cff"/>
+        </linearGradient>
+      </defs>
+      <g stroke="url(#spLegs)" stroke-width="5" stroke-linecap="round" fill="none">
+        <path d="M40 40 C30 32 22 24 24 10"/>
+        <path d="M56 40 C66 32 74 24 72 10"/>
+        <path d="M46 38 C40 28 38 18 38 6"/>
+        <path d="M50 38 C56 28 58 18 58 6"/>
+        <path d="M40 56 C30 64 22 72 24 86"/>
+        <path d="M56 56 C66 64 74 72 72 86"/>
+        <path d="M46 58 C40 68 38 78 38 90"/>
+        <path d="M50 58 C56 68 58 78 58 90"/>
+      </g>
+      <path d="M42 34 L48 24 L56 34 Z" fill="#e8721f"/>
+      <path d="M42 62 L48 72 L56 62 Z" fill="#e8721f" opacity="0.9"/>
+      <ellipse cx="48" cy="48" rx="24" ry="15" fill="#f5b83d"/>
+      <ellipse cx="48" cy="52" rx="16" ry="7" fill="#ffd9a8" opacity="0.45"/>
+      <path d="M68 48 L90 35 L90 61 Z" fill="#e8721f"/>
+      <circle cx="38" cy="46" r="4.5" fill="#17181c"/>
+      <circle cx="39.5" cy="44.5" r="1.4" fill="#fff"/>
+      <path d="M30 52 Q34 55 38 52" stroke="#7c4a0e" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <span class="brand-name">Sp1der <em>Runner</em></span>
+  </div>
+  <div class="controls">
+    <label class="field" title="Branch to fetch the app from">
+      <span class="field-label">branch</span>
+      <input id="branchInput" value="main" spellcheck="false" autocomplete="off" aria-label="Branch">
+    </label>
+    <button class="btn btn-primary" id="fetchBtn">Fetch & run</button>
+    <button class="btn" id="notifBtn" title="Ask this browser for notification permission">Notifications</button>
+    <label class="toggle" title="Poll the CDNs and reload when a new version is published">
+      <input type="checkbox" id="autoUpdate">
+      <span class="switch"></span>
+      <span class="toggle-label">Auto-update when published</span>
+    </label>
+    <label class="toggle" title="Run the app with storage access so your login survives reloads">
+      <input type="checkbox" id="trustedMain">
+      <span class="switch"></span>
+      <span class="toggle-label">Remember login (trusted main)</span>
+    </label>
+  </div>
+</header>
+
+<div class="status" id="statusLine" role="status">
+  <span class="dot" id="statusDot"></span>
+  <span id="statusText">Booting…</span>
+</div>
+
+<div class="stage">
+  <iframe id="app" title="Project Sp1der" referrerpolicy="no-referrer"
+    allow="fullscreen; pointer-lock; gamepad; keyboard-map; clipboard-read; clipboard-write; camera; microphone; autoplay"></iframe>
+  <div id="splash" aria-hidden="true">
+    <svg viewBox="0 0 96 96" fill="none">
+      <g stroke="url(#spLegs2)" stroke-width="4.5" stroke-linecap="round" fill="none">
+        <defs>
+          <linearGradient id="spLegs2" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#7c5cff"/>
+          </linearGradient>
+        </defs>
+        <path d="M40 40 C30 32 22 24 24 10"/>
+        <path d="M56 40 C66 32 74 24 72 10"/>
+        <path d="M46 38 C40 28 38 18 38 6"/>
+        <path d="M50 38 C56 28 58 18 58 6"/>
+        <path d="M40 56 C30 64 22 72 24 86"/>
+        <path d="M56 56 C66 64 74 72 72 86"/>
+        <path d="M46 58 C40 68 38 78 38 90"/>
+        <path d="M50 58 C56 68 58 78 58 90"/>
+      </g>
+      <path d="M42 34 L48 24 L56 34 Z" fill="#e8721f"/>
+      <path d="M42 62 L48 72 L56 62 Z" fill="#e8721f" opacity="0.9"/>
+      <ellipse cx="48" cy="48" rx="24" ry="15" fill="#f5b83d"/>
+      <ellipse cx="48" cy="52" rx="16" ry="7" fill="#ffd9a8" opacity="0.45"/>
+      <path d="M68 48 L90 35 L90 61 Z" fill="#e8721f"/>
+      <circle cx="38" cy="46" r="4.5" fill="#17181c"/>
+      <circle cx="39.5" cy="44.5" r="1.4" fill="#fff"/>
+      <path d="M30 52 Q34 55 38 52" stroke="#7c4a0e" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div class="ring"></div>
+    <p id="splashText">Fetching main…</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function () {
+  const $ = id => document.getElementById(id);
+  const frame = $("app"), splash = $("splash"), splashText = $("splashText");
+  const statusDot = $("statusDot"), statusText = $("statusText");
+  const branchInput = $("branchInput"), fetchBtn = $("fetchBtn"), notifBtn = $("notifBtn");
+  const autoUpdate = $("autoUpdate"), trustedMain = $("trustedMain");
+
+  const LS_KEY = "__sp1der_runner_prefs_v1";
+  const SOURCES = branch => [
+    "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
+    "https://cdn.statically.io/gh/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
+    "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@" + branch + "/sp1der.html",
+    "https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@" + branch + "/sp1der.html",
+    "https://testingcf.jsdelivr.net/gh/fish01-jpg/mantle-menu@" + branch + "/sp1der.html",
+    "https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
+    "https://esm.sh/gh/fish01-jpg/mantle-menu@" + branch + "/sp1der.html"
+  ];
+  const SANDBOX_ISOLATED = "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads";
+  const FRAME_ALLOW = "fullscreen; pointer-lock; gamepad; keyboard-map; clipboard-read; clipboard-write; camera; microphone; autoplay";
+
+  let trusted = false;
+  let currentHtml = null, currentBranch = null, loadedAt = null;
+  let autoTimer = null, retryTimer = null, busy = false;
+
+  function loadPrefs() {
+    try {
+      const p = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+      if (typeof p.trusted === "boolean") trusted = p.trusted;
+      if (typeof p.branch === "string" && p.branch) branchInput.value = p.branch;
+      if (p.autoUpdate) autoUpdate.checked = true;
+    } catch (e) {}
+  }
+  function savePrefs() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        trusted: trusted,
+        branch: branchInput.value.trim() || "main",
+        autoUpdate: autoUpdate.checked
+      }));
+    } catch (e) {}
+  }
+
+  function setStatus(text, kind) {
+    statusText.textContent = text;
+    statusDot.className = "dot" + (kind === "live" ? " live" : kind === "err" ? " err" : "");
+  }
+
+  function statusLine(extra) {
+    if (!currentHtml) return "Booting…";
+    const v = parseVersion(currentHtml);
+    const time = loadedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    const mode = trusted ? "trusted main" : "isolated / login may reset";
+    return "Running version " + v + " (" + time + ") — " + mode + ", system" + (extra ? " · " + extra : "");
+  }
+
+  function parseVersion(html) {
+    const m = /<title>[^<]*Sp1der[^<]*?(\d+\.\d+\.\d+)[^<]*<\/title>/i.exec(html);
+    return m ? m[1] : "unknown";
+  }
+
+  function looksLikeApp(text) {
+    if (text.length < 2000) return false;
+    if (!/<html/i.test(text) || !/<script/i.test(text)) return false;
+    if (!text.includes("Project Sp1der")) return false;
+    if (/<title>[^<]*(blocked|restricted|denied|web filter|url filter|policy)[^<]*<\/title>/i.test(text)) return false;
+    return true;
+  }
+
+  async function fetchApp(branch) {
+    let lastErr = null;
+    for (const url of SOURCES(branch)) {
+      try {
+        const res = await fetch(url, { cache: "no-cache" });
+        if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
+        const html = await res.text();
+        if (!looksLikeApp(html)) throw new Error("didn't look like the Sp1der app");
+        return html;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error("all sources failed");
+  }
+
+  function install(html) {
+    currentHtml = html;
+    loadedAt = new Date();
+    frame.setAttribute("sandbox", SANDBOX_ISOLATED + (trusted ? " allow-same-origin" : ""));
+    frame.setAttribute("allow", FRAME_ALLOW);
+    frame.srcdoc = html;
+    splash.style.opacity = "0";
+    setTimeout(() => { if (splash.parentNode) splash.style.display = "none"; }, 300);
+    setStatus(statusLine(), "live");
+  }
+
+  async function run(branch, isRetry) {
+    branch = (branch || "main").trim().replace(/[^A-Za-z0-9._\-\/]/g, "") || "main";
+    if (busy) return;
+    busy = true;
+    clearTimeout(retryTimer);
+    currentBranch = branch;
+    if (!isRetry) {
+      splash.style.display = "flex";
+      splash.style.opacity = "1";
+      splashText.textContent = "Fetching " + branch + "…";
+      setStatus("Fetching " + branch + "…", "");
+    }
+    try {
+      const html = await fetchApp(branch);
+      install(html);
+    } catch (e) {
+      splash.style.display = "none";
+      setStatus("Couldn't fetch " + branch + " (" + (e && e.message ? e.message : e) + ") — retrying in 12s", "err");
+      retryTimer = setTimeout(() => { busy = false; run(branch, true); }, 12000);
+      busy = false;
+      return;
+    }
+    busy = false;
+  }
+
+  /* ---- notification relay (the app lives in a sandboxed frame with an opaque origin,
+          so it asks this page to show banners under this page's granted permission) ---- */
+  function framePost(msg) {
+    try { frame.contentWindow.postMessage(msg, "*"); } catch (e) {}
+  }
+  function notifPermission() {
+    return ("Notification" in window) ? Notification.permission : "unsupported";
+  }
+  function sendRelay() {
+    framePost({ type: "SP1DER_NOTIF_RELAY", permission: notifPermission(), problem: "" });
+  }
+  function replyResult(id, ok, error) {
+    framePost({ type: "SP1DER_NOTIF_RESULT", id: id, ok: ok, error: error });
+  }
+  function showNotification(data) {
+    const payload = data.data;
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      replyResult(data.id, false, "Notifications are not allowed for this page.");
+      return;
+    }
+    try {
+      const opts = data.options || {};
+      const n = new Notification(data.title || "Project Sp1der", {
+        body: opts.body || "",
+        tag: opts.tag,
+        silent: !!opts.silent
+      });
+      let shown = false;
+      n.onshow = () => { shown = true; replyResult(data.id, true); };
+      n.onerror = () => replyResult(data.id, false, "The notification could not be shown.");
+      n.onclick = () => {
+        try { n.close(); } catch (e) {}
+        window.focus();
+        framePost({ type: "SP1DER_NOTIF_CLICK", data: payload });
+      };
+      setTimeout(() => { if (!shown) replyResult(data.id, false, "The notification did not appear."); }, 2500);
+    } catch (err) {
+      replyResult(data.id, false, err && err.message ? err.message : String(err));
+    }
+  }
+  window.addEventListener("message", e => {
+    if (!frame || e.source !== frame.contentWindow) return;
+    const data = e.data;
+    if (!data || typeof data !== "object") return;
+    if (data.type === "SP1DER_NOTIF_HELLO") {
+      sendRelay();
+    } else if (data.type === "SP1DER_TAB_TITLE") {
+      if (data.title) document.title = String(data.title);
+    } else if (data.type === "SP1DER_NOTIF_REQUEST") {
+      if (!("Notification" in window)) { sendRelay(); return; }
+      Promise.resolve(Notification.requestPermission()).then(sendRelay, sendRelay);
+    } else if (data.type === "SP1DER_NOTIFY") {
+      showNotification(data);
+    }
+  });
+
+  notifBtn.addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      setStatus(statusLine("notifications unsupported here"), "live");
+      return;
+    }
+    try { await Notification.requestPermission(); } catch (e) {}
+    sendRelay();
+    setStatus(statusLine("notifications " + Notification.permission), "live");
+  });
+
+  /* ---- controls ---- */
+  fetchBtn.addEventListener("click", () => { savePrefs(); run(branchInput.value); });
+  branchInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); savePrefs(); run(branchInput.value); }
+  });
+
+  trustedMain.addEventListener("change", () => {
+    trusted = trustedMain.checked;
+    savePrefs();
+    if (currentHtml) {
+      /* re-running the app is required for the sandbox change to take effect */
+      install(currentHtml);
+      setStatus(statusLine("reloaded " + (trusted ? "trusted main" : "isolated")), "live");
+    }
+  });
+
+  autoUpdate.addEventListener("change", () => {
+    savePrefs();
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    if (autoUpdate.checked) autoTimer = setInterval(checkUpdate, 45000);
+  });
+
+  async function checkUpdate() {
+    if (!currentBranch || !currentHtml || busy) return;
+    try {
+      const html = await fetchApp(currentBranch);
+      if (html !== currentHtml) {
+        if (document.visibilityState !== "visible") {
+          /* wait until the tab is actually looked at to swap versions */
+          const onVis = () => {
+            if (document.visibilityState === "visible") {
+              document.removeEventListener("visibilitychange", onVis);
+              if (html) install(html);
+              setStatus(statusLine("update published — reloaded"), "live");
+            }
+          };
+          document.addEventListener("visibilitychange", onVis);
+          setStatus(statusLine("update published — reloads when you return"), "live");
+          return;
+        }
+        install(html);
+        setStatus(statusLine("update published — reloaded"), "live");
+      }
+    } catch (e) { /* transient CDN failure: keep running the current copy */ }
+  }
+
+  loadPrefs();
+  trustedMain.checked = trusted;
+  if (autoUpdate.checked) autoTimer = setInterval(checkUpdate, 45000);
+  run(branchInput.value);
+})();
+</script>
+</body>
+</html>

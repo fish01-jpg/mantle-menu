@@ -184,6 +184,79 @@
 
   .row[data-launch="spidercraft"] { --row-accent: #f5b83d; }
 
+  /* Featured Project Sp1der card — bigger than the rest, gradient border + glow */
+  .row-featured {
+    --row-accent: #8b5cf6;
+    grid-template-columns: 64px 1fr 24px;
+    padding: 26px 26px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      linear-gradient(135deg, #8b5cf6, #f5b83d 130%) border-box;
+    box-shadow: 0 0 44px -14px rgba(139, 92, 246, 0.38);
+    animation: featuredIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  @keyframes featuredIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+  }
+  .row-featured:hover {
+    background:
+      linear-gradient(var(--surface-hover), var(--surface-hover)) padding-box,
+      linear-gradient(135deg, #9d76f8, #ffc95e 130%) border-box;
+    box-shadow: 0 0 60px -12px rgba(139, 92, 246, 0.5);
+  }
+  .row-featured:focus-visible {
+    outline: 2px solid #8b5cf6;
+    outline-offset: 3px;
+  }
+  .row-featured .row-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    border-color: color-mix(in srgb, #8b5cf6 32%, transparent);
+    background:
+      radial-gradient(120% 120% at 30% 20%, rgba(139,92,246,0.16), rgba(245,184,61,0.05));
+  }
+  .row-featured .row-icon svg { width: 34px; height: 34px; }
+  .row-featured .row-name {
+    font-size: 17px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .featured-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2.5px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(135deg, #8b5cf6, #7c5cff);
+    box-shadow: 0 0 14px -4px rgba(139, 92, 246, 0.6);
+  }
+  .row-featured .row-desc {
+    font-size: 14px;
+    color: var(--text-2);
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    margin-top: 4px;
+  }
+  .row-featured .row-arrow { color: #8b5cf6; }
+  .row-featured .row-arrow svg { width: 20px; height: 20px; }
+  @media (max-width: 560px) {
+    .row-featured { grid-template-columns: 52px 1fr 20px; padding: 20px 18px; }
+    .row-featured .row-icon { width: 52px; height: 52px; }
+    .row-featured .row-icon svg { width: 28px; height: 28px; }
+  }
+
   .row-icon {
     width: 48px;
     height: 48px;
@@ -669,6 +742,42 @@
     </header>
 
     <div class="apps" aria-label="Applications">
+      <button class="row row-featured" data-launch="sp1der">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 96 96" fill="none" draggable="false">
+            <defs>
+              <linearGradient id="spLegsMenu" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#7c5cff"/>
+              </linearGradient>
+            </defs>
+            <g stroke="url(#spLegsMenu)" stroke-width="5.5" stroke-linecap="round" fill="none">
+              <path d="M40 40 C30 32 22 24 24 10"/>
+              <path d="M56 40 C66 32 74 24 72 10"/>
+              <path d="M46 38 C40 28 38 18 38 6"/>
+              <path d="M50 38 C56 28 58 18 58 6"/>
+              <path d="M40 56 C30 64 22 72 24 86"/>
+              <path d="M56 56 C66 64 74 72 72 86"/>
+              <path d="M46 58 C40 68 38 78 38 90"/>
+              <path d="M50 58 C56 68 58 78 58 90"/>
+            </g>
+            <path d="M42 34 L48 24 L56 34 Z" fill="#e8721f"/>
+            <path d="M42 62 L48 72 L56 62 Z" fill="#e8721f" opacity="0.9"/>
+            <ellipse cx="48" cy="48" rx="24" ry="15" fill="#f5b83d"/>
+            <ellipse cx="48" cy="52" rx="16" ry="7" fill="#ffd9a8" opacity="0.45"/>
+            <path d="M68 48 L90 35 L90 61 Z" fill="#e8721f"/>
+            <circle cx="38" cy="46" r="4.5" fill="#17181c"/>
+            <circle cx="39.5" cy="44.5" r="1.4" fill="#fff"/>
+            <path d="M30 52 Q34 55 38 52" stroke="#7c4a0e" stroke-width="2" stroke-linecap="round" fill="none"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Project Sp1der <span class="featured-badge">Featured</span></span>
+          <span class="row-desc">The whole Sp1der app — chat, events and the Sp1der Hunt — running in the Sp1der Runner</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
       <button class="row" data-launch="spidercraft">
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -1172,9 +1281,54 @@ async function launchSp1dercraft() {
   }
 }
 
+/* Project Sp1der — featured card opens the Sp1der Runner (fishes page) in a popup */
+const SP1DER_SOURCES = [
+  "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/fishes.html",
+  "https://cdn.statically.io/gh/fish01-jpg/mantle-menu/main/fishes.html",
+  "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html",
+  "https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html",
+  "https://testingcf.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html",
+  "https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/fishes.html",
+  "https://esm.sh/gh/fish01-jpg/mantle-menu@main/fishes.html"
+];
+const SP1DER_SPLASH_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:-apple-system,Arial,sans-serif}svg{width:84px;height:84px}.ring{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}</style></head><body><svg viewBox="0 0 96 96" fill="none"><g stroke="#8b5cf6" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M40 40 C30 32 22 24 24 10"/><path d="M56 40 C66 32 74 24 72 10"/><path d="M46 38 C40 28 38 18 38 6"/><path d="M50 38 C56 28 58 18 58 6"/><path d="M40 56 C30 64 22 72 24 86"/><path d="M56 56 C66 64 74 72 72 86"/><path d="M46 58 C40 68 38 78 38 90"/><path d="M50 58 C56 68 58 78 58 90"/></g><path d="M42 34 L48 24 L56 34 Z" fill="#e8721f"/><path d="M42 62 L48 72 L56 62 Z" fill="#e8721f" opacity="0.9"/><ellipse cx="48" cy="48" rx="24" ry="15" fill="#f5b83d"/><ellipse cx="48" cy="52" rx="16" ry="7" fill="#ffd9a8" opacity="0.45"/><path d="M68 48 L90 35 L90 61 Z" fill="#e8721f"/><circle cx="38" cy="46" r="4.5" fill="#17181c"/><path d="M30 52 Q34 55 38 52" stroke="#7c4a0e" stroke-width="2" stroke-linecap="round" fill="none"/></svg><div class="ring"></div><p>Opening Project Sp1der</p></body></html>`;
+
+function sp1derErrorHtml(reason) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Arial,sans-serif"><div style="text-align:center;color:#b0b0b3;max-width:440px;padding:20px"><h2 style="color:#fafafa;font-size:17px;font-weight:600;margin:0 0 10px">Project Sp1der couldn't load</h2><p style="font-size:14px;line-height:1.6;margin:0 0 8px">${reason}</p><p style="font-size:13px;color:#9a9a9d;margin:0">Close this window and relaunch from Fishes Arcade.</p></div></body></html>`;
+}
+
+async function launchSp1der() {
+  const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
+  if (!win) { alert("Please allow popups."); return; }
+  const d = win.document, spoof = pickSpoof();
+  armCloseGuard(win);
+  applySpoof(d, spoof); /* only while loading; the Runner takes over the tab title once it's in */
+  d.open(); d.write(SP1DER_SPLASH_HTML); d.close();
+  try {
+    let html = null, lastErr = null;
+    for (const url of SP1DER_SOURCES) {
+      try {
+        const res = await fetch(url, { cache: "no-cache" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const text = await res.text();
+        if (text.length < 500 || !/<html/i.test(text) || !text.includes("Sp1der Runner")) throw new Error("Invalid");
+        html = text;
+        break;
+      } catch (e) { lastErr = e; }
+    }
+    if (!html) throw lastErr || new Error("Failed");
+    d.open(); d.write(html); d.close();
+    console.info("[Fishes Arcade] Sp1der Runner served from " + SP1DER_SOURCES[0].split("/")[2] + " (fetched via CDN)");
+  } catch (e) {
+    d.open(); d.write(sp1derErrorHtml(e && e.message ? e.message : String(e))); d.close();
+  }
+}
+
 document.querySelectorAll("[data-launch]").forEach(function (btn) {
   btn.addEventListener("click", function () {
-    if (btn.getAttribute("data-launch") === "spidercraft") launchSp1dercraft();
+    const which = btn.getAttribute("data-launch");
+    if (which === "spidercraft") launchSp1dercraft();
+    else if (which === "sp1der") launchSp1der();
   });
 });
 
