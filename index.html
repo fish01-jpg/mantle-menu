@@ -182,11 +182,7 @@
     outline-offset: 3px;
   }
 
-  .row[data-launch="mineral"] { --row-accent: #22d3ee; }
-  .row[data-launch="basalt"]  { --row-accent: #ef4444; }
-  .row[data-launch="vent"]    { --row-accent: #06b6d4; }
-  .row[data-launch="slate"]   { --row-accent: #34d399; }
-  .row[data-launch="magma"]   { --row-accent: #fb923c; }
+  .row[data-launch="spidercraft"] { --row-accent: #f5b83d; }
 
   .row-icon {
     width: 48px;
@@ -502,6 +498,99 @@
     .callout-desc { font-size: 12px; }
     .callout-cta { padding: 6px 12px; font-size: 12px; }
   }
+
+  /* boss fish */
+  .boss-wrap { position: relative; display: inline-block; max-width: 100%; }
+  .boss-wrap .logo { cursor: pointer; transition: transform 0.16s ease; }
+  .boss-wrap .logo:active { transform: scale(0.985); }
+  .boss-fish-mouth-mad { display: none; }
+  .boss-wrap .logo.boss-mad .boss-fish-mouth-mad { display: block; }
+  .boss-wrap .logo.boss-mad .boss-fish-mouth { display: none; }
+  .boss-fish-brow { transition: transform 0.18s ease; }
+  .boss-wrap .logo.boss-mad .boss-fish-brow-l { transform: rotate(14deg) translateY(4px); }
+  .boss-wrap .logo.boss-mad .boss-fish-brow-r { transform: rotate(-14deg) translateY(4px); }
+  .boss-bubble {
+    position: absolute;
+    top: -2px;
+    right: -14px;
+    z-index: 20;
+    background: #18181b;
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #fafafa;
+    font: 500 13.5px/1.45 -apple-system, Arial, sans-serif;
+    padding: 10px 14px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 240px;
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .boss-bubble::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 18px;
+    width: 10px;
+    height: 10px;
+    background: #18181b;
+    border-right: 1px solid rgba(255,255,255,0.14);
+    border-bottom: 1px solid rgba(255,255,255,0.14);
+    transform: rotate(45deg);
+  }
+  .boss-bubble.boss-bubble-show { opacity: 1; transform: translateY(0) scale(1); }
+
+  /* bouncer fish */
+  .bouncer {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 92px;
+    cursor: pointer;
+    animation: bouncerBob 3.2s ease-in-out infinite;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .bouncer-left { left: 14px; }
+  .bouncer-right { right: 14px; animation-delay: 1.6s; }
+  @keyframes bouncerBob {
+    0%, 100% { margin-top: -7px; }
+    50% { margin-top: 7px; }
+  }
+  .bouncer-bubble {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    background: #18181b;
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #fafafa;
+    font: 500 12.5px/1.4 -apple-system, Arial, sans-serif;
+    padding: 8px 12px;
+    border-radius: 9px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .bouncer-bubble::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    margin-left: -4.5px;
+    background: #18181b;
+    border-right: 1px solid rgba(255,255,255,0.14);
+    border-bottom: 1px solid rgba(255,255,255,0.14);
+    transform: rotate(45deg);
+  }
+  .bouncer-bubble.bouncer-bubble-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (max-width: 760px) { .bouncer { display: none; } }
 </style>
 </head>
 
@@ -514,7 +603,7 @@
       if (window.__mantleBooted) return;
       var b = document.createElement("div");
       b.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:10001;background:#18181b;border:1px solid rgba(255,255,255,0.14);color:#fafafa;font:13px/1.5 -apple-system,Arial,sans-serif;padding:12px 18px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.5);text-align:center;max-width:88vw";
-      b.innerHTML = "<b>Mantle loaded an out-of-date copy.</b><br>Hold Ctrl and press R to refresh.";
+      b.innerHTML = "<b>Fishes Arcade loaded an out-of-date copy.</b><br>Hold Ctrl and press R to refresh.";
       (document.body || document.documentElement).appendChild(b);
     }, 2500);
   </script>
@@ -522,81 +611,73 @@
   <main>
     <header>
       <div class="brand-block" data-grid-avoid data-grid-avoid-block>
-        <img class="logo" src="https://mantleunblocked.github.io/assets/full%20logo.png" alt="Mantle" draggable="false">
-        <p class="tagline" id="tagline"><span id="tagText">A collection of web apps and utilities built for heavily networked environments like schools.</span><span class="caret" id="tagCaret" aria-hidden="true"></span></p>
+        <div class="boss-wrap">
+          <div class="boss-bubble" id="bossBubble" aria-hidden="true"></div>
+          <svg class="logo" id="bossFish" viewBox="0 0 380 240" width="320" height="202" role="img" aria-label="The Boss Fish" draggable="false">
+            <defs>
+              <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#ffe08a"/><stop offset="0.5" stop-color="#f5b83d"/><stop offset="1" stop-color="#b97e12"/>
+              </linearGradient>
+              <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#ff9a3d"/><stop offset="1" stop-color="#d95f18"/>
+              </linearGradient>
+            </defs>
+            <!-- bubbles -->
+            <circle cx="118" cy="52" r="6" fill="rgba(255,255,255,0.22)"/>
+            <circle cx="100" cy="34" r="3.5" fill="rgba(255,255,255,0.18)"/>
+            <circle cx="136" cy="26" r="2.5" fill="rgba(255,255,255,0.15)"/>
+            <!-- tail -->
+            <path d="M122 112 C92 88, 76 92, 60 72 C72 102, 58 122, 63 141 C58 160, 72 180, 60 208 C76 190, 92 192, 122 168 Z" fill="#e8721f"/>
+            <!-- body -->
+            <ellipse cx="205" cy="140" rx="92" ry="58" fill="url(#bodyGrad)"/>
+            <ellipse cx="205" cy="158" rx="70" ry="28" fill="#ffd9a8" opacity="0.5"/>
+            <!-- gill line -->
+            <path d="M158 122 C152 137, 152 152, 158 165" stroke="rgba(0,0,0,0.18)" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <!-- bottom fin -->
+            <path d="M195 197 C205 214, 225 214, 235 197 C222 202, 208 202, 195 197 Z" fill="#e8721f"/>
+            <!-- fedora -->
+            <g transform="rotate(-4 205 70)">
+              <path d="M165 88 C165 52, 175 34, 205 34 C235 34, 245 52, 245 88 Z" fill="#2b2f3a"/>
+              <rect x="164" y="73" width="82" height="13" rx="3" fill="#8e2430"/>
+              <ellipse cx="205" cy="88" rx="64" ry="13" fill="#23262e"/>
+            </g>
+            <!-- eyes -->
+            <circle cx="173" cy="122" r="13" fill="#fff"/>
+            <circle cx="173" cy="124" r="6" fill="#17181c"/>
+            <circle cx="237" cy="122" r="13" fill="#fff"/>
+            <circle cx="237" cy="124" r="6" fill="#17181c"/>
+            <!-- monocle -->
+            <circle cx="237" cy="122" r="20" stroke="url(#goldGrad)" stroke-width="4.5" fill="rgba(210,235,255,0.10)"/>
+            <path d="M237 142 C245 156, 254 163, 261 172" stroke="#f5b83d" stroke-width="2.5" fill="none"/>
+            <!-- brows -->
+            <g class="boss-fish-brow boss-fish-brow-l"><path d="M152 100 L190 108" stroke="#3a230c" stroke-width="7" stroke-linecap="round"/></g>
+            <g class="boss-fish-brow boss-fish-brow-r"><path d="M224 108 L262 100" stroke="#3a230c" stroke-width="7" stroke-linecap="round"/></g>
+            <!-- mouth (resting frown) -->
+            <path class="boss-fish-mouth" d="M185 170 Q208 158 231 170" stroke="#5c2604" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <path class="boss-fish-mouth-mad" d="M180 174 Q208 148 236 174" stroke="#5c2604" stroke-width="7" fill="none" stroke-linecap="round"/>
+            <!-- golden staff with fish -->
+            <rect x="312" y="52" width="11" height="152" rx="5.5" fill="url(#goldGrad)"/>
+            <ellipse cx="317" cy="38" rx="17" ry="9" fill="url(#goldGrad)"/>
+            <path d="M300 38 L288 30 L288 46 Z" fill="#c78f1c"/>
+            <circle cx="324" cy="36" r="2.2" fill="#17181c"/>
+            <!-- fin gripping the staff -->
+            <path d="M284 148 C300 140, 312 136, 320 132 L322 158 C310 160, 296 162, 286 164 Z" fill="#e8721f"/>
+          </svg>
+        </div>
+        <p class="tagline" id="tagline"><span id="tagText">An arcade that swims right past your school filter.</span><span class="caret" id="tagCaret" aria-hidden="true"></span></p>
       </div>
     </header>
 
     <div class="apps" aria-label="Applications">
-      <button class="row" data-launch="mineral">
+      <button class="row" data-launch="spidercraft">
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3 21 8 21 16 12 21 3 16 3 8 Z"/><path d="M3 8 12 13 21 8"/><path d="M12 13 12 21"/>
           </svg>
         </span>
         <span class="row-body">
-          <span class="row-name">Mineral</span>
-          <span class="row-desc">Play Minecraft in your browser</span>
-        </span>
-        <span class="row-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
-        </span>
-      </button>
-
-      <button class="row" data-launch="basalt">
-        <span class="row-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
-          </svg>
-        </span>
-        <span class="row-body">
-          <span class="row-name">Basalt</span>
-          <span class="row-desc">Browser-based FPS shooter</span>
-        </span>
-        <span class="row-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
-        </span>
-      </button>
-
-      <button class="row" data-launch="vent">
-        <span class="row-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="10" r="7"/><path d="M9 10h6v3a3 3 0 0 1-6 0v-3z"/><path d="M12 17v4"/><path d="M8 21h8"/>
-          </svg>
-        </span>
-        <span class="row-body">
-          <span class="row-name">Vent</span>
-          <span class="row-desc">A web recreation of Among Us</span>
-        </span>
-        <span class="row-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
-        </span>
-      </button>
-
-      <button class="row" data-launch="slate">
-        <span class="row-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2 14 10 22 12 14 14 12 22 10 14 2 12 10 10 Z"/>
-          </svg>
-        </span>
-        <span class="row-body">
-          <span class="row-name">Slate</span>
-          <span class="row-desc">Chat with frontier AI models</span>
-        </span>
-        <span class="row-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
-        </span>
-      </button>
-
-      <button class="row" data-launch="magma">
-        <span class="row-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M13 2 4 13.5 11 13.5 10.5 22 20 10.5 13 10.5 Z"/>
-          </svg>
-        </span>
-        <span class="row-body">
-          <span class="row-name">Magma</span>
-          <span class="row-desc">Unblock any website, on any network</span>
+          <span class="row-name">sp1dercraft</span>
+          <span class="row-desc">A copy of Eaglercraft — Minecraft in your browser</span>
         </span>
         <span class="row-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
@@ -605,33 +686,56 @@
     </div>
 
     <div class="community" data-grid-avoid>
-      <div class="discord-callout" id="discordCallout">
-        <button class="callout-close" id="calloutClose" type="button" aria-label="Dismiss announcement">&times;</button>
-        <div class="callout-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-        </div>
-        <div class="callout-body">
-          <span class="callout-title">Get every update</span>
-          <span class="callout-desc">New features, releases, and changes are announced in Discord before anywhere else.</span>
-        </div>
-        <a class="callout-cta" href="https://discord.gg/tzvrq8SmSm" target="_blank" rel="noopener noreferrer">Join</a>
+      <div class="bouncer bouncer-left" id="bouncerL" aria-hidden="false">
+        <div class="bouncer-bubble" id="bouncerLBubble"></div>
+        <svg viewBox="0 0 120 170" width="92" height="130" role="img" aria-label="Bouncer fish" draggable="false">
+          <!-- tail -->
+          <path d="M45 142 C38 160, 50 170, 60 166 C70 170, 82 160, 75 142 Z" fill="#3a76ad"/>
+          <!-- body -->
+          <ellipse cx="60" cy="95" rx="38" ry="52" fill="#4a8fd4"/>
+          <ellipse cx="60" cy="112" rx="27" ry="26" fill="#a8d4f0" opacity="0.45"/>
+          <!-- brows -->
+          <path d="M34 62 L52 57" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <path d="M68 57 L86 62" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <!-- sunglasses -->
+          <rect x="28" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <rect x="66" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <path d="M54 76 L66 76" stroke="#101318" stroke-width="3.5"/>
+          <path d="M28 74 L12 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M92 74 L108 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <!-- frown -->
+          <path d="M48 118 Q60 111 72 118" stroke="#14304d" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <!-- crossed fins -->
+          <path d="M25 106 L95 92" stroke="#2f6ea6" stroke-width="10" stroke-linecap="round"/>
+          <path d="M25 92 L95 106" stroke="#4a8fd4" stroke-width="10" stroke-linecap="round"/>
+          <!-- top fin -->
+          <path d="M45 48 C50 34, 70 34, 75 48" stroke="#3a76ad" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </svg>
       </div>
 
-      <a class="community-link" href="https://discord.gg/tzvrq8SmSm" target="_blank" rel="noopener noreferrer">
-        <svg class="community-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M20.32 4.37a19.79 19.79 0 0 0-4.88-1.52.07.07 0 0 0-.08.04 13.76 13.76 0 0 0-.61 1.25 18.29 18.29 0 0 0-5.5 0 12.55 12.55 0 0 0-.62-1.25.08.08 0 0 0-.08-.04 19.74 19.74 0 0 0-4.88 1.52.07.07 0 0 0-.03.03C.53 9.05-.32 13.58.1 18.06a.08.08 0 0 0 .03.06 19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.29 1.23-1.99a.08.08 0 0 0-.04-.11 13.1 13.1 0 0 1-1.87-.89.08.08 0 0 1 0-.13c.13-.1.25-.19.37-.29a.07.07 0 0 1 .08 0 14.2 14.2 0 0 0 12.06 0 .07.07 0 0 1 .08 0c.12.1.25.2.37.3a.08.08 0 0 1 0 .12 12.3 12.3 0 0 1-1.87.89.08.08 0 0 0-.04.11c.36.7.78 1.36 1.23 1.99a.08.08 0 0 0 .08.03 19.85 19.85 0 0 0 6-3.03.08.08 0 0 0 .03-.06c.5-5.18-.84-9.68-3.55-13.66a.06.06 0 0 0-.03-.03ZM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.95 2.42-2.16 2.42Z"/>
+      <div class="bouncer bouncer-right" id="bouncerR" aria-hidden="false">
+        <div class="bouncer-bubble" id="bouncerRBubble"></div>
+        <svg viewBox="0 0 120 170" width="92" height="130" role="img" aria-label="Bouncer fish" draggable="false">
+          <path d="M45 142 C38 160, 50 170, 60 166 C70 170, 82 160, 75 142 Z" fill="#3a76ad"/>
+          <ellipse cx="60" cy="95" rx="38" ry="52" fill="#4a8fd4"/>
+          <ellipse cx="60" cy="112" rx="27" ry="26" fill="#a8d4f0" opacity="0.45"/>
+          <path d="M34 62 L52 57" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <path d="M68 57 L86 62" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <rect x="28" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <rect x="66" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <path d="M54 76 L66 76" stroke="#101318" stroke-width="3.5"/>
+          <path d="M28 74 L12 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M92 74 L108 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M48 118 Q60 111 72 118" stroke="#14304d" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M25 106 L95 92" stroke="#2f6ea6" stroke-width="10" stroke-linecap="round"/>
+          <path d="M25 92 L95 106" stroke="#4a8fd4" stroke-width="10" stroke-linecap="round"/>
+          <path d="M45 48 C50 34, 70 34, 75 48" stroke="#3a76ad" stroke-width="6" fill="none" stroke-linecap="round"/>
         </svg>
-        <span class="community-text">Join the community Discord</span>
-        <svg class="community-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M15 3 21 3 21 9"/><path d="M10 14 21 3"/><path d="M21 14 21 19A2 2 0 0 1 19 21L5 21A2 2 0 0 1 3 19L3 5A2 2 0 0 1 5 3L10 3"/>
-        </svg>
-      </a>
+      </div>
     </div>
 
     <footer data-grid-avoid>
-      © 2026 Mantle
+      © 2026 Fishes Arcade · run by the fish family
     </footer>
   </main>
 
@@ -809,6 +913,10 @@ const TAGLINES = [
   "Look at the cool backrounds @builder267 made",
   "Ouuuuuh you not my type a lil shitttt",
   "Ohhhh la laaaaa look at this new site design",
+  "The boss fish is watching. Always.",
+  "Swim with the fishes... literally, they run the place",
+  "Our bouncers have gills and zero patience",
+  "You click the boss fish, you catch these fins",
   "Whats cookin good lookin?",
   "Youuuuu are feeling VERYYYYY bored... and you want to play MOREEEE games",
   "Hey google show me this guys balls please",
@@ -827,7 +935,7 @@ const TAGLINES = [
   "If you're seeing this message its for quibby boy heheheheh",
   "shush baka!~ your so mean to me thug-kun.. this is peak!",
   "AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH",
-  "What if we kissed at the Mantle loading screen? Haha jk... unless?",
+  "What if we kissed at the Fishes Arcade loading screen? Haha jk... unless?",
   "My lawyer has advised me not to finish this senten—",
   "Im changing my bloodline with this site frl",
   "I can see your ip (thats a joke please dont sue me)",
@@ -874,7 +982,7 @@ const TAGLINES = [
   "ooouuu shiiii 👀",
   "Im here with my boy soyung, hey! how you know nam?",
   "vete a la verga",
-  "M-a-n-t-l-e  H-u-b",
+  "F-i-s-h-e-s  A-r-c-a-d-e",
   "guess what? chicken butt",
   "to confuse your enemy, u must confuse urself first",
   "He made a statement so trash his gang CLOWNED on him",
@@ -955,111 +1063,16 @@ const TAGLINES = [
   setTimeout(() => { const first = pick(); type(first, 0, speedFor(first)); }, 900);
 })();
 
-(function initDiscordCallout() {
-  const callout = document.getElementById("discordCallout");
-  const closeBtn = document.getElementById("calloutClose");
-  if (!callout || !closeBtn) return;
-  const KEY = "mantle.discord.callout.dismissed.v1";
-  let dismissed = false;
-  try { dismissed = localStorage.getItem(KEY) === "1"; } catch (_) {}
-  if (dismissed) { callout.remove(); return; }
-  closeBtn.addEventListener("click", function (e) {
-    e.preventDefault(); e.stopPropagation();
-    try { localStorage.setItem(KEY, "1"); } catch (_) {}
-    callout.classList.add("is-dismissing");
-    setTimeout(function () { if (callout.parentNode) callout.remove(); }, 220);
-  });
-})();
-
-const DB_NAME = "mantle_cache", DB_VERSION = 1, STORE_NAME = "kv";
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE_NAME);
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = e => reject(e.target.error);
-  });
-}
-async function storageSet(key, value) {
-  try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).put(value, key);
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
-    });
-  } catch (e) { try { localStorage.setItem(key, value); return true; } catch (_) { return false; } }
-}
-async function storageGet(key) {
-  try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const req = tx.objectStore(STORE_NAME).get(key);
-      req.onsuccess = e => resolve(e.target.result || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch (e) { try { return localStorage.getItem(key); } catch (_) { return null; } }
-}
-
-const ROUTE_SOURCES = ["https://raw.githubusercontent.com/dobberr/cfg/main/r.txt", "https://cdn.jsdelivr.net/gh/dobberr/cfg@main/r.txt", "https://raw.githack.com/dobberr/cfg/main/r.txt", "https://cdn.statically.io/gh/dobberr/cfg/main/r.txt"];
-const ROUTES_CACHE = "mantle.routes.cache.v3";
-let routesData = null, routesPromise = null;
-
-function parseRoutes(text) {
-  const s = text.indexOf("{"), e = text.lastIndexOf("}");
-  if (s === -1 || e <= s) throw new Error("Malformed routing file");
-  const raw = JSON.parse(text.slice(s, e + 1)), out = {};
-  for (const k in raw) {
-    let url;
-    try { url = atob(raw[k]); } catch (_) { throw new Error("Routing entry not decodable: " + k); }
-    if (!/^https:\/\//.test(url)) throw new Error("Routing entry invalid: " + k);
-    out[k] = url;
-  }
-  if (!Object.keys(out).length) throw new Error("Routing file empty");
-  return out;
-}
-
-function getRoutes() {
-  if (routesData) return Promise.resolve(routesData);
-  if (routesPromise) return routesPromise;
-  routesPromise = (async () => {
-    const cachedText = await storageGet(ROUTES_CACHE);
-    if (cachedText && /MANTLE_ROUTES/.test(cachedText)) {
-      try { routesData = parseRoutes(cachedText); } catch (_) {}
-    }
-    for (const url of ROUTE_SOURCES) {
-      try {
-        const res = await fetch(url, { cache: "no-cache" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const text = await res.text();
-        if (text.length < 40 || !/MANTLE_ROUTES/.test(text)) throw new Error("Unexpected response");
-        const parsed = parseRoutes(text);
-        routesData = parsed;
-        storageSet(ROUTES_CACHE, text);
-        return parsed;
-      } catch (e) { console.warn("[Mantle] route source failed (" + (e && e.message ? e.message : e) + ")"); }
-    }
-    if (routesData) return routesData;
-    throw new Error("Routing file unreachable");
-  })().catch(e => { routesPromise = null; throw e; });
-  return routesPromise;
-}
-
-const MINERAL_SOURCES = [
-  "https://media.githubusercontent.com/media/dobberr/min/refs/heads/main/index.html",
-  "https://cdn.jsdelivr.net/gh/dobberr/min@main/index.html",
-  "https://fastly.jsdelivr.net/gh/dobberr/min@main/index.html",
-  "https://testingcf.jsdelivr.net/gh/dobberr/min@main/index.html",
-  "https://raw.githubusercontent.com/dobberr/min/refs/heads/main/index.html",
-  "https://raw.githack.com/dobberr/min/main/index.html",
-  "https://cdn.statically.io/gh/dobberr/min/main/index.html"
+const SPIDER_PARTS = [
+  "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/spidercraft.part1",
+  "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/spidercraft.part2",
+  "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/spidercraft.part3"
 ];
-const MINERAL_SPLASH_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}#mProg{color:#b0b0b3;font-size:12.5px;margin:0;min-height:1.4em;font-variant-numeric:tabular-nums}</style></head><body><div class="ring"></div><p>Loading Mineral</p><p id="mProg"></p></body></html>`;
+const SPIDER_BASE = "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/";
+const SPIDER_SPLASH_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}#sProg{color:#b0b0b3;font-size:12.5px;margin:0;min-height:1.4em;font-variant-numeric:tabular-nums}</style></head><body><div class="ring"></div><p>Loading sp1dercraft</p><p id="sProg"></p></body></html>`;
 
-function mineralErrorHtml(reason) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Arial,sans-serif"><div style="text-align:center;color:#b0b0b3;max-width:440px;padding:20px"><h2 style="color:#fafafa;font-size:17px;font-weight:600;margin:0 0 10px">Mineral couldn't load</h2><p style="font-size:14px;line-height:1.6;margin:0 0 8px">${reason}</p><p style="font-size:13px;color:#9a9a9d;margin:0">Close this window and relaunch from Mantle.</p></div></body></html>`;
+function spiderErrorHtml(reason) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Arial,sans-serif"><div style="text-align:center;color:#b0b0b3;max-width:440px;padding:20px"><h2 style="color:#fafafa;font-size:17px;font-weight:600;margin:0 0 10px">sp1dercraft couldn't load</h2><p style="font-size:14px;line-height:1.6;margin:0 0 8px">${reason}</p><p style="font-size:13px;color:#9a9a9d;margin:0">Close this window and relaunch from Fishes Arcade.</p></div></body></html>`;
 }
 
 function looksLikeBundle(text) {
@@ -1070,17 +1083,25 @@ function looksLikeBundle(text) {
   return true;
 }
 
-async function fetchBundleWithProgress(res, onProgress) {
-  if (!res.body || !res.body.getReader) return res.text();
-  const reader = res.body.getReader(), total = parseInt(res.headers.get("content-length") || "0", 10), chunks = [];
+async function fetchBytes(res, onProgress) {
+  if (!res.body || !res.body.getReader) {
+    const buf = await res.arrayBuffer();
+    onProgress(buf.byteLength, buf.byteLength);
+    return new Uint8Array(buf);
+  }
+  const reader = res.body.getReader(), chunks = [];
   let received = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     chunks.push(value); received += value.length;
-    onProgress(received, total);
+    onProgress(received, 0);
   }
-  return new Blob(chunks).text();
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
 }
 const fmtMB = n => (n / (1024 * 1024)).toFixed(1);
 
@@ -1105,198 +1126,112 @@ function armCloseGuard(win) {
   win.addEventListener("beforeunload", guard);
   win.onbeforeunload = guard;
 }
-function closeModal(id) {
-  const m = document.getElementById(id);
-  if (!m) return;
-  m.style.opacity = "0";
-  setTimeout(function () { m.remove(); }, 160);
-}
-
-async function resolveRoute(app) {
-  let routes;
-  try { routes = await getRoutes(); } catch (e) {
-    alert("Mantle couldn't load its routing file from any source.\n\nCheck your connection and try again. Details are in the console (F12).");
-    return null;
-  }
-  if (!routes[app]) {
-    alert("Mantle's routing file doesn't include this app.\n\nCheck r.txt in the routing repo includes a \"" + app + "\" entry.");
-    return null;
-  }
-  return routes[app];
-}
-
-function launchWithSpoof(url, showNoticeBanner = false) {
-  const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
-  if (!win) { alert("Please allow popups."); return; }
-  const d = win.document;
-  d.open(); d.write(`<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#000;overflow:hidden;width:100vw;height:100vh;"></body></html>`); d.close();
-  armCloseGuard(win); keepSpoofed(d, pickSpoof());
-  const frame = d.createElement('iframe');
-  frame.src = url; frame.style.width = "100vw"; frame.style.height = "100vh"; frame.style.border = "none"; frame.style.display = "block";
-  frame.setAttribute("allow", FRAME_ALLOW);
-  d.body.appendChild(frame);
-  if (showNoticeBanner) {
-    const banner = d.createElement('div');
-    banner.style.cssText = "position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 999999; width: 90%; max-width: 480px; background: #18181b; border: 1px solid rgba(255,255,255,0.14); color: #e4e4e7; padding: 16px 18px; border-radius: 10px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); display: flex; align-items: flex-start; gap: 12px; font-family: -apple-system, Arial, sans-serif; opacity: 0; transition: opacity 0.3s ease; box-sizing: border-box;";
-    banner.innerHTML = `<div style="flex: 1; font-size: 13.5px; line-height: 1.55;"><strong style="display: block; color: #fafafa; margin-bottom: 4px; font-size: 14px; font-weight: 600;">Account inactivity notice</strong><span style="color: #b0b0b3;">To keep Slate free for active users, any accounts left inactive for 3 months or more are automatically deleted. You can always remake an account if yours gets removed.</span></div><button style="background: transparent; border: none; color: #71717a; font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1; flex-shrink: 0;" aria-label="Close">&times;</button>`;
-    d.body.appendChild(banner);
-    const closeBtn = banner.querySelector('button');
-    let timeoutId;
-    function closeBanner() {
-      banner.style.opacity = '0';
-      setTimeout(() => { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 300);
-      clearTimeout(timeoutId);
-    }
-    closeBtn.onclick = closeBanner;
-    setTimeout(() => { banner.style.opacity = '1'; }, 80);
-    timeoutId = setTimeout(closeBanner, 20000);
-  }
-}
-
-async function launchMineral() {
+async function launchSp1dercraft() {
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
-  d.open(); d.write(MINERAL_SPLASH_HTML); d.close();
-  const prog = () => { try { return d.getElementById("mProg"); } catch (_) { return null; } };
-  for (const url of MINERAL_SOURCES) {
-    try {
-      const res = await fetch(url, { cache: "no-cache" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const text = await fetchBundleWithProgress(res, (got, total) => {
-        const p = prog();
-        if (!p) return;
-        p.textContent = total ? fmtMB(got) + " / " + fmtMB(total) + " MB" : fmtMB(got) + " MB loaded";
-      });
-      if (!looksLikeBundle(text)) throw new Error("Response wasn't the Mineral bundle");
-      const frame = d.createElement('iframe');
-      frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
-      frame.setAttribute("allow", FRAME_ALLOW);
-
-      let finalHtml = text;
-      if (!/<base\s/i.test(finalHtml)) {
-        try {
-          const baseUrl = new URL(url).href.substring(0, new URL(url).href.lastIndexOf('/') + 1);
-          const baseTag = '<base href="' + baseUrl + '">';
-          finalHtml = /<head[^>]*>/i.test(finalHtml)
-            ? finalHtml.replace(/<head[^>]*>/i, m => m + baseTag)
-            : baseTag + finalHtml;
-        } catch (e) {}
-      }
-
-      frame.srcdoc = finalHtml;
-      d.body.appendChild(frame);
-      applySpoof(d, spoof);
-      console.info("[Mantle] Mineral bundle (" + fmtMB(text.length) + " MB) served from " + new URL(url).host);
-      return;
-    } catch (e) { console.warn("[Mantle] Mineral mirror failed: " + url + " (" + (e && e.message ? e.message : e) + ")"); }
-  }
+  d.open(); d.write(SPIDER_SPLASH_HTML); d.close();
+  const prog = () => { try { return d.getElementById("sProg"); } catch (_) { return null; } };
   try {
-    const fallbackUrl = await resolveRoute("mineral");
-    if (fallbackUrl) {
-      console.warn("[Mantle] all Mineral mirrors unreachable, falling back to iframe route");
-      d.body.innerHTML = "";
-      const frame = d.createElement('iframe');
-      frame.src = fallbackUrl; frame.style.cssText = "width:100vw;height:100vh;border:none;display:block";
-      frame.setAttribute("allow", FRAME_ALLOW);
-      d.body.appendChild(frame);
-      return;
+    const buffers = [];
+    let got = 0, expectedTotal = 0;
+    for (const url of SPIDER_PARTS) {
+      const res = await fetch(url, { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
+      const cl = parseInt(res.headers.get("content-length") || "0", 10);
+      if (cl > 0) expectedTotal += cl;
+      const bytes = await fetchBytes(res, (r) => {
+        const p = prog();
+        if (p) p.textContent = fmtMB(got + r) + (expectedTotal ? " / " + fmtMB(expectedTotal) : "") + " MB";
+      });
+      buffers.push(bytes);
+      got += bytes.length;
     }
-  } catch (_) {}
-  d.open(); d.write(mineralErrorHtml("Every download mirror was unreachable on this network.")); d.close();
-}
-
-function showLinkChooser(cfg) {
-  const modalId = cfg.id + "-chooser-modal";
-  let existing = document.getElementById(modalId);
-  if (existing) existing.remove();
-  const optionsHtml = cfg.options.map(function (opt, i) {
-    return '<button type="button" class="link-option" data-chooser-url="' + opt.url + '" style="--accent:' + cfg.accent + ';' + (i < cfg.options.length - 1 ? 'margin-bottom:8px;' : '') + '"><span class="label">' + opt.label + '</span></button>';
-  }).join("");
-  const modal = document.createElement('div');
-  modal.id = modalId;
-  modal.style.cssText = "position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center; padding: 20px; font-family: 'Geist', -apple-system, sans-serif; opacity: 0; transition: opacity 0.16s ease;";
-  modal.innerHTML = '<div style="background: #0f0f11; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 26px; width: 100%; max-width: 440px; color: #e4e4e7; box-sizing: border-box;"><h2 style="font-size: 17px; font-weight: 600; letter-spacing: -0.012em; margin: 0 0 6px; color: #fafafa;">Choose a ' + cfg.app + ' ' + cfg.noun + '</h2><p style="font-size: 13px; color: #b0b0b3; margin: 0 0 18px; line-height: 1.55;">If ' + cfg.noun + ' #1 doesn\'t load on your network, try #2.</p>' + optionsHtml + '<button type="button" data-chooser-cancel style="width: 100%; margin-top: 14px; padding: 10px; background: transparent; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #b0b0b3; cursor: pointer; font-size: 13px; font-family: inherit; transition: background-color 0.15s ease, border-color 0.15s ease;">Cancel</button></div>';
-  document.body.appendChild(modal);
-  modal.querySelectorAll('[data-chooser-url]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const url = this.getAttribute('data-chooser-url');
-      closeModal(modalId);
-      launchWithSpoof(url, false);
-    });
-  });
-  modal.querySelector('[data-chooser-cancel]').addEventListener('click', function () { closeModal(modalId); });
-  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(modalId); });
-  requestAnimationFrame(function () { modal.style.opacity = "1"; });
-}
-
-function showBasaltChooser() {
-  showLinkChooser({ id: "basalt", app: "Basalt", noun: "server", accent: "#ef4444", options: [{ label: "Server #1", url: "https://basalt.mantle.dpdns.org/" }, { label: "Server #2 (if the first one doesn't work)", url: "https://basalt.mantleunblocked.workers.dev" }] });
-}
-
-function showVentChooser() {
-  showLinkChooser({ id: "vent", app: "Vent", noun: "relay", accent: "#06b6d4", options: [{ label: "Relay #1", url: "https://vent.mantleunblocked.workers.dev/" }, { label: "Relay #2 (if the first one doesn't work)", url: "https://vent.mantle.dpdns.org/" }] });
-}
-
-function openSlateLegalDocs() {
-  let existingModal = document.getElementById('slate-privacy-modal');
-  if (existingModal) existingModal.remove();
-  const modal = document.createElement('div');
-  modal.id = "slate-privacy-modal";
-  modal.style.cssText = "position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center; padding: 20px; font-family: 'Geist', -apple-system, sans-serif; opacity: 0; transition: opacity 0.16s ease;";
-  modal.innerHTML = '<div style="background: #0f0f11; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 28px; width: 100%; max-width: 640px; color: #e4e4e7; max-height: 85vh; overflow-y: auto; box-sizing: border-box;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 16px;"><h2 style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; color: #fafafa;">Slate legal agreements</h2><button class="modal-close" onclick="closeModal(\'slate-privacy-modal\')" aria-label="Close">&times;</button></div><div style="font-size: 14px; line-height: 1.65; color: #b0b0b3;"><p style="margin: 0 0 20px;">Last updated: 26 June 2026. By accessing and using the Slate AI platform (the "Service"), managed by the Slate operations team ("we", "us", or "our"), you agree to be legally bound by these Terms of Service and Privacy Policy.</p><h3 style="font-size: 14px; font-weight: 600; color: #fafafa; margin: 24px 0 12px 0;">Part 1: Terms of Service</h3><h4 style="font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #d4d4d8; margin: 0 0 6px 0;">1.1 Acceptance and capacity</h4><p style="margin: 0 0 16px;">By interacting with the Service, you confirm you have read, understood, and agreed to these Terms. If you are under the age of 18, you confirm that you have obtained the consent of a parent or legal guardian to access and use the Service.</p><h4 style="font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #d4d4d8; margin: 0 0 6px 0;">1.2 Acceptable use</h4><p style="margin: 0 0 16px;">You assume complete and sole responsibility for all content, prompts, and instructions you submit to the Service. You explicitly agree not to use the Service to generate malicious text, distribute malware, engage in harassment, perform illegal activities, or attempt to systematically abuse backend resource allocations.</p><h4 style="font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #d4d4d8; margin: 0 0 6px 0;">1.3 Limitation of liability</h4><p style="margin: 0 0 24px;">To the maximum extent permitted under UK law, we offer the Service strictly on an "as-is" and "as-available" basis without warranties of any kind. We shall not be liable for any indirect, loss of data, or circumstantial damages resulting from AI model outputs or sudden service interruptions.</p><div style="background: rgba(239, 68, 68, 0.04); border: 1px solid rgba(239, 68, 68, 0.18); border-radius: 8px; padding: 16px; margin-bottom: 24px;"><h4 style="font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #f87171; margin: 0 0 8px 0;">1.4 Slate [UNCENSORED] tier agreement</h4><p style="font-size: 13.5px; color: #fca5a5; margin: 0; line-height: 1.6;">Registered users executing queries via the invite-only <code style="font-family: \'Geist Mono\', monospace; font-size: 12.5px;">Slate [UNCENSORED]</code> model (requested through the Discord server) acknowledge full, sole, and exclusive accountability for all prompt strategies and outcomes. This specific model variant operates without traditional filters, so the generation of all content is driven strictly by user intent. The user assumes full legal and ethical responsibility for outputs encountered while utilizing this specific model variant.</p></div><h3 style="font-size: 14px; font-weight: 600; color: #fafafa; margin: 0 0 12px 0;">Part 2: Privacy Policy</h3><p style="margin: 0 0 16px;">We are committed to data minimization. This policy outlines how core parameters are processed cleanly and safely.</p><h4 style="font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #d4d4d8; margin: 0 0 6px 0;">2.1 Data we collect</h4><ul style="margin: 0 0 10px 0; padding-left: 22px;"><li style="margin-bottom: 5px;">Account username profile data</li><li style="margin-bottom: 5px;">Authentication email address</li><li style="margin-bottom: 5px;">Last active system timestamps</li><li style="margin-bottom: 5px;">Account initialization timestamps</li><li style="margin-bottom: 5px;">Cumulative totals of prompts sent and token payloads utilized</li></ul></div><button onclick="closeModal(\'slate-privacy-modal\')" style="width: 100%; margin-top: 22px; padding: 12px; background: #fafafa; color: #0a0a0b; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; font-size: 14px; font-family: inherit;">Close</button></div>';
-  document.body.appendChild(modal);
-  modal.addEventListener("click", function (e) { if (e.target === modal) closeModal('slate-privacy-modal'); });
-  requestAnimationFrame(() => { modal.style.opacity = "1"; });
-}
-
-function showSlateModal(onAccept) {
-  let existingModal = document.getElementById('slate-welcome-modal');
-  if (existingModal) existingModal.remove();
-  const slateLogo = "https://mantleunblocked.github.io/assets/Slate/Slate.png";
-  const modal = document.createElement('div');
-  modal.id = "slate-welcome-modal";
-  modal.style.cssText = "position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center; padding: 20px; font-family: 'Geist', -apple-system, sans-serif; opacity: 0; transition: opacity 0.16s ease;";
-  modal.innerHTML = '<div style="background: #0f0f11; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 28px; width: 100%; max-width: 500px; color: #e4e4e7; max-height: 90vh; overflow-y: auto; box-sizing: border-box;"><div style="text-align: center; margin-bottom: 22px;"><img src="' + slateLogo + '" alt="Slate" style="width: 46px; height: 46px; border-radius: 8px; margin-bottom: 14px; display: inline-block;"><h2 style="font-size: 19px; font-weight: 600; letter-spacing: -0.012em; margin: 0; color: #fafafa;">Welcome to Slate</h2><p style="font-size: 14px; color: #b0b0b3; margin: 6px 0 0 0;">Chat with frontier AI models, in your browser.</p></div><div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 18px; margin-bottom: 20px; line-height: 1.6;"><h3 style="font-size: 11px; text-transform: uppercase; color: #71717a; letter-spacing: 0.08em; margin: 0 0 10px 0; font-weight: 500;">What Slate can do</h3><p style="font-size: 13.5px; color: #b0b0b3; margin: 0 0 14px 0;">Slate assists you directly in your browser. Ask questions, draft and edit writing, summarise long documents, brainstorm ideas, work through problems step by step, or organise notes.</p><p style="font-size: 13px; color: #9a9a9d; margin: 0; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06);"><strong style="color: #d4d4d8; font-weight: 500;">Need a completely unrestricted model?</strong> We offer a private, uncensored version of Slate designed for home use. This version operates completely free of standard safety guardrails, giving you absolute freedom over your prompts. You can request access in our <a href="https://discord.gg/tzvrq8SmSm" target="_blank" rel="noopener noreferrer" style="color: #fafafa; text-decoration: underline; text-underline-offset: 2px;">Discord server</a>.</p></div><div style="margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"><label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;"><input type="checkbox" id="welcome-terms-checkbox" style="margin-top: 3px; width: 16px; height: 16px; accent-color: #fafafa; cursor: pointer; flex-shrink: 0;"><span style="font-size: 13.5px; color: #d4d4d8; line-height: 1.55;">I acknowledge that I have read and agree to the <a href="#" onclick="openSlateLegalDocs(); return false;" style="color: #fafafa; font-weight: 500; text-decoration: underline; text-underline-offset: 2px;">Terms of Service</a> and <a href="#" onclick="openSlateLegalDocs(); return false;" style="color: #fafafa; font-weight: 500; text-decoration: underline; text-underline-offset: 2px;">Privacy Policy</a>. I understand my legal responsibilities regarding acceptable use.</span></label></div><button id="welcome-dismiss-btn" disabled style="width: 100%; padding: 12px; background: #18181b; color: #52525b; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; font-weight: 500; cursor: not-allowed; font-size: 14px; font-family: inherit; transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;">Accept agreements to continue</button></div>';
-  document.body.appendChild(modal);
-  requestAnimationFrame(() => { modal.style.opacity = "1"; });
-  const btn = modal.querySelector('#welcome-dismiss-btn');
-  const checkbox = modal.querySelector('#welcome-terms-checkbox');
-  function updateLaunchState() {
-    if (checkbox.checked) {
-      btn.disabled = false; btn.innerText = 'Launch Slate'; btn.style.background = '#fafafa'; btn.style.color = '#0a0a0b'; btn.style.borderColor = '#fafafa'; btn.style.cursor = 'pointer';
-    } else {
-      btn.disabled = true; btn.innerText = 'Accept agreements to continue'; btn.style.background = '#18181b'; btn.style.color = '#52525b'; btn.style.borderColor = 'rgba(255,255,255,0.06)'; btn.style.cursor = 'not-allowed';
+    const combined = new Uint8Array(got);
+    let off = 0;
+    for (const b of buffers) { combined.set(b, off); off += b.length; }
+    const text = new TextDecoder("utf-8").decode(combined);
+    if (!looksLikeBundle(text)) throw new Error("The downloaded parts didn't look like the sp1dercraft bundle");
+    const frame = d.createElement("iframe");
+    frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
+    frame.setAttribute("allow", FRAME_ALLOW);
+    let finalHtml = text;
+    if (!/<base\s/i.test(finalHtml)) {
+      const baseTag = '<base href="' + SPIDER_BASE + '">';
+      finalHtml = /<head[^>]*>/i.test(finalHtml)
+        ? finalHtml.replace(/<head[^>]*>/i, m => m + baseTag)
+        : baseTag + finalHtml;
     }
+    frame.srcdoc = finalHtml;
+    d.body.appendChild(frame);
+    applySpoof(d, spoof);
+    console.info("[Fishes Arcade] sp1dercraft bundle (" + fmtMB(got) + " MB) served from raw.githubusercontent.com");
+  } catch (e) {
+    d.open(); d.write(spiderErrorHtml(e && e.message ? e.message : String(e))); d.close();
   }
-  checkbox.addEventListener('change', updateLaunchState);
-  btn.onclick = function() { if (!btn.disabled) { closeModal('slate-welcome-modal'); onAccept(); } };
-}
-
-async function launchSlate() {
-  showSlateModal(async function() {
-    const url = await resolveRoute("slate");
-    if (url) launchWithSpoof(url, true);
-  });
-}
-
-async function launchMagma() {
-  const url = await resolveRoute("magma");
-  if (url) launchWithSpoof(url, false);
 }
 
 document.querySelectorAll("[data-launch]").forEach(function (btn) {
   btn.addEventListener("click", function () {
-    const map = { mineral: launchMineral, basalt: showBasaltChooser, vent: showVentChooser, slate: launchSlate, magma: launchMagma };
-    const fn = map[btn.getAttribute("data-launch")];
-    if (fn) fn();
+    if (btn.getAttribute("data-launch") === "spidercraft") launchSp1dercraft();
   });
-  btn.addEventListener("pointerdown", function () { getRoutes(); }, { once: true });
 });
 
+(function initBossFish() {
+  const svg = document.getElementById("bossFish");
+  const bubble = document.getElementById("bossBubble");
+  if (!svg || !bubble) return;
+  const INSULTS = [
+    "You click like a fish out of water. Pathetic.",
+    "I've seen minnows with better aim.",
+    "Congratulations, you poked the Don. Real smart.",
+    "That was the weakest click I've ever seen.",
+    "Keep it up and you'll be sleeping with the humans.",
+    "My monocle costs more than your whole setup.",
+    "You're lucky you're not sushi yet.",
+    "The bouncers are watching you, pal."
+  ];
+  let last = -1, hideT = null;
+  svg.addEventListener("click", function () {
+    svg.classList.add("boss-mad");
+    let i;
+    do { i = Math.floor(Math.random() * INSULTS.length); } while (i === last && INSULTS.length > 1);
+    last = i;
+    bubble.textContent = INSULTS[i];
+    bubble.classList.add("boss-bubble-show");
+    clearTimeout(hideT);
+    hideT = setTimeout(function () {
+      bubble.classList.remove("boss-bubble-show");
+      svg.classList.remove("boss-mad");
+    }, 3400);
+  });
+})();
+
+(function initBouncers() {
+  const LINES = [
+    "You're not on the list.",
+    "Move along, kid.",
+    "Boss said no touching.",
+    "Keep clicking, see what happens.",
+    "This is a private reef."
+  ];
+  ["L", "R"].forEach(function (side) {
+    const el = document.getElementById("bouncer" + side);
+    const bubble = document.getElementById("bouncer" + side + "Bubble");
+    if (!el || !bubble) return;
+    let hideT = null;
+    el.addEventListener("click", function () {
+      bubble.textContent = LINES[Math.floor(Math.random() * LINES.length)];
+      bubble.classList.add("bouncer-bubble-show");
+      clearTimeout(hideT);
+      hideT = setTimeout(function () { bubble.classList.remove("bouncer-bubble-show"); }, 2600);
+    });
+  });
+})();
+
 window.__mantleBooted = true;
-console.info("[Mantle] hub ready · v6.11 (Patch injection removed; compat lives in the bundle)");
+console.info("[Fishes Arcade] hub ready · sp1dercraft edition");
 </script>
 </body>
 </html>
