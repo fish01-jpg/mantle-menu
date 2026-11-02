@@ -1144,8 +1144,10 @@ document.querySelectorAll("[data-launch]").forEach(function (btn) {
 const REPO_APPS = {
   /* PolyTrack needs a CDN that serves real JS/WASM mime types for its module
      bundle + wasm, so it runs off rawcdn.githack.com (which serves the GitHub
-     repo). statically.io is the fallback. */
+     repo). The primary URL is pinned to a commit SHA so every CDN cache agrees;
+     update the SHA here after pushing changes to the polytrack repo. */
   polytrack: [
+    ["https://rawcdn.githack.com/fish01-jpg/polytrack/2f5197068c599fc3a050488aaccbb4d431fb46c7/index.html", "https://rawcdn.githack.com/fish01-jpg/polytrack/2f5197068c599fc3a050488aaccbb4d431fb46c7/"],
     ["https://rawcdn.githack.com/fish01-jpg/polytrack/main/index.html", "https://rawcdn.githack.com/fish01-jpg/polytrack/main/"],
     ["https://cdn.statically.io/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.statically.io/gh/fish01-jpg/polytrack@main/"]
   ],
