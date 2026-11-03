@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Sp1der — 4.5.8</title>
+    <title>Project Sp1der — 4.5.9</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -2737,7 +2737,7 @@
         /* ============================================
            PROJECT SP1DER V4 — APPLICATION LOGIC
            ============================================ */
-        const APP_VERSION = '4.5.3';
+        const APP_VERSION = '4.5.9';
         function isNewerAppVersion(candidate, current = APP_VERSION) {
             const parse = value => {
                 const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/i);
@@ -4681,6 +4681,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             let messageLoaded = false;
             // Device alerts have independent listeners, including chats not currently open.
             currentMessageUnsub = baseQuery.limit(currentMessageLimit * 2).onSnapshot(snap => {
+                processForcedChatCommands(snap, channelId, { chat: 'main' }); // 4.5.9: run commands forced into this channel via Firestore
                 if (selectedChannelId !== channelId || !canReadConversation(myChannels[channelId])) return;
                 messageLoaded = true;
                 DB_MANAGER.incrementReads(snap.size || 1);
@@ -4936,6 +4937,87 @@ Furball found a sunbeam and is not moving for anyone.`;
                 }
             } catch(e) { /* silent - profiles will use defaults */ }
         }
+        /* ===== 4.5.9: FORCED CHAT COMMANDS (commands written straight to Firestore) =====
+           Commands typed in the composer are executed before anything is written to Firestore, so a
+           command message that is forced into the chat directly through the messages collection
+           (Firebase console, REST API, another client like the Sigma Remote) used to render as plain
+           text and never ran. This detector gives the AIs the same result from Firestore: new
+           command-shaped messages are claimed once (cmdHandled marker on the message doc, the same
+           claim idea as the Sigma command queue) and run through the normal command handlers.
+           Safety: only the AI accounts and the admin-panel owner execute forced commands, and only
+           for messages posted by their own account or by the AI itself - a command message forged
+           by another account is never executed with staff powers. */
+        const FORCED_CMD_FIRST_LOAD_WINDOW_MS = 15 * 60 * 1000; // on first load only pick up unmarked commands newer than this, so channel history is never replayed
+        const forcedCmdSeen = new Map(); // channelId -> Set of message ids already inspected this session
+        let forcedCmdQueue = Promise.resolve(); // run forced commands one at a time
+        function forcedCmdShape(m) {
+            const text = String((m && m.content) || '').trim();
+            if (!text) return null;
+            if (text.startsWith('/')) return { text: text, ai: false };
+            if (text.startsWith('@')) return { text: text, ai: true };
+            return null;
+        }
+        function forcedCmdTrusted(m) {
+            if (!currentUser || !m) return false;
+            if (m.uid === currentUser.uid) return true; // forced as this account (console / REST / automation)
+            if (isAegisUser()) { // the AI tab also runs commands posted by the AI itself
+                const role = String(m.role || '').toLowerCase();
+                const name = String(m.username || m.displayName || '').trim().toLowerCase();
+                if (role === 'aegis' || name === 'aegis ai' || name === 'sp1der') return true;
+            }
+            return false;
+        }
+        function processForcedChatCommands(snap, channelId, opts) {
+            try {
+                if (!snap || !currentUser || typeof channelId !== 'string' || !channelId) return;
+                if (!isAegisUser() && !isAdminPanelOwner()) return; // only the AIs (and the owner) execute forced commands
+                const seen = forcedCmdSeen.get(channelId);
+                const firstLoad = !seen;
+                const ids = seen || new Set();
+                const fresh = [];
+                snap.forEach(d => {
+                    if (ids.has(d.id)) return;
+                    ids.add(d.id);
+                    const m = d.data(); m.id = d.id;
+                    fresh.push(m);
+                });
+                forcedCmdSeen.set(channelId, ids);
+                const candidates = fresh.filter(m => {
+                    if (m.cmdHandled === true) return false; // already claimed and run by another tab
+                    if (!forcedCmdShape(m) || !forcedCmdTrusted(m)) return false;
+                    if (firstLoad) { // never replay channel history on first load
+                        const ts = m.timestamp ? (m.timestamp.toDate ? m.timestamp.toDate().getTime() : new Date(m.timestamp).getTime()) : 0;
+                        if (!ts || Date.now() - ts > FORCED_CMD_FIRST_LOAD_WINDOW_MS) return false;
+                    }
+                    return true;
+                });
+                if (!candidates.length) return;
+                forcedCmdQueue = forcedCmdQueue.then(() => runForcedChatCommands(candidates, channelId, opts)).catch(() => {});
+            } catch (e) { /* never break chat */ }
+        }
+        async function runForcedChatCommands(candidates, channelId, opts) {
+            const msgDb = (opts && opts.chat === 'aegis') ? DB_MANAGER.getCurrentMsgDb() : getMsgDbForCh(channelId);
+            for (const m of candidates) {
+                const shape = forcedCmdShape(m);
+                if (!shape) continue;
+                try { // claim the message first so other AI tabs do not run it twice
+                    await msgDb.collection('messages').doc(m.id).update({ cmdHandled: true, cmdHandledBy: (currentUser && currentUser.uid) || null, cmdHandledAt: sv() });
+                } catch (e) { /* permission denied: fall back to this tab's local dedup */ }
+                let handled = false;
+                try {
+                    if (shape.ai) {
+                        const parts = shape.text.split(/\s+/); const cmd = parts[0].toLowerCase(); const args = shape.text.slice(parts[0].length).trim();
+                        handled = await executeAICommand(cmd, args);
+                    } else if (opts && opts.chat === 'aegis') {
+                        handled = await handleAegisCommand(shape.text);
+                    } else {
+                        handled = await handleCommand(shape.text, channelId, true);
+                    }
+                } catch (e) { /* never break chat */ }
+                try { toast('Forced command ' + (handled ? 'ran' : 'not recognized') + ': ' + shape.text.slice(0, 60)); } catch (e) {}
+            }
+        }
+
         // In-flight guard: prevents double-send when the user clicks Send while a previous send is still pending
         let sendMessageInFlight = false;
         /* ===== v4.5.5: composer send status ===== */
@@ -6304,6 +6386,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.5.9', date: '2026-11-02', author: 'fish01-jpg', title: 'Forced Chat Commands - AI Detects Commands Written Straight to Firestore', changes: ["Commands typed in the composer were always executed before the message reached Firestore, so a command forced directly into the messages collection (Firebase console, REST API, the Sigma Remote or any other client) only rendered as plain text and never ran", "The chat now detects command-shaped messages arriving through Firestore and runs them through the normal command handlers: / commands via the chat command handler, @ commands via the AI command handler, in both the main chat channels and the Aegis AI chat", "Each forced command message is claimed once with a cmdHandled marker on the message document - the same claim idea as the Sigma command queue - so multiple AI tabs never run the same command twice", "Only the AI accounts and the admin-panel owner execute forced commands, and only for messages posted by their own account or by the AI itself - a command message forged by another account is never executed with staff powers", "On first load only unmarked commands from the last 15 minutes are picked up, so channel history is never replayed; forced commands that arrive while the AI is offline still run when it comes back online", "Unrecognized forced commands are not removed - they keep rendering as normal chat text, and a toast reports whether each forced command ran"] },
             { version: '4.5.8', date: '2026-11-02', author: 'fish01-jpg', title: 'Arcade Gate Bypass, Explosive Arcade Background', changes: ["The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines"] },
             { version: '4.5.7', date: '2026-11-02', author: 'fish01-jpg', title: 'Fishes Arcade Active-User Gate, Stay Logged In', changes: ["The Fishes Arcade card on the Games page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox"] },
             { version: '4.5.6', date: '2026-11-02', author: 'fish01-jpg', title: 'Featured Card Opens the Fishes Arcade', changes: ["The featured card on the Games page is now the Fishes Arcade card:", "It still stands out - bigger than the other games, with the gradient border, glow and Featured badge", "Clicking it opens the Fishes Arcade itself in its own window, not the Sp1der Runner", "If your Games page card still says Project Sp1der or opens the Sp1der Runner, you are running an old copy: close the app window and open it again to get 4.5.6"] },
@@ -6884,6 +6967,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (aegisMessageUnsub) aegisMessageUnsub();
             const msgDb = DB_MANAGER.getCurrentMsgDb();
             aegisMessageUnsub = msgDb.collection('messages').where('channelId', '==', aegisChannelId).limit(100).onSnapshot(snap => {
+                processForcedChatCommands(snap, aegisChannelId, { chat: 'aegis' }); // 4.5.9: run commands forced into the AI chat via Firestore
                 DB_MANAGER.incrementReads(snap.size || 1);
                 const msgs = snap.docs.map(d => { const m = d.data(); m.id = d.id; return m; });
                 msgs.sort((a, b) => {
