@@ -1152,14 +1152,18 @@ const REPO_APPS = {
     ["https://cdn.statically.io/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.statically.io/gh/fish01-jpg/polytrack@main/"]
   ],
   fluid: [
+    ["https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/index.html", "https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/"],
+    ["https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/master/index.html", "https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/master/"],
     ["https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/index.html", "https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/"],
     ["https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"]
   ]
 };
 
+const APP_LABELS = { polytrack: "PolyTrack", fluid: "Fluid Sim" };
+
 async function launchRepoApp(appId) {
   const app = REPO_APPS[appId];
-  const label = appId === "fluid" ? "Fluid Sim" : appId.charAt(0).toUpperCase() + appId.slice(1);
+  const label = APP_LABELS[appId] || appId;
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
   const d = win.document, spoof = pickSpoof();
@@ -1182,6 +1186,7 @@ async function launchRepoApp(appId) {
     frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
     frame.setAttribute("allow", FRAME_ALLOW);
     frame.srcdoc = injectBase(html, base);
+    d.body.innerHTML = ""; /* drop the splash */
     d.body.appendChild(frame);
     applySpoof(d, spoof);
     console.info("[Fishes Arcade] " + label + " served from " + base);
