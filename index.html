@@ -963,9 +963,9 @@ const TAGLINES = [
   "Tell your teacher the squares are part of the curriculum",
   "lol Sebass waz here",
   "crackers",
-  "cooooooner FoshBurnt";
+  "cooooooner FoshBurnt",
   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH",
-  "Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. “Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, can long endure. We are met on a great battlefield of that war. We have come to dedicate a portion of that field as a final resting place for those who here gave their lives that that nation might live. It is altogether fitting and proper that we should do this. “But in a larger sense we cannot dedicate, we cannot consecrate, we cannot hallow this ground. The brave men, living and dead, who struggled here have consecrated it, far above our poor power to add or detract. The world will little note, nor long remember, what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us,that from these honored dead we take increased devotion to that cause for which they gave the last full measure of devotion, that we here highly resolve that these dead shall not have died in vain, that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.”"
+  "Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. “Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, can long endure. We are met on a great battlefield of that war. We have come to dedicate a portion of that field, as a final resting place for those who here gave their lives that that nation might live. It is altogether fitting and proper that we should do this. “But, in a larger sense, we can not dedicate, we can not consecrate, we can not hallow this ground. The brave men, living and dead, who struggled here, have consecrated it, far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us, that from these honored dead we take increased devotion to that cause for which they gave the last full measure of devotion, that we here highly resolve that these dead shall not have died in vain, that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.”"
 ];
 
 (function runTaglines() {
@@ -1024,7 +1024,7 @@ const SPIDER_BASE = "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main
 const SPIDER_SPLASH_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}#sProg{color:#b0b0b3;font-size:12.5px;margin:0;min-height:1.4em;font-variant-numeric:tabular-nums}</style></head><body><div class="ring"></div><p>Loading sp1dercraft</p><p id="sProg"></p></body></html>`;
 
 function appSplashHtml(label) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}</style></head><body><div class="ring"></div><p>Loading ${label}</p></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}#appNote{color:#6e6e71;font-size:12px;min-height:1.4em;font-variant-numeric:tabular-nums}</style></head><body><div class="ring"></div><p>Loading ${label}</p><p id="appNote"></p></body></html>`;
 }
 
 function appErrorHtml(title, reason) {
@@ -1144,45 +1144,118 @@ document.querySelectorAll("[data-launch]").forEach(function (btn) {
 });
 
 /* ---- single-file apps served straight from a GitHub repo ----
-   Each entry lists [htmlUrl, baseUrl] pairs tried in order. The fetched HTML
-   is injected with a <base> pointing at the repo, so relative assets load too. */
+   Each app lists [htmlUrl, baseUrl, mode] sources tried in order. The fetched
+   HTML is injected with a <base> pointing at the repo, so relative assets load
+   too. Sources with a mode get their scripts inlined (see below). */
 const REPO_APPS = {
-  /* PolyTrack needs a CDN that serves real JS/WASM mime types for its module
-     bundle + wasm, so it runs off rawcdn.githack.com (which serves the GitHub
-     repo). The primary URL is pinned to a commit SHA so every CDN cache agrees;
-     update the SHA here after pushing changes to the polytrack repo. */
-  polytrack: [
-    ["https://rawcdn.githack.com/fish01-jpg/polytrack/50352596a2adc3593b7e9632c24477c2140353af/index.html", "https://rawcdn.githack.com/fish01-jpg/polytrack/50352596a2adc3593b7e9632c24477c2140353af/"],
-    ["https://rawcdn.githack.com/fish01-jpg/polytrack/main/index.html", "https://rawcdn.githack.com/fish01-jpg/polytrack/main/"],
-    ["https://cdn.statically.io/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.statically.io/gh/fish01-jpg/polytrack@main/"]
-  ],
-  fluid: [
-    ["https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/index.html", "https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/"],
-    ["https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/master/index.html", "https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/master/"],
-    ["https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/index.html", "https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/"],
-    ["https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"]
-  ]
+  /* raw.githubusercontent.com is the only host the school filter lets through, but it
+     serves every file as text/plain with nosniff, so browsers refuse to run its
+     scripts. The "inline" / "inline-worker" modes fix that: every external
+     <script src> is fetched as text and embedded directly in the document (inline
+     scripts ignore MIME), and PolyTrack's physics-worker importScripts chain is
+     re-wired through Blob URLs (see patchWorkerChain). CDNs stay as fallbacks. */
+  polytrack: {
+    label: "PolyTrack",
+    sources: [
+      ["https://raw.githubusercontent.com/fish01-jpg/polytrack/main/index.html", "https://raw.githubusercontent.com/fish01-jpg/polytrack/main/", "inline-worker"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/polytrack@main/"],
+      ["https://fastly.jsdelivr.net/gh/fish01-jpg/polytrack@main/index.html", "https://fastly.jsdelivr.net/gh/fish01-jpg/polytrack@main/"],
+      ["https://gcore.jsdelivr.net/gh/fish01-jpg/polytrack@main/index.html", "https://gcore.jsdelivr.net/gh/fish01-jpg/polytrack@main/"],
+      ["https://rawcdn.githack.com/fish01-jpg/polytrack/50352596a2adc3593b7e9632c24477c2140353af/index.html", "https://rawcdn.githack.com/fish01-jpg/polytrack/50352596a2adc3593b7e9632c24477c2140353af/"],
+      ["https://cdn.statically.io/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.statically.io/gh/fish01-jpg/polytrack@main/"]
+    ]
+  },
+  fluid: {
+    label: "Fluid Sim",
+    sources: [
+      ["https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/index.html", "https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/", "inline"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"],
+      ["https://fastly.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://fastly.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"],
+      ["https://gcore.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://gcore.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"],
+      ["https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/index.html", "https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/"],
+      ["https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"]
+    ]
+  }
 };
 
-const APP_LABELS = { polytrack: "PolyTrack", fluid: "Fluid Sim" };
+/* ---- helpers for the raw.githubusercontent inline mode ---- */
+
+const SCRIPT_TAG_RE = /<script\b([^>]*?)\ssrc=(["'])([^"']+)\2([^>]*)>\s*<\/script>/gi;
+
+function absUrl(src, base) {
+  try { return new URL(src, base).href; } catch (e) { return null; }
+}
+
+async function fetchText(url) {
+  const res = await fetch(url, { cache: "no-cache" });
+  if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
+  return res.text();
+}
+
+/* Embed every external <script src> that points at the app's own repo, so the
+   browser never has to execute a text/plain script. Absolute URLs are left alone. */
+async function inlineScripts(html, base) {
+  const jobs = [];
+  html.replace(SCRIPT_TAG_RE, (m, pre, q, src, post) => {
+    if (!/^(https?:)?\/\//i.test(src)) jobs.push({ m, pre, post, src });
+    return m;
+  });
+  for (const j of jobs) {
+    const url = absUrl(j.src, base);
+    if (!url) continue;
+    const text = await fetchText(url);
+    html = html.replace(j.m, () => "<script" + j.pre + ">" + text + "<\/script>");
+  }
+  return html;
+}
+
+/* PolyTrack's physics worker is a Blob that importScripts()s
+   simulation_worker.bundle.js, which importScripts()s lib/ammo.wasm.js — both
+   would be refused as text/plain. Fetch them ourselves and hand the worker
+   Blob URLs instead (ammo's WASM itself is loaded via plain XHR, which is fine). */
+const SIM_IMPORT_FIND = '(self.__BASE||"")+"lib/ammo.wasm.js"';
+const WORKER_URL_FIND = 'new URL("simulation_worker.bundle.js",document.baseURI).href';
+
+async function patchWorkerChain(html, base) {
+  const [simText, ammoText] = await Promise.all([
+    fetchText(absUrl("simulation_worker.bundle.js", base)),
+    fetchText(absUrl("lib/ammo.wasm.js", base))
+  ]);
+  const ammoUrl = URL.createObjectURL(new Blob([ammoText], { type: "text/javascript" }));
+  const simPatched = simText.replace(SIM_IMPORT_FIND, JSON.stringify(ammoUrl));
+  if (simPatched === simText) throw new Error("couldn't patch ammo importScripts");
+  const simUrl = URL.createObjectURL(new Blob([simPatched], { type: "text/javascript" }));
+  const patched = html.replace(WORKER_URL_FIND, JSON.stringify(simUrl));
+  if (patched === html) throw new Error("couldn't patch worker importScripts");
+  return patched;
+}
+
+async function buildAppHtml(text, base, mode) {
+  let html = text;
+  if (mode === "inline" || mode === "inline-worker") html = await inlineScripts(html, base);
+  if (mode === "inline-worker") html = await patchWorkerChain(html, base);
+  return html;
+}
 
 async function launchRepoApp(appId) {
   const app = REPO_APPS[appId];
-  const label = APP_LABELS[appId] || appId;
+  const label = (app && app.label) || appId;
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
   d.open(); d.write(appSplashHtml(label)); d.close();
+  const note = () => { try { return d.getElementById("appNote"); } catch (_) { return null; } };
   try {
-    let html = null, base = null, lastErr = null;
-    for (const [url, b] of app) {
+    let html = null, base = null, inlined = false, lastErr = null;
+    for (const [url, b, mode] of app.sources) {
       try {
-        const res = await fetch(url, { cache: "no-cache" });
-        if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
-        const text = await res.text();
+        const text = await fetchText(url);
         if (!looksLikeBundle(text)) throw new Error("didn't look like the " + label + " app");
-        html = text; base = b;
+        const p = note();
+        if (p) p.textContent = mode ? "unpacking from raw.githubusercontent..." : "loading from CDN...";
+        const built = mode ? await buildAppHtml(text, b, mode) : text;
+        html = built; base = b; inlined = !!mode;
         break;
       } catch (e) { lastErr = e; }
     }
@@ -1194,7 +1267,7 @@ async function launchRepoApp(appId) {
     d.body.innerHTML = ""; /* drop the splash */
     d.body.appendChild(frame);
     applySpoof(d, spoof);
-    console.info("[Fishes Arcade] " + label + " served from " + base);
+    console.info("[Fishes Arcade] " + label + " served from " + base + (inlined ? " (scripts inlined)" : ""));
   } catch (e) {
     d.open(); d.write(appErrorHtml(label, e && e.message ? e.message : String(e))); d.close();
   }
