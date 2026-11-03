@@ -185,6 +185,7 @@
   .row[data-launch="spidercraft"] { --row-accent: #f5b83d; }
   .row[data-launch="polytrack"] { --row-accent: #7272c2; }
   .row[data-launch="fluid"] { --row-accent: #38bdf8; }
+  .row[data-launch="sp1der"] { --row-accent: #8b5cf6; }
 
   .row-icon {
     width: 48px;
@@ -442,6 +443,63 @@
     outline: 2px solid rgba(255,255,255,0.4);
     outline-offset: 2px;
   }
+
+  /* Review terms button + modal */
+  .terms-btn {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    font: inherit;
+    font-size: 12px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 0 0 0 4px;
+    transition: color 0.15s var(--ease);
+  }
+  .terms-btn:hover { color: var(--text-1); }
+  .terms-btn:focus-visible {
+    outline: 2px solid rgba(139,92,246,0.5);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+  .terms-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0,0,0,0.66);
+    backdrop-filter: blur(6px);
+  }
+  .terms-overlay[hidden] { display: none; }
+  .terms-card {
+    width: min(520px, 100%);
+    max-height: 80vh;
+    overflow: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+  }
+  .terms-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .terms-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+  .terms-body p {
+    margin: 0 0 12px;
+    color: var(--text-2);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .terms-body b { color: var(--text-1); }
 
   .link-option {
     --accent: rgba(255,255,255,0.5);
@@ -777,6 +835,21 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
         </span>
       </button>
+
+      <button class="row" data-launch="sp1der">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13.5" r="4.5"/><circle cx="12" cy="6" r="1.75"/><path d="M12 7.75v1.5"/><path d="M8.25 11.25 4.5 8.5"/><path d="M15.75 11.25 19.5 8.5"/><path d="M8 14.5 3.5 15.5"/><path d="M16 14.5 20.5 15.5"/><path d="M9.25 16.75 6.5 20.5"/><path d="M14.75 16.75 17.5 20.5"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Project Sp1der</span>
+          <span class="row-desc">The Sp1der chat app — opens a Sp1der backup, cloaked like the other games</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
     </div>
 
     <div class="community" data-grid-avoid>
@@ -829,8 +902,25 @@
     </div>
 
     <footer data-grid-avoid>
-      © 2026 Fishes Arcade · run by the fish family
+      © 2026 Fishes Arcade · run by the fish family ·
+      <button class="terms-btn" id="reviewTermsBtn" type="button">Review terms</button>
     </footer>
+
+    <!-- Review terms modal: the fair-warning terms, readable any time after agreeing -->
+    <div class="terms-overlay" id="termsOverlay" hidden>
+      <div class="terms-card" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
+        <div class="terms-head">
+          <h2 id="termsTitle">Fishes Arcade — terms</h2>
+          <button class="modal-close" id="termsClose" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="terms-body">
+          <p><b>Fair warning:</b></p>
+          <p>The Fishes Arcade serves third-party games. We didn't make them, we can't control them, and we are NOT responsible for what they (or you) do. If a game eats your homework, leaks your password, gets your Chromebook confiscated, or deletes your save — that's on you, lol. Fish at your own risk.</p>
+          <p>You agreed to these terms (plus the Sp1der verification terms, if you used /verify) before entering the arcade. This button is here so you can re-read them any time.</p>
+          <p>Sp1der staff can revoke access at any time if the terms are broken. One person, one account — alt accounts used to dodge bans or mutes will be removed.</p>
+        </div>
+      </div>
+    </div>
   </main>
 
 <script>
@@ -1326,6 +1416,18 @@ const REPO_APPS = {
       ["https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/index.html", "https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/"],
       ["https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"]
     ]
+  },
+  /* Cloaked Sp1der launcher: loads the Sp1der Runner (fishes.html) from this repo,
+     which in turn opens the sp1der backup (sp1der-backup.html). */
+  sp1der: {
+    label: "Project Sp1der",
+    sources: [
+      ["https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/fishes.html", "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://gcore.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://gcore.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/"]
+    ]
   }
 };
 
@@ -1594,6 +1696,18 @@ function summonSebass() {
       hideT = setTimeout(function () { bubble.classList.remove("bouncer-bubble-show"); }, 2600);
     });
   });
+})();
+
+/* Review terms modal wiring — re-readable any time after agreeing */
+(function initReviewTerms() {
+  const overlay = document.getElementById("termsOverlay");
+  const openBtn = document.getElementById("reviewTermsBtn");
+  const closeBtn = document.getElementById("termsClose");
+  if (!overlay || !openBtn || !closeBtn) return;
+  openBtn.addEventListener("click", function () { overlay.hidden = false; });
+  closeBtn.addEventListener("click", function () { overlay.hidden = true; });
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.hidden = true; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !overlay.hidden) overlay.hidden = true; });
 })();
 
 window.__mantleBooted = true;

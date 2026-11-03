@@ -317,11 +317,14 @@
   const autoUpdate = $("autoUpdate"), trustedMain = $("trustedMain");
 
   const LS_KEY = "__sp1der_runner_prefs_v2";
+  /* 4.6.0: the Runner loads the sp1der backup copy (sp1der-backup.html) — the main
+     sp1der.html stays untouched as the source of truth, so the backup keeps working
+     even while the main file is being edited. */
   const SOURCES = branch => [
-    "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
-    "https://cdn.statically.io/gh/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
-    "https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/" + branch + "/sp1der.html",
-    "https://esm.sh/gh/fish01-jpg/mantle-menu@" + branch + "/sp1der.html"
+    "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/" + branch + "/sp1der-backup.html",
+    "https://cdn.statically.io/gh/fish01-jpg/mantle-menu/" + branch + "/sp1der-backup.html",
+    "https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/" + branch + "/sp1der-backup.html",
+    "https://esm.sh/gh/fish01-jpg/mantle-menu@" + branch + "/sp1der-backup.html"
   ];
   const SANDBOX_ISOLATED = "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads";
   const FRAME_ALLOW = "fullscreen; pointer-lock; gamepad; keyboard-map; clipboard-read; clipboard-write; camera; microphone; autoplay";

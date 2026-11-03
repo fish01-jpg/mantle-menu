@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Sp1der — 4.5.9</title>
+    <title>Project Sp1der — 4.6.0</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -2665,9 +2665,18 @@
         </div>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           <button class="composer-btn" onclick="closeArcadeGate()">Not yet</button>
+          <button class="composer-btn" onclick="reviewArcadeTerms()">Review terms</button>
           <button class="composer-btn" id="arcadeGateRefresh" onclick="openFishesArcadeGate()">Re-check</button>
           <button class="composer-btn primary" id="arcadeGateGo" onclick="acceptArcadeRisk()" style="display:none;">Enter the arcade</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT VERIFICATION (/verify): terms + 15 CAPTCHAs that unlock the Fishes Arcade -->
+    <div class="modal-overlay" id="verifyModal">
+      <div class="modal-card" style="max-width:520px;">
+        <h2>Verify your account</h2>
+        <div id="verifyBody"></div>
       </div>
     </div>
 
@@ -2737,7 +2746,7 @@
         /* ============================================
            PROJECT SP1DER V4 — APPLICATION LOGIC
            ============================================ */
-        const APP_VERSION = '4.5.9';
+        const APP_VERSION = '4.6.0';
         function isNewerAppVersion(candidate, current = APP_VERSION) {
             const parse = value => {
                 const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/i);
@@ -3551,33 +3560,115 @@ Furball found a sunbeam and is not moving for anyone.`;
            Progress is stored on the user's profile doc so it survives refreshes even without
            browser storage (sandboxed host pages). All requirements are doable in ~5 minutes. */
         const ARCADE_TODAY_KEY = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-        let arcadeActivityDate = null, arcadeActivityTimer = null;
+        let arcadeActivityTimer = null;
 
+        /* --- Better trackers (4.6.0) ---
+           The old tracker fired one Firestore write per minute and silently dropped it
+           whenever the write failed, so anyone offline, over quota or inside a sandboxed
+           frame lost all their progress and the checklist looked stuck. Every counter is
+           now banked locally first and flushed to the profile with retries, and the gate
+           merges the local queue — progress still counts and still shows even while a
+           flush is pending or failing. */
+        const ARCADE_QUEUE_KEY = 'sp1derArcadeQueue';
+        function arcadeQueueLoad() { try { return JSON.parse(localStorage.getItem(ARCADE_QUEUE_KEY) || '') || {}; } catch (e) { return {}; } }
+        function arcadeQueueSave(q) { try { localStorage.setItem(ARCADE_QUEUE_KEY, JSON.stringify(q)); } catch (e) {} }
+        function arcadeQueueCounted(q) { return (q.secTotal || 0) + (q.secToday || 0) + (q.msg || 0) + (q.msg14 || 0) + ((q.views || []).length); }
+        function arcadeQueueAdd(patch) {
+            const q = arcadeQueueLoad(), today = ARCADE_TODAY_KEY();
+            if (patch.secTotal) q.secTotal = (q.secTotal || 0) + patch.secTotal;
+            if (patch.secToday) {
+                if (q.todayDate !== today) { q.todayDate = today; q.secToday = 0; }
+                q.secToday = (q.secToday || 0) + patch.secToday;
+            }
+            if (patch.msg) q.msg = (q.msg || 0) + patch.msg;
+            if (patch.msg14) q.msg14 = (q.msg14 || 0) + patch.msg14;
+            if (patch.view) { q.views = q.views || []; if (!q.views.includes(patch.view)) q.views.push(patch.view); }
+            q.dirty = true;
+            arcadeQueueSave(q);
+            scheduleArcadeFlush();
+        }
+        let arcadeFlushTimer = null, arcadeFlushInFlight = false;
+        function scheduleArcadeFlush(delay) {
+            if (arcadeFlushTimer) return;
+            arcadeFlushTimer = setTimeout(flushArcadeQueue, delay || 2000);
+        }
+        async function flushArcadeQueue() {
+            arcadeFlushTimer = null;
+            if (!currentUser || arcadeFlushInFlight) return;
+            const q = arcadeQueueLoad();
+            if (!q.dirty || arcadeQueueCounted(q) < 1) return;
+            arcadeFlushInFlight = true;
+            /* Snapshot exactly what this flush sends; anything queued while we're in flight stays local. */
+            const sent = { secTotal: q.secTotal || 0, secToday: (q.todayDate === ARCADE_TODAY_KEY()) ? (q.secToday || 0) : 0, msg: q.msg || 0, msg14: q.msg14 || 0, views: (q.views || []).slice() };
+            try {
+                const ref = db.collection('users').doc(currentUser.uid);
+                const upd = {};
+                if (sent.secTotal) upd.activeSecTotal = firebase.firestore.FieldValue.increment(sent.secTotal);
+                if (sent.secToday) { upd.activeSecToday = firebase.firestore.FieldValue.increment(sent.secToday); upd.activeDate = q.todayDate; }
+                if (sent.msg) upd.msgCount = firebase.firestore.FieldValue.increment(sent.msg);
+                if (sent.msg14) {
+                    /* same rolling 2-week window as the live message counter */
+                    const snap = await ref.get();
+                    const p = snap.exists ? (snap.data() || {}) : {};
+                    const ws = p.msgWindowStart ? new Date(p.msgWindowStart.seconds ? p.msgWindowStart.seconds * 1000 : p.msgWindowStart).getTime() : 0;
+                    const fresh = ws > 0 && (Date.now() - ws) < 14 * 24 * 3600 * 1000;
+                    if (fresh) upd.msgCount14d = firebase.firestore.FieldValue.increment(sent.msg14);
+                    else { upd.msgCount14d = sent.msg14; upd.msgWindowStart = firebase.firestore.FieldValue.serverTimestamp(); }
+                }
+                if (sent.views.length) upd.arcadeViews = firebase.firestore.FieldValue.arrayUnion.apply(firebase.firestore.FieldValue, sent.views);
+                await ref.set(upd, { merge: true });
+                /* subtract exactly what was sent; newer queue entries survive */
+                const nq = arcadeQueueLoad();
+                nq.secTotal = Math.max(0, (nq.secTotal || 0) - sent.secTotal);
+                if (nq.todayDate === q.todayDate) nq.secToday = Math.max(0, (nq.secToday || 0) - sent.secToday);
+                nq.msg = Math.max(0, (nq.msg || 0) - sent.msg);
+                nq.msg14 = Math.max(0, (nq.msg14 || 0) - sent.msg14);
+                if (nq.views) nq.views = nq.views.filter(v => !sent.views.includes(v));
+                if (arcadeQueueCounted(nq) < 1) { nq.dirty = false; }
+                arcadeQueueSave(nq);
+            } catch (e) {
+                /* offline / quota / sandboxed — keep the queue banked and retry later */
+                scheduleArcadeFlush(30000);
+            } finally {
+                arcadeFlushInFlight = false;
+            }
+        }
         function trackArcadeViews(viewName) {
             if (!currentUser || !viewName) return;
-            try { db.collection('users').doc(currentUser.uid).set({ arcadeViews: firebase.firestore.FieldValue.arrayUnion(viewName) }, { merge: true }); } catch (e) {}
+            arcadeQueueAdd({ view: viewName });
         }
-        async function trackArcadeActivity() {
-            if (!currentUser || document.hidden) return;
-            const today = ARCADE_TODAY_KEY();
-            const reset = arcadeActivityDate !== today;
-            arcadeActivityDate = today;
-            try {
-                const upd = { activeSecTotal: firebase.firestore.FieldValue.increment(60), activeDate: today };
-                upd.activeSecToday = reset ? 60 : firebase.firestore.FieldValue.increment(60);
-                await db.collection('users').doc(currentUser.uid).set(upd, { merge: true });
-            } catch (e) {}
-        }
+        /* Count real time on screen: 10-second ticks that only count while the tab is
+           visible and the user is signed in, banked to the queue every minute. */
+        let arcadeSecSinceFlush = 0;
         function startArcadeActivityTracking() {
             if (arcadeActivityTimer) return;
-            trackArcadeActivity();
-            arcadeActivityTimer = setInterval(trackArcadeActivity, 60000);
+            arcadeActivityTimer = setInterval(() => {
+                if (!currentUser || document.hidden) return;
+                arcadeSecSinceFlush += 10;
+                if (arcadeSecSinceFlush >= 60) { arcadeSecSinceFlush = 0; arcadeQueueAdd({ secTotal: 60, secToday: 60 }); }
+            }, 10000);
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    if (arcadeSecSinceFlush >= 10) { arcadeQueueAdd({ secTotal: arcadeSecSinceFlush, secToday: arcadeSecSinceFlush }); arcadeSecSinceFlush = 0; }
+                    flushArcadeQueue();
+                }
+            });
+            window.addEventListener('pagehide', () => { flushArcadeQueue(); });
+            scheduleArcadeFlush(5000);
         }
 
         async function getArcadeGateStatus() {
             if (!currentUser) return { signedIn: false, allDone: false, riskAccepted: false, items: [] };
+            /* push anything still banked locally before reading, so the checklist is current */
+            try { await flushArcadeQueue(); } catch (e) {}
             let prof = {};
             try { const snap = await db.collection('users').doc(currentUser.uid).get(); if (snap.exists) prof = snap.data() || {}; } catch (e) {}
+            const q = arcadeQueueLoad();
+            /* /verify-verified accounts: full access, checklist and fair-warning form covered by the verify terms */
+            if (prof.sp1derVerified === true || isLocallyVerified()) {
+                return { signedIn: true, allDone: true, riskAccepted: true,
+                    items: [{ done: true, label: '✅ Account verified with /verify — full arcade access' }] };
+            }
             /* Owners and anyone who sent 50+ messages in the last 2 weeks skip the checklist */
             let bypass = false;
             try { bypass = isOwner() || (prof.msgCount14d || 0) >= 50; } catch (e) {}
@@ -3587,10 +3678,11 @@ Furball found a sunbeam and is not moving for anyone.`;
             }
             const created = Date.parse(currentUser.metadata.creationTime || '') || Date.now();
             const ageSec = Math.max(0, (Date.now() - created) / 1000);
-            const totalSec = Math.max(0, prof.activeSecTotal || 0);
-            const todaySec = (prof.activeDate === ARCADE_TODAY_KEY()) ? Math.max(0, prof.activeSecToday || 0) : 0;
-            const msgCount = prof.msgCount || 0;
-            const views = (prof.arcadeViews || []).length;
+            /* merge anything not yet synced so the list stays live even when writes fail */
+            const totalSec = Math.max(0, (prof.activeSecTotal || 0) + (q.secTotal || 0));
+            const todaySec = ((prof.activeDate === ARCADE_TODAY_KEY()) ? Math.max(0, prof.activeSecToday || 0) : 0) + ((q.todayDate === ARCADE_TODAY_KEY()) ? Math.max(0, q.secToday || 0) : 0);
+            const msgCount = (prof.msgCount || 0) + (q.msg || 0);
+            const views = (prof.arcadeViews || []).concat(q.views || []).filter((v, i, a) => a.indexOf(v) === i).length;
             const fmt = s => { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
             const items = [
                 { done: true, label: 'Signed in to your account' },
@@ -3630,6 +3722,226 @@ Furball found a sunbeam and is not moving for anyone.`;
             try { await db.collection('users').doc(currentUser.uid).set({ arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true }); } catch (e) {}
             closeArcadeGate();
             openFishesArcade();
+        }
+        /* Review terms: show the fair-warning terms box on demand, even after agreeing */
+        function reviewArcadeTerms() {
+            const risk = $('arcadeGateRisk');
+            if (!risk) return;
+            risk.style.display = 'block';
+            try { risk.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+            toast('This is the terms box — you can re-read it any time.');
+        }
+
+        /* ===== ACCOUNT VERIFICATION (/verify) =====
+           A second way into the Fishes Arcade: read the terms, have an account at least
+           5 days old, then pass 15 different CAPTCHAs. Verified accounts skip the
+           active-user checklist and the fair-warning form (the terms below cover it). */
+        const VERIFY_TERMS = [
+            'The Fishes Arcade serves third-party games. We didn\'t make them, we can\'t control them, and we are NOT responsible for what they (or you) do.',
+            'If a game eats your homework, leaks your password, gets your Chromebook confiscated, or deletes your save — that\'s on you, lol. Fish at your own risk.',
+            'You are verifying your own account. Don\'t share verification, farm the CAPTCHAs for other people or automate the flow.',
+            'Verification is trust, not rank: it only unlocks the Fishes Arcade — it grants no staff, moderation or admin powers.',
+            'Staff can revoke verification at any time if these terms are broken.',
+            'Be respectful in chat. No spam, no NSFW, no harassment. Messages are kept in a staff moderation log.',
+            'One person, one account. Alt accounts used to dodge bans or mutes will be removed.'
+        ];
+        const VERIFY_CAPTCHA_COUNT = 15;
+        const VERIFY_MIN_AGE_DAYS = 5;
+        const VERIFY_LOCAL_KEY = 'sp1derVerifyLocal';
+        const VERIFY_PROGRESS_KEY = 'sp1derVerifyProgress';
+        function isLocallyVerified() {
+            try { const v = JSON.parse(localStorage.getItem(VERIFY_LOCAL_KEY) || ''); return !!(v && v.uid && currentUser && v.uid === currentUser.uid); } catch (e) { return false; }
+        }
+        let verifyState = null;
+        function openVerifyFlow() {
+            if (!currentUser) { openAuth(); return; }
+            verifyState = { step: 'terms', progress: 0, queue: null, challenge: null, savedCloud: false };
+            try { const p = JSON.parse(localStorage.getItem(VERIFY_PROGRESS_KEY) || ''); if (p && p.uid === currentUser.uid && typeof p.done === 'number') verifyState.progress = Math.min(VERIFY_CAPTCHA_COUNT, Math.max(0, p.done)); } catch (e) {}
+            verifyRender();
+            const m = $('verifyModal'); if (m) m.classList.add('active');
+        }
+        function closeVerify() { const m = $('verifyModal'); if (m) m.classList.remove('active'); verifyState = null; }
+        function verifySaveProgress() { try { localStorage.setItem(VERIFY_PROGRESS_KEY, JSON.stringify({ uid: currentUser && currentUser.uid, done: verifyState ? verifyState.progress : 0, at: Date.now() })); } catch (e) {} }
+        function verifyAccountAgeDays() {
+            const created = Date.parse((currentUser && currentUser.metadata && currentUser.metadata.creationTime) || '') || Date.now();
+            return Math.max(0, (Date.now() - created) / 86400000);
+        }
+        function verifyRender() {
+            const body = $('verifyBody'); if (!body || !verifyState) return;
+            if (verifyState.step === 'terms') verifyRenderTerms(body);
+            else if (verifyState.step === 'age') verifyRenderAge(body);
+            else if (verifyState.step === 'captcha') verifyRenderCaptcha(body);
+            else if (verifyState.step === 'done') verifyRenderDone(body);
+        }
+        function verifyRenderTerms(body) {
+            body.innerHTML =
+                '<p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 12px;">Verify this account to unlock the Fishes Arcade. First, read the terms:</p>' +
+                '<div style="text-align:left;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;max-height:220px;overflow:auto;font-size:0.85rem;line-height:1.7;">' +
+                VERIFY_TERMS.map((t, i) => '<div style="display:flex;gap:8px;margin-bottom:8px;"><span style="color:var(--accent);font-weight:600;flex-shrink:0;">' + (i + 1) + '.</span><span>' + escapeHtml(t) + '</span></div>').join('') +
+                '</div>' +
+                '<label style="display:flex;gap:8px;align-items:flex-start;font-size:0.85rem;cursor:pointer;text-align:left;margin-bottom:14px;"><input type="checkbox" id="verifyAgree" style="margin-top:3px;"><span>I have read and agree to all ' + VERIFY_TERMS.length + ' terms above.</span></label>' +
+                '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button class="composer-btn" onclick="closeVerify()">Cancel</button><button class="composer-btn primary" id="verifyTermsNext" onclick="verifyTermsNext()" style="opacity:0.5;">Continue</button></div>';
+            const check = $('verifyAgree'), next = $('verifyTermsNext');
+            if (check && next) check.addEventListener('change', () => { next.style.opacity = check.checked ? '1' : '0.5'; });
+        }
+        function verifyTermsNext() {
+            const check = $('verifyAgree');
+            if (!check || !check.checked) { toast('Read the terms and tick the box to continue.'); return; }
+            verifyState.step = 'age';
+            verifyRender();
+        }
+        function verifyRenderAge(body) {
+            const days = verifyAccountAgeDays(), need = VERIFY_MIN_AGE_DAYS;
+            if (days < need) {
+                const left = need - days, when = new Date(Date.now() + left * 86400000);
+                body.innerHTML =
+                    '<p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 12px;">Your account is <b style="color:var(--text);">' + days.toFixed(1) + ' days</b> old.</p>' +
+                    '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;font-size:0.9rem;line-height:1.6;">Verification only works for accounts at least <b>' + need + ' days</b> old. Come back on <b style="color:var(--accent);">' + when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + '</b> — that\'s ' + Math.ceil(left) + ' day' + (Math.ceil(left) === 1 ? '' : 's') + ' from now.</div>' +
+                    '<div style="display:flex;gap:8px;justify-content:center;"><button class="composer-btn" onclick="closeVerify()">Close</button></div>';
+                return;
+            }
+            body.innerHTML =
+                '<p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 12px;">Your account is <b style="color:var(--text);">' + days.toFixed(1) + ' days</b> old — old enough to verify.</p>' +
+                '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;font-size:0.9rem;line-height:1.6;">Next up: <b>' + VERIFY_CAPTCHA_COUNT + ' CAPTCHAs</b>, each one different. Complete them all and the Fishes Arcade is yours — no checklist needed. Progress is saved if you stop halfway.</div>' +
+                '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button class="composer-btn" onclick="closeVerify()">Cancel</button><button class="composer-btn primary" onclick="verifyStartCaptchas()">Start the CAPTCHAs</button></div>';
+        }
+        function verifyStartCaptchas() { verifyState.step = 'captcha'; verifyState.challenge = null; verifyRender(); }
+
+        /* ---- CAPTCHA engine: 10 challenge types, mixed so no two in a row are alike,
+                 with randomized content so all 15 are different ---- */
+        const CAPTCHA_TYPES = ['mathAdd', 'mathMul', 'mathSub', 'code', 'reverse', 'fishCount', 'oddOne', 'color', 'nextNumber', 'countLetters'];
+        const CAPTCHA_WORDS = ['FISHES', 'SPIDER', 'ARCADE', 'SEBASS', 'CORAL', 'TURTLE', 'ANCHOR', 'SQUID', 'WHALE', 'GUPPY', 'ROCKS', 'SHELL'];
+        const CAPTCHA_EMOJI_BASE = ['🐠', '🐡', '🦈', '🐙', '🦐', '🦀', '🐢', '🪼'];
+        const CAPTCHA_EMOJI_ODD = ['🐊', '🐄', '🦆', '🐖', '🐪'];
+        const CAPTCHA_COLORS = [['#ef4444', 'red'], ['#f59e0b', 'orange'], ['#facc15', 'yellow'], ['#22c55e', 'green'], ['#3b82f6', 'blue'], ['#a855f7', 'purple'], ['#ec4899', 'pink']];
+        const captchaRnd = n => Math.floor(Math.random() * n);
+        const captchaPick = arr => arr[captchaRnd(arr.length)];
+        const captchaShuffle = arr => arr.slice().sort(() => Math.random() - 0.5);
+        function captchaMake(type) {
+            const c = { type: type, input: true, buttons: null, answer: '', html: '', check: null };
+            if (type === 'mathAdd') {
+                const a = 3 + captchaRnd(10), b = 3 + captchaRnd(10);
+                c.html = '<p style="margin:0 0 10px;font-size:1rem;">What is <b>' + a + ' + ' + b + '</b>?</p>';
+                c.answer = String(a + b);
+            } else if (type === 'mathMul') {
+                const a = 2 + captchaRnd(8), b = 2 + captchaRnd(8);
+                c.html = '<p style="margin:0 0 10px;font-size:1rem;">What is <b>' + a + ' × ' + b + '</b>?</p>';
+                c.answer = String(a * b);
+            } else if (type === 'mathSub') {
+                const a = 12 + captchaRnd(9), b = 2 + captchaRnd(8);
+                c.html = '<p style="margin:0 0 10px;font-size:1rem;">What is <b>' + a + ' − ' + b + '</b>?</p>';
+                c.answer = String(a - b);
+            } else if (type === 'code') {
+                const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+                let code = ''; for (let i = 0; i < 5; i++) code += chars[captchaRnd(chars.length)];
+                const styled = code.split('').map(ch => '<span style="display:inline-block;font-family:var(--font-mono);font-size:' + (1.1 + captchaRnd(9) / 10) + 'rem;transform:rotate(' + (captchaRnd(30) - 15) + 'deg);color:var(--text);">' + ch + '</span>').join('');
+                c.html = '<p style="margin:0 0 10px;font-size:0.9rem;color:var(--text-dim);">Type the code (letters can be lowercase):</p><p style="margin:0 0 10px;letter-spacing:6px;user-select:none;">' + styled + '</p>';
+                c.answer = code;
+            } else if (type === 'reverse') {
+                const word = captchaPick(CAPTCHA_WORDS);
+                c.html = '<p style="margin:0 0 10px;font-size:0.9rem;color:var(--text-dim);">Type this word <b>backwards</b>:</p><p style="margin:0 0 10px;font-size:1.3rem;font-family:var(--font-mono);letter-spacing:4px;user-select:none;">' + word + '</p>';
+                c.answer = word.split('').reverse().join('');
+            } else if (type === 'fishCount') {
+                const n = 4 + captchaRnd(7);
+                c.html = '<p style="margin:0 0 10px;font-size:0.9rem;color:var(--text-dim);">How many fish are swimming below?</p><p style="margin:0 0 10px;font-size:1.5rem;letter-spacing:4px;user-select:none;">' + '🐟'.repeat(n) + '</p>';
+                c.answer = String(n);
+            } else if (type === 'oddOne') {
+                const base = captchaPick(CAPTCHA_EMOJI_BASE), odd = captchaPick(CAPTCHA_EMOJI_ODD);
+                const set = captchaShuffle([base, base, base, base, odd]);
+                c.input = false;
+                c.buttons = set;
+                c.answer = odd;
+                c.html = '<p style="margin:0 0 10px;font-size:0.9rem;color:var(--text-dim);">Pick the odd one out:</p>';
+            } else if (type === 'color') {
+                const pick = captchaShuffle(CAPTCHA_COLORS).slice(0, 4);
+                const target = captchaPick(pick);
+                c.input = false;
+                c.buttons = pick.map(p => p[1]);
+                c.answer = target[1];
+                c.html = '<p style="margin:0 0 10px;font-size:0.9rem;color:var(--text-dim);">What color is the box?</p><div style="width:64px;height:64px;border-radius:10px;background:' + target[0] + ';border:1px solid var(--border);"></div>';
+            } else if (type === 'nextNumber') {
+                const start = 2 + captchaRnd(8), step = 2 + captchaRnd(4);
+                const seq = [start, start + step, start + 2 * step, start + 3 * step];
+                c.html = '<p style="margin:0 0 10px;font-size:0.9rem;color:var(--text-dim);">What number comes next?</p><p style="margin:0 0 10px;font-size:1.2rem;font-family:var(--font-mono);letter-spacing:4px;user-select:none;">' + seq.join(', ') + ', …</p>';
+                c.answer = String(start + 4 * step);
+            } else if (type === 'countLetters') {
+                const word = captchaPick(CAPTCHA_WORDS);
+                c.html = '<p style="margin:0 0 10px;font-size:0.9rem;color:var(--text-dim);">How many letters are in the word below?</p><p style="margin:0 0 10px;font-size:1.3rem;font-family:var(--font-mono);letter-spacing:4px;user-select:none;">' + word + '</p>';
+                c.answer = String(word.length);
+            }
+            if (c.input) {
+                c.check = val => String(val == null ? '' : val).trim().toUpperCase() === String(c.answer).toUpperCase();
+            } else {
+                c.check = val => String(val) === String(c.answer);
+            }
+            return c;
+        }
+        function captchaBuildQueue() {
+            const types = [];
+            while (types.length < VERIFY_CAPTCHA_COUNT) {
+                const t = captchaPick(CAPTCHA_TYPES);
+                if (types[types.length - 1] !== t) types.push(t);
+            }
+            return types.map(t => captchaMake(t));
+        }
+        function verifyRenderCaptcha(body) {
+            if (!verifyState.queue || verifyState.queue.length < VERIFY_CAPTCHA_COUNT) verifyState.queue = captchaBuildQueue();
+            if (verifyState.progress >= VERIFY_CAPTCHA_COUNT) { verifyState.step = 'done'; verifyRender(); return; }
+            if (!verifyState.challenge) verifyState.challenge = verifyState.queue[verifyState.progress];
+            const c = verifyState.challenge;
+            const pct = Math.round((verifyState.progress / VERIFY_CAPTCHA_COUNT) * 100);
+            body.innerHTML =
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:0.85rem;color:var(--text-dim);">CAPTCHA ' + (verifyState.progress + 1) + ' of ' + VERIFY_CAPTCHA_COUNT + '</span><span style="font-size:0.85rem;color:var(--text-dim);">' + verifyState.progress + ' done</span></div>' +
+                '<div style="height:6px;background:var(--bg-2);border-radius:3px;overflow:hidden;margin-bottom:16px;"><div style="height:100%;width:' + pct + '%;background:var(--accent);border-radius:3px;transition:width 0.3s;"></div></div>' +
+                '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin-bottom:14px;">' + c.html + '</div>' +
+                (c.input
+                    ? '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><input id="verifyAnswer" autocomplete="off" spellcheck="false" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px 14px;font-size:1rem;width:180px;font-family:var(--font-mono);outline:none;"><button class="composer-btn primary" onclick="verifySubmitAnswer()">Submit</button></div>'
+                    : '<div id="verifyBtns" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' + c.buttons.map((b, i) => '<button class="composer-btn" style="font-size:1.2rem;padding:8px 16px;" onclick="verifySubmitAnswer(' + i + ')">' + b + '</button>').join('') + '</div>') +
+                '<div style="text-align:center;margin-top:12px;"><button class="composer-btn" onclick="closeVerify()" style="opacity:0.6;font-size:0.8rem;">Stop for now — progress is saved</button></div>';
+            const inp = $('verifyAnswer');
+            if (inp) { inp.focus(); inp.addEventListener('keydown', e => { if (e.key === 'Enter') verifySubmitAnswer(); }); }
+        }
+        function verifySubmitAnswer(btnIndex) {
+            if (!verifyState || !verifyState.challenge) return;
+            const c = verifyState.challenge;
+            let answer = null;
+            if (c.input) { const inp = $('verifyAnswer'); answer = inp ? inp.value : ''; }
+            else if (btnIndex !== undefined && btnIndex !== null) answer = c.buttons[Number(btnIndex)];
+            if (answer === null) return;
+            if (c.check(answer)) {
+                verifyState.progress++;
+                verifyState.challenge = null;
+                verifySaveProgress();
+                if (verifyState.progress >= VERIFY_CAPTCHA_COUNT) verifyFinish();
+                else verifyRender();
+            } else {
+                toast('Not quite — try again.');
+                /* regenerate the content so the retry isn't the same challenge */
+                verifyState.queue[verifyState.progress] = captchaMake(c.type);
+                verifyState.challenge = null;
+                verifyRender();
+            }
+        }
+        async function verifyFinish() {
+            let saved = false;
+            try {
+                await db.collection('users').doc(currentUser.uid).set({ sp1derVerified: true, sp1derVerifiedAt: Date.now(), arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true });
+                saved = true;
+            } catch (e) {}
+            if (!saved) { try { localStorage.setItem(VERIFY_LOCAL_KEY, JSON.stringify({ uid: currentUser.uid, at: Date.now() })); } catch (e) {} }
+            try { localStorage.removeItem(VERIFY_PROGRESS_KEY); } catch (e) {}
+            verifyState.savedCloud = saved;
+            verifyState.step = 'done';
+            verifyRender();
+            toast('Verified — the Fishes Arcade is unlocked');
+        }
+        function verifyRenderDone(body) {
+            body.innerHTML =
+                '<div style="text-align:center;padding:8px 0 4px;"><div style="font-size:42px;margin-bottom:8px;">✅</div>' +
+                '<h3 style="margin:0 0 8px;">Account verified</h3>' +
+                '<p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 6px;line-height:1.6;">All ' + VERIFY_CAPTCHA_COUNT + ' CAPTCHAs passed. The Fishes Arcade is unlocked — the active-user checklist and fair-warning form no longer apply to you.</p>' +
+                (verifyState.savedCloud ? '' : '<p style="color:var(--text-dim);font-size:0.78rem;margin:0 0 6px;">Saved on this browser — it will sync to your profile when the server is reachable.</p>') +
+                '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;"><button class="composer-btn" onclick="closeVerify()">Close</button><button class="composer-btn primary" onclick="closeVerify(); openFishesArcadeGate();">Open the Fishes Arcade</button></div></div>';
         }
 
         /* Featured card: open the Fishes Arcade in its own about:blank window */
@@ -3715,7 +4027,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 { usage:'/commands', desc:'List all chat commands.' }, { usage:'/profile <@user>', desc:'View another user\'s profile.' },
                 { usage:'/theme', desc:'Toggle Arcane/Dark theme.' }, { usage:'/ip', desc:'View your IP (staff).', staff:true },
                 { usage:'/notif', desc:'Toggle notification panel.' }, { usage:'/music <query/url>', desc:'Play a YouTube track.' },
-                { usage:'/ping', desc:'Check server latency.' }, { usage:'/blank', desc:'Reopen this page inside an about:blank tab (also in the top bar and Settings > Launch).' }, { usage:'/backup', desc:'Export your private DMs.' },
+                { usage:'/ping', desc:'Check server latency.' }, { usage:'/blank', desc:'Reopen this page inside an about:blank tab (also in the top bar and Settings > Launch).' }, { usage:'/verify', desc:'Verify your account to unlock the Fishes Arcade: read the terms, be at least 5 days old, pass 15 CAPTCHAs.' }, { usage:'/backup', desc:'Export your private DMs.' },
                 { usage:'/rules', desc:'Show server rules.' }, { usage:'/members', desc:'View channel members.' },
                 { usage:'/leave <group>', desc:'Leave a group chat.' }, { usage:'/ticket', desc:'Open a support ticket.' },
                 { usage:'/genaccess <@user> <token>', desc:'Assign a rank token to someone.', owner:true },
@@ -5097,7 +5409,8 @@ Furball found a sunbeam and is not moving for anyone.`;
                 DB_MANAGER.incrementWrites(1);
                 setMessageSendStatus('Sent');
                 (async () => {
-                    /* count messages total + in a rolling 2-week window (for the arcade bypass) */
+                    /* count messages total + in a rolling 2-week window (for the arcade bypass).
+                       If the counter write fails the message is still banked locally and synced later. */
                     try {
                         const ref = db.collection('users').doc(currentUser.uid);
                         const snap = await ref.get();
@@ -5108,7 +5421,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                         if (fresh) upd.msgCount14d = firebase.firestore.FieldValue.increment(1);
                         else { upd.msgCount14d = 1; upd.msgWindowStart = firebase.firestore.FieldValue.serverTimestamp(); }
                         await ref.set(upd, { merge: true });
-                    } catch (e) {}
+                    } catch (e) { arcadeQueueAdd({ msg: 1, msg14: 1 }); }
                 })();
                 clearComposerSafely(); if (editingMessage) { cancelEdit(); }
             } catch (e) {
@@ -5211,6 +5524,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'theme': settings.theme = settings.theme === 'arcane' ? 'dark' : 'arcane'; applyTheme(); saveSettingsInstant(); toast('Theme: ' + settings.theme); return true;
                 case 'ping': toast('Pong! Latency: ' + Math.floor(Math.random() * 50 + 10) + 'ms'); return true;
                 case 'blank': case 'aboutblank': openInAboutBlank(); return true;
+                case 'verify': openVerifyFlow(); return true;
                 case 'rules': toast('1. Be respectful. 2. No spam. 3. No NSFW. 4. No harassment. 5. Messages are kept in a staff moderation log.'); return true;
                 case 'msglog': case 'messagelog': openMessageLog(); return true;
                 case 'leave': if (args[0]) { leaveGroup(args[0]); } return true;
@@ -6386,6 +6700,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.6.0', date: '2026-11-03', author: 'fish01-jpg', title: 'Verify Command, Review Terms, Reliable Trackers', changes: ["New /verify chat command — a second way into the Fishes Arcade", "It opens a menu with the full terms: agree, have an account at least 5 days old, then pass 15 different CAPTCHAs (math, codes, odd-one-out and more — no two alike), with progress saved if you stop halfway", "Verified accounts skip the active-user checklist and the fair-warning form and get straight into the arcade", "The arcade gate now has a Review terms button so anyone can re-read the terms after agreeing", "The activity trackers were rebuilt: time on screen, messages and page visits are banked locally first and synced to your profile with retries, so being offline, over quota or in a sandboxed frame no longer wipes your progress", "The gate checklist merges your not-yet-synced progress, so the list stays live and accurate", "The Sp1der Runner (fishes.html) now loads the sp1der backup copy (sp1der-backup.html), and the Fishes Arcade hub has a new cloaked Project Sp1der launcher that opens it"] },
             { version: '4.5.9', date: '2026-11-02', author: 'fish01-jpg', title: 'Forced Chat Commands - AI Detects Commands Written Straight to Firestore', changes: ["Commands typed in the composer were always executed before the message reached Firestore, so a command forced directly into the messages collection (Firebase console, REST API, the Sigma Remote or any other client) only rendered as plain text and never ran", "The chat now detects command-shaped messages arriving through Firestore and runs them through the normal command handlers: / commands via the chat command handler, @ commands via the AI command handler, in both the main chat channels and the Aegis AI chat", "Each forced command message is claimed once with a cmdHandled marker on the message document - the same claim idea as the Sigma command queue - so multiple AI tabs never run the same command twice", "Only the AI accounts and the admin-panel owner execute forced commands, and only for messages posted by their own account or by the AI itself - a command message forged by another account is never executed with staff powers", "On first load only unmarked commands from the last 15 minutes are picked up, so channel history is never replayed; forced commands that arrive while the AI is offline still run when it comes back online", "Unrecognized forced commands are not removed - they keep rendering as normal chat text, and a toast reports whether each forced command ran"] },
             { version: '4.5.8', date: '2026-11-02', author: 'fish01-jpg', title: 'Arcade Gate Bypass, Explosive Arcade Background', changes: ["The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines"] },
             { version: '4.5.7', date: '2026-11-02', author: 'fish01-jpg', title: 'Fishes Arcade Active-User Gate, Stay Logged In', changes: ["The Fishes Arcade card on the Games page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox"] },
