@@ -593,6 +593,69 @@
   }
   .bouncer-bubble.bouncer-bubble-show { opacity: 1; transform: translateX(-50%) translateY(0); }
   @media (max-width: 760px) { .bouncer { display: none; } }
+
+  /* sebass summoning */
+  body.sebass-summoning { animation: pageShake 0.3s linear infinite; }
+  @keyframes pageShake {
+    0%   { transform: translate(0, 0); }
+    20%  { transform: translate(-3px, 2px); }
+    40%  { transform: translate(3px, -2px); }
+    60%  { transform: translate(-2px, -3px); }
+    80%  { transform: translate(2px, 3px); }
+    100% { transform: translate(0, 0); }
+  }
+  body.sebass-trembling #bossFish { animation: donTremble 0.14s linear infinite; }
+  @keyframes donTremble {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(-1.5px, 1px); }
+    50%  { transform: translate(1.5px, -1px); }
+    75%  { transform: translate(-1px, -1.5px); }
+    100% { transform: translate(1px, 1.5px); }
+  }
+  #sebass-overlay {
+    position: fixed; inset: 0; z-index: 30000;
+    background: radial-gradient(circle at 50% 42%, rgba(34, 22, 6, 0.9) 0%, rgba(0, 0, 0, 0.98) 72%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; padding: 24px; opacity: 0; animation: sebassFade 1.2s ease 0.1s forwards;
+  }
+  @keyframes sebassFade { to { opacity: 1; } }
+  #sebass-overlay .sebass-rings { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  #sebass-overlay .sebass-ring {
+    position: absolute; left: 50%; top: 42%; width: 40px; height: 40px; margin: -20px 0 0 -20px;
+    border-radius: 50%; border: 1.5px solid rgba(245, 184, 61, 0.4);
+    animation: sebassRing 3.3s ease-out infinite;
+  }
+  @keyframes sebassRing {
+    0%   { transform: scale(0.2); opacity: 0; }
+    10%  { opacity: 1; }
+    100% { transform: scale(32); opacity: 0; }
+  }
+  .sebass-angel-wrap { animation: sebassArrive 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both; }
+  @keyframes sebassArrive { from { transform: scale(0.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .sebass-angel {
+    width: min(80vw, 430px); display: block;
+    filter: drop-shadow(0 0 70px rgba(245, 184, 61, 0.5));
+    animation: sebassFloat 3.4s ease-in-out infinite;
+  }
+  @keyframes sebassFloat { 0%, 100% { transform: translateY(-9px); } 50% { transform: translateY(9px); } }
+  .sebass-angel .wing { transform-box: fill-box; }
+  .sebass-angel .wing-l { transform-origin: right center; animation: sebassFlapL 3.4s ease-in-out infinite; }
+  .sebass-angel .wing-r { transform-origin: left center; animation: sebassFlapR 3.4s ease-in-out infinite; }
+  @keyframes sebassFlapL { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-7deg); } }
+  @keyframes sebassFlapR { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(7deg); } }
+  .sebass-angel .eye { transform-box: fill-box; transform-origin: center; animation: sebassBlink 4.4s infinite; }
+  @keyframes sebassBlink { 0%, 90%, 100% { transform: scaleY(1); } 93%, 96% { transform: scaleY(0.08); } }
+  .sebass-angel .halo { animation: sebassHalo 2.6s ease-in-out infinite; }
+  @keyframes sebassHalo { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+  .sebass-title {
+    font: 600 14px -apple-system, Arial, sans-serif; letter-spacing: 0.5em; text-transform: uppercase;
+    color: #ffe08a; text-shadow: 0 0 26px rgba(245, 184, 61, 0.7);
+    margin: 0 0 0 0.5em; opacity: 0; animation: sebassFade 1.3s ease 2s forwards;
+  }
+  .sebass-saying {
+    font: 400 16px/1.6 -apple-system, Arial, sans-serif; color: #ececef; text-align: center;
+    max-width: 44ch; min-height: 3.4em; margin: 0; opacity: 0; animation: sebassFade 1.3s ease 3.2s forwards;
+  }
 </style>
 </head>
 
@@ -1375,8 +1438,31 @@ async function launchRepoApp(appId) {
     "You're lucky you're not sushi yet.",
     "The bouncers are watching you, pal."
   ];
-  let last = -1, hideT = null;
+  /* The Don tolerates insults, but every click brings sebass closer. */
+  const SEBASS_WARNINGS = [
+    "Enough. Every click echoes in the deep.",
+    "He hears you. He is waking up. Stop clicking.",
+    "You were warned. -sebass is coming.",
+    "IT IS TOO LATE. HE IS ALREADY SWIMMING."
+  ];
+  const WARN_AT = 8, SUMMON_AT = 12;
+  let donClicks = 0, last = -1, hideT = null;
   svg.addEventListener("click", function () {
+    if (window.__sebassSummoned) return;
+    donClicks++;
+    if (donClicks >= SUMMON_AT) { summonSebass(); return; }
+    if (donClicks >= WARN_AT) {
+      document.body.classList.add("sebass-trembling");
+      svg.classList.add("boss-mad");
+      bubble.textContent = SEBASS_WARNINGS[Math.min(SEBASS_WARNINGS.length - 1, donClicks - WARN_AT)];
+      bubble.classList.add("boss-bubble-show");
+      clearTimeout(hideT);
+      hideT = setTimeout(function () {
+        bubble.classList.remove("boss-bubble-show");
+        svg.classList.remove("boss-mad");
+      }, 3400);
+      return;
+    }
     svg.classList.add("boss-mad");
     let i;
     do { i = Math.floor(Math.random() * INSULTS.length); } while (i === last && INSULTS.length > 1);
@@ -1390,6 +1476,103 @@ async function launchRepoApp(appId) {
     }, 3400);
   });
 })();
+
+/* A biblically accurate angel fish: one body, one halo, six wings, thirteen eyes. */
+const ANGEL_FISH_SVG =
+'<svg class="sebass-angel" viewBox="0 0 400 270" role="img" aria-label="A biblically accurate angel fish">' +
+'<defs>' +
+'<radialGradient id="sGlow"><stop offset="0" stop-color="#ffe08a" stop-opacity="0.5"/><stop offset="1" stop-color="#ffe08a" stop-opacity="0"/></radialGradient>' +
+'<linearGradient id="sBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7de"/><stop offset="1" stop-color="#e6bf63"/></linearGradient>' +
+'<g id="sEye"><circle r="7" fill="#fff"/><circle r="3" fill="#141416"/></g>' +
+'</defs>' +
+'<circle cx="200" cy="128" r="105" fill="url(#sGlow)"/>' +
+'<ellipse class="halo" cx="200" cy="44" rx="56" ry="12" fill="none" stroke="#f5b83d" stroke-width="5"/>' +
+'<g class="wing wing-l">' +
+'<path d="M138 96 C 92 44, 46 56, 18 22 C 62 18, 108 44, 140 72 Z" fill="#f8eed4" opacity="0.92"/>' +
+'<path d="M136 128 C 80 96, 36 104, 6 92 C 52 76, 104 92, 138 108 Z" fill="#f3e5c4" opacity="0.92"/>' +
+'<path d="M136 158 C 84 140, 44 150, 16 158 C 56 132, 106 136, 138 146 Z" fill="#ecdcb2" opacity="0.92"/>' +
+'<use href="#sEye" x="56" y="48" class="eye"/>' +
+'<use href="#sEye" x="98" y="58" class="eye"/>' +
+'<use href="#sEye" x="38" y="96" class="eye"/>' +
+'<use href="#sEye" x="92" y="100" class="eye"/>' +
+'<use href="#sEye" x="60" y="146" class="eye"/>' +
+'</g>' +
+'<g class="wing wing-r">' +
+'<path d="M262 96 C 308 44, 354 56, 382 22 C 338 18, 292 44, 260 72 Z" fill="#f8eed4" opacity="0.92"/>' +
+'<path d="M264 128 C 320 96, 364 104, 394 92 C 348 76, 296 92, 262 108 Z" fill="#f3e5c4" opacity="0.92"/>' +
+'<path d="M264 158 C 316 140, 356 150, 384 158 C 344 132, 294 136, 262 146 Z" fill="#ecdcb2" opacity="0.92"/>' +
+'<use href="#sEye" x="344" y="48" class="eye"/>' +
+'<use href="#sEye" x="302" y="58" class="eye"/>' +
+'<use href="#sEye" x="362" y="96" class="eye"/>' +
+'<use href="#sEye" x="308" y="100" class="eye"/>' +
+'<use href="#sEye" x="340" y="146" class="eye"/>' +
+'</g>' +
+'<path d="M186 172 C 176 200, 172 214, 158 232 C 178 224, 192 212, 200 196 C 208 212, 222 224, 242 232 C 228 214, 224 200, 214 172 Z" fill="#e6c877"/>' +
+'<ellipse cx="200" cy="140" rx="62" ry="42" fill="#f2dfa8"/>' +
+'<ellipse cx="200" cy="152" rx="46" ry="24" fill="#fff7de" opacity="0.75"/>' +
+'<path d="M186 158 Q200 166 214 158" stroke="#8a6a1e" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+'<use href="#sEye" x="176" y="126" class="eye"/>' +
+'<use href="#sEye" x="224" y="126" class="eye"/>' +
+'<use href="#sEye" x="200" y="152" class="eye"/>' +
+'</svg>';
+
+function summonSebass() {
+  if (window.__sebassSummoned) return;
+  window.__sebassSummoned = true;
+
+  /* ominous two-tone drone, no audio files needed */
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+      const ac = new AC();
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0, ac.currentTime);
+      g.gain.linearRampToValueAtTime(0.16, ac.currentTime + 1.4);
+      const o1 = ac.createOscillator(), o2 = ac.createOscillator();
+      o1.type = o2.type = "sine";
+      o1.frequency.value = 55; o2.frequency.value = 55.8;
+      o1.connect(g); o2.connect(g); g.connect(ac.destination);
+      o1.start(); o2.start();
+      setTimeout(function () {
+        try {
+          g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 1);
+          o1.stop(ac.currentTime + 1.2); o2.stop(ac.currentTime + 1.2);
+          setTimeout(function () { try { ac.close(); } catch (e) {} }, 1600);
+        } catch (e) {}
+      }, 8000);
+    }
+  } catch (e) {}
+
+  const lines = TAGLINES.filter(function (t) { return t.indexOf("-sebass") !== -1; });
+  const saying = lines.length
+    ? lines[Math.floor(Math.random() * lines.length)]
+    : "the fish have already won. -sebass";
+
+  document.body.classList.add("sebass-summoning");
+
+  const ov = document.createElement("div");
+  ov.id = "sebass-overlay";
+  ov.innerHTML =
+    '<div class="sebass-rings">' +
+    '<div class="sebass-ring"></div>' +
+    '<div class="sebass-ring" style="animation-delay:1.1s"></div>' +
+    '<div class="sebass-ring" style="animation-delay:2.2s"></div>' +
+    "</div>" +
+    '<div class="sebass-angel-wrap">' + ANGEL_FISH_SVG + "</div>" +
+    '<p class="sebass-title">Be not afraid</p>' +
+    '<p class="sebass-saying">' + saying + "</p>";
+  document.body.appendChild(ov);
+
+  /* let the angel deliver its message, then close the tab */
+  setTimeout(function () {
+    window.close();
+    /* browsers only let scripts close tabs they opened; if the close was
+       refused, fall back to somewhere teacher-proof */
+    setTimeout(function () {
+      try { window.location.replace("https://classroom.google.com/"); } catch (e) {}
+    }, 500);
+  }, 9500);
+}
 
 (function initBouncers() {
   const LINES = [
