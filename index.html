@@ -973,12 +973,20 @@ const TAGLINES = [
   const p = document.getElementById("tagline");
   if (!el || !p || !TAGLINES.length) return;
 
-  let lastIdx = -1;
+  /* shuffled bag: every tagline gets said once before any repeats */
+  let lastIdx = -1, bag = [];
   function pick() {
-    let i;
-    do { i = Math.floor(Math.random() * TAGLINES.length); } while (i === lastIdx && TAGLINES.length > 1);
-    lastIdx = i;
-    return TAGLINES[i];
+    if (bag.length === 0) {
+      bag = TAGLINES.map(function (_, i) { return i; });
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = bag[i]; bag[i] = bag[j]; bag[j] = t;
+      }
+      /* don't start a fresh bag with the one just said */
+      if (bag.length > 1 && bag[0] === lastIdx) { const t = bag[0]; bag[0] = bag[1]; bag[1] = t; }
+    }
+    lastIdx = bag.shift();
+    return TAGLINES[lastIdx];
   }
 
   const randomColor = () => "hsl(" + Math.floor(Math.random() * 360) + " 85% 72%)";
