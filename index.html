@@ -1601,9 +1601,11 @@ async function launchRepoApp(appId) {
 })();
 
 /* The true form of sebass, as captured on camera. Only the first 3.5 seconds
-   of the recording may be shown; the rest is classified. Sources are tried in
-   order: same-folder, jsdelivr, raw GitHub — so it plays no matter how the
-   hub itself was loaded. */
+   of the recording may be shown; the rest is classified. The school filter
+   only lets raw.githubusercontent.com through, and it serves webm as
+   audio/webm — so if a direct <source> won't play, the file is fetched as a
+   blob (CORS is open on raw) and played from an object URL, which always
+   works. */
 function makeSebassVideo() {
   const v = document.createElement("video");
   v.className = "sebass-angel";
@@ -1612,10 +1614,10 @@ function makeSebassVideo() {
   v.preload = "auto";
   v.setAttribute("role", "img");
   v.setAttribute("aria-label", "sebass in his true form");
+  const RAW = "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sebass.webm";
   [
-    "sebass.webm",
-    "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sebass.webm",
-    "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sebass.webm"
+    "sebass.webm", /* same folder / base href (raw when loaded by the launcher) */
+    RAW
   ].forEach(function (src) {
     const s = document.createElement("source");
     s.src = src;
@@ -1628,7 +1630,16 @@ function makeSebassVideo() {
       try { v.currentTime = 3.5; } catch (e) {}
     }
   });
-  v.play().catch(function () { v.muted = true; v.play().catch(function () {}); });
+  const start = function () { v.play().catch(function () { v.muted = true; v.play().catch(function () {}); }); };
+  start();
+  /* blob fallback: fires only after every <source> above has failed */
+  v.addEventListener("error", function onErr() {
+    v.removeEventListener("error", onErr);
+    fetch(RAW, { cache: "no-cache" })
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (b) { v.src = URL.createObjectURL(b); start(); })
+      .catch(function () { /* jsdelivr, for networks where raw is blocked */ v.src = "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sebass.webm"; start(); });
+  });
   return v;
 }
 
@@ -1721,8 +1732,11 @@ function summonSebass() {
   const angelWrap = document.getElementById("sebassAngelWrap");
   if (angelWrap) {
     const v = makeSebassVideo();
+    /* only give up on the video once every fallback has had its chance */
     v.addEventListener("error", function () {
-      angelWrap.innerHTML = SEBASS_FALLBACK_SVG;
+      setTimeout(function () {
+        if (v.error || v.readyState === 0) angelWrap.innerHTML = SEBASS_FALLBACK_SVG;
+      }, 3500);
     });
     angelWrap.appendChild(v);
   }
