@@ -1601,16 +1601,27 @@ async function launchRepoApp(appId) {
 })();
 
 /* The true form of sebass, as captured on camera. Only the first 3.5 seconds
-   of the recording may be shown; the rest is classified. */
+   of the recording may be shown; the rest is classified. Sources are tried in
+   order: same-folder, jsdelivr, raw GitHub — so it plays no matter how the
+   hub itself was loaded. */
 function makeSebassVideo() {
   const v = document.createElement("video");
   v.className = "sebass-angel";
-  v.src = "Screen%20recording%202026-11-03%2011.45.44%20AM%20(2).webm";
   v.autoplay = true;
   v.playsInline = true;
   v.preload = "auto";
   v.setAttribute("role", "img");
   v.setAttribute("aria-label", "sebass in his true form");
+  [
+    "sebass.webm",
+    "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sebass.webm",
+    "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sebass.webm"
+  ].forEach(function (src) {
+    const s = document.createElement("source");
+    s.src = src;
+    s.type = "video/webm";
+    v.appendChild(s);
+  });
   v.addEventListener("timeupdate", function () {
     if (v.currentTime >= 3.5) {
       v.pause();
