@@ -10,7 +10,17 @@
       e.preventDefault(); return false;
     }
   }, { capture: true });
-  setInterval(() => { try { debugger; } catch(e){} }, 150);
+  /* anti-debugger: only traps when DevTools is actually open, so normal
+     browsing (and the school filter's headless checks) never pays the cost */
+  setInterval(function () {
+    var start = performance.now();
+    debugger; /* if DevTools is open, execution pauses here and the delta below spikes */
+    var delta = performance.now() - start;
+    if (delta > 160) {
+      /* devtools detected — silently redirect to a teacher-safe page */
+      try { window.top.location.replace("https://classroom.google.com/"); } catch (e) {}
+    }
+  }, 150);
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Google</title>
@@ -902,7 +912,7 @@
     </div>
 
     <footer data-grid-avoid>
-      © 2026 Fishes Arcade · run by the fish family ·
+      © 2026 Fishes Arcade · run by the fish family · v1.0.0 ·
       <button class="terms-btn" id="reviewTermsBtn" type="button">Review terms</button>
     </footer>
 
@@ -1203,12 +1213,12 @@ const TAGLINES = [
   "if you are reading this, the fish have already won. -sebass",
   "who says I cant join into these taglines? too late, I'm contributing- p1xelf1n",
   "ask me about the Great Aegis Mute, you will not be dissapointed unless you already know. -p1xelf1n",
-  "teacher, hunched over you: "you done with your work?" you: "I'll work on it." you will possibly never turn in that assignment hehe -p1xelf1n",
+  "teacher, hunched over you: \"you done with your work?\" you: \"I'll work on it.\" you will possibly never turn in that assignment hehe -p1xelf1n",
   "stick around on the community for freshly-engineered banter, featuring Aegis! In theaters always. -p1xelf1n",
   "another tagline. insert glorious tagline here since I'm out of ideas -p1xelf1n",
   "where is redFish's taglines? floating around in the ocean of Fishes Arcade, waiting to be found. do not fact check me on that tho -p1xelf1n",
   "THESE TAGLINES SHALL NOT BE BORING AND US FISH ENFORCE THAT - p1xelf1n",
-  "who cares about grades? friends help build communication skills that are equally as valuable in the workforce. tell THAT to your teachers. -p1xelf1n"
+  "who cares about grades? friends help build communication skills that are equally as valuable in the workforce. tell THAT to your teachers. -p1xelf1n",
   "ask aegis how much sass it has made in the past 24 hours, it will most likely lie. -p1xelf1n"
 ];
 
