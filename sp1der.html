@@ -2746,7 +2746,7 @@
         /* ============================================
            PROJECT SP1DER V4 — APPLICATION LOGIC
            ============================================ */
-        const APP_VERSION = '4.6.0';
+        const APP_VERSION = '4.6.1';
         function isNewerAppVersion(candidate, current = APP_VERSION) {
             const parse = value => {
                 const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/i);
@@ -3299,7 +3299,9 @@
         let currentUser = null, userProfile = null, selectedAppCode = '', loaderTimer = null;
         const loadedAppsRegistry = {};
         const isOwner = () => !!currentAdminUser || ['owner','founder','aegis'].includes(getRole());
-        const getRole = () => currentUser && isOwnerEmail(currentUser.email) ? 'owner' : String((userProfile && userProfile.role) || 'member').toLowerCase();
+        /* v4.6.1: the AI account (Aegis) is recognized from the account itself, not just the
+           saved profile, so its ban / kick commands work even if the profile role is missing. */
+        const getRole = () => currentUser && isOwnerEmail(currentUser.email) ? 'owner' : (currentUser && String(currentUser.email || '').toLowerCase() === AI_EMAIL ? 'aegis' : String((userProfile && userProfile.role) || 'member').toLowerCase());
         const isStaffUser = () => ['owner','founder','aegis','admin','administrator','watchdog','moderator','mod'].includes(getRole());
         const canUseOwnerCmds = () => !!currentAdminUser || ['owner','founder','aegis','admin','administrator'].includes(getRole());
         const canUseStaffCmds = () => canUseOwnerCmds() || ['watchdog','moderator','mod'].includes(getRole());
@@ -6525,6 +6527,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                             notifDocs = snap.docs
                                 .map(d => Object.assign({}, d.data(), { _id: d.id }))
                                 .sort((a, b) => tsOf(b) - tsOf(a));
+                            try { playEffectNotifs(notifDocs); } catch (e) {}
                             renderBell();
                         }, showError);
                 } catch (error) { showError(error); }
@@ -6533,6 +6536,17 @@ Furball found a sunbeam and is not moving for anyone.`;
                 if (bellUnsub) { try { bellUnsub(); } catch (e) {} bellUnsub = null; }
                 bellOwner = null; notifDocs = [];
                 renderBell();
+            }
+            /* v4.6.1: admin panel effects delivered as notifications (see adminEffect).
+               An effect only plays when its notification is fresh, and the fxId is shared
+               with the system/liveEffect channel so nobody sees the same effect twice. */
+            const seenFxIds = new Set();
+            function playEffectNotifs(docs) {
+                docs.forEach(n => {
+                    if (!n || !n.effect || !n.fxId || seenFxIds.has(n.fxId)) return;
+                    seenFxIds.add(n.fxId);
+                    if (Date.now() - tsOf(n) < 60000) { try { playEffect(n.effect); } catch (e) {} }
+                });
             }
             function timeAgoShort(t) {
                 const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
@@ -6700,6 +6714,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.6.1', date: '2026-11-04', author: 'fish01-jpg', title: 'AI Ban Powers, Effects That Reach Everyone', changes: ["The AI account (Aegis) can now use the moderation commands: /ban, /unban and /kick work when forced through Firestore or typed by the AI, exactly like for an admin", "The AI's rank is now recognized from the account itself instead of only the saved profile, so a missing profile role no longer strips its staff powers; owners are still protected - the AI cannot act on owner-level accounts", "Admin panel fun controls (confetti, spider rain, starfall) now actually reach everyone:", "They used to rely only on a system document that most accounts cannot read, so almost nobody ever saw them", "Each effect is now also delivered as a per-account notification - the same channel @broadcast already uses - so every signed-in client plays it within seconds, even behind strict database rules", "The staffer who starts an effect sees it immediately too, and a shared id means nobody ever sees the same effect twice"] },
             { version: '4.6.0', date: '2026-11-03', author: 'fish01-jpg', title: 'Verify Command, Review Terms, Reliable Trackers', changes: ["New /verify chat command — a second way into the Fishes Arcade", "It opens a menu with the full terms: agree, have an account at least 5 days old, then pass 15 different CAPTCHAs (math, codes, odd-one-out and more — no two alike), with progress saved if you stop halfway", "Verified accounts skip the active-user checklist and the fair-warning form and get straight into the arcade", "The arcade gate now has a Review terms button so anyone can re-read the terms after agreeing", "The activity trackers were rebuilt: time on screen, messages and page visits are banked locally first and synced to your profile with retries, so being offline, over quota or in a sandboxed frame no longer wipes your progress", "The gate checklist merges your not-yet-synced progress, so the list stays live and accurate", "The Sp1der Runner (fishes.html) now loads the sp1der backup copy (sp1der-backup.html), and the Fishes Arcade hub has a new cloaked Project Sp1der launcher that opens it"] },
             { version: '4.5.9', date: '2026-11-02', author: 'fish01-jpg', title: 'Forced Chat Commands - AI Detects Commands Written Straight to Firestore', changes: ["Commands typed in the composer were always executed before the message reached Firestore, so a command forced directly into the messages collection (Firebase console, REST API, the Sigma Remote or any other client) only rendered as plain text and never ran", "The chat now detects command-shaped messages arriving through Firestore and runs them through the normal command handlers: / commands via the chat command handler, @ commands via the AI command handler, in both the main chat channels and the Aegis AI chat", "Each forced command message is claimed once with a cmdHandled marker on the message document - the same claim idea as the Sigma command queue - so multiple AI tabs never run the same command twice", "Only the AI accounts and the admin-panel owner execute forced commands, and only for messages posted by their own account or by the AI itself - a command message forged by another account is never executed with staff powers", "On first load only unmarked commands from the last 15 minutes are picked up, so channel history is never replayed; forced commands that arrive while the AI is offline still run when it comes back online", "Unrecognized forced commands are not removed - they keep rendering as normal chat text, and a toast reports whether each forced command ran"] },
             { version: '4.5.8', date: '2026-11-02', author: 'fish01-jpg', title: 'Arcade Gate Bypass, Explosive Arcade Background', changes: ["The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines"] },
@@ -7756,7 +7771,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (globalWatchStarted) return; globalWatchStarted = true;
             try { db.collection('system').doc('chatControls').onSnapshot(doc => { chatCtl = Object.assign({ locked: false, slowSec: 0, lockMsg: '' }, doc.exists ? doc.data() : {}); try { renderAdminControls(); } catch (e) {} }, () => {}); } catch (e) {}
             try { db.collection('system').doc('siteBanner').onSnapshot(doc => renderSiteBanner(doc.exists ? doc.data() : null), () => {}); } catch (e) {}
-            try { db.collection('system').doc('liveEffect').onSnapshot(doc => { const d = doc.exists ? doc.data() : null; if (!d || !d.id || d.id === lastEffectId) return; lastEffectId = d.id; if (Date.now() - (+d.at || 0) < 15000) playEffect(d.type); }, () => {}); } catch (e) {}
+            try { db.collection('system').doc('liveEffect').onSnapshot(doc => { const d = doc.exists ? doc.data() : null; if (!d || !d.id || seenFxIds.has(d.id)) return; seenFxIds.add(d.id); if (Date.now() - (+d.at || 0) < 15000) playEffect(d.type); }, () => {}); } catch (e) {}
         }
 
         /* ===== ADMIN COMMAND PANEL (staff only) ===== */
@@ -7908,9 +7923,29 @@ Furball found a sunbeam and is not moving for anyone.`;
             const sel = $('adminSlowSel'); if (sel && document.activeElement !== sel) sel.value = String(+chatCtl.slowSec || 0);
             const st = $('adminChatState'); if (st) st.textContent = (chatCtl.locked ? '(locked' : '(open') + ((+chatCtl.slowSec) ? ', slow ' + chatCtl.slowSec + 's' : '') + ')';
         }
+        /* v4.6.1: effects are delivered on two channels. The old system/liveEffect doc is kept
+           (it works wherever the rules allow reading it), but every signed-in client also gets a
+           per-account notification - the same channel @broadcast already uses - so the effect
+           genuinely reaches everyone. The staffer who starts it sees it immediately too. */
         async function adminEffect(type) {
             if (!canUseStaffCmds()) { toast('Staff only'); return; }
-            try { await db.collection('system').doc('liveEffect').set({ id: Date.now() + '_' + Math.random().toString(36).slice(2, 6), type: type, at: Date.now(), by: adminMyName() }); adminLogAdd('Started ' + type + ' effect'); } catch (e) { toast('Failed: ' + e.message); }
+            const fxId = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+            let reached = 0;
+            try { await db.collection('system').doc('liveEffect').set({ id: fxId, type: type, at: Date.now(), by: adminMyName() }); reached++; } catch (e) {}
+            try {
+                const s = await db.collection('users').limit(450).get();
+                const b = db.batch(); let n = 0;
+                s.forEach(d => {
+                    if (currentUser && d.id === currentUser.uid) return;
+                    b.set(db.collection('notifications').doc(), { uid: d.id, fromUid: currentUser.uid, fromName: adminMyName(), message: 'Started a ' + type + ' effect for everyone', effect: type, fxId: fxId, createdAt: sv(), read: false });
+                    n++;
+                });
+                if (n) { await b.commit(); reached++; }
+            } catch (e) {}
+            seenFxIds.add(fxId);
+            try { playEffect(type); } catch (e) {}
+            if (reached) { toast('Effect started for everyone'); adminLogAdd('Started ' + type + ' effect'); }
+            else { toast('Failed: could not write to any channel - check the database rules'); }
         }
         async function adminSetBanner(on) {
             if (!canUseOwnerCmds()) { toast('That needs the admin role'); return; }
