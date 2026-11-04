@@ -250,9 +250,12 @@
             const item = { unsubscribe: null, error: '' };
             listeners.set(key, item);
             try {
+                // Index-free query: an equality filter on channelId plus a range on timestamp
+                // needs a composite index that may not exist in Firestore, which silently
+                // kills the listener. Order by timestamp alone uses the automatic single-field
+                // index, and the channel + age filtering happens below on the client.
                 item.unsubscribe = app.database(ch.id).collection('messages')
-                    .where('channelId', '==', ch.id)
-                    .where('timestamp', '>', new Date(started))
+                    .orderBy('timestamp', 'desc').limit(20)
                     .onSnapshot({ includeMetadataChanges: true }, snapshot => {
                         if (owner !== uid || listeners.get(key) !== item || snapshot.metadata.fromCache) return;
                         // Inspect docs, not only "added": cached/pending docs can become committed
@@ -261,10 +264,11 @@
                             if (doc.metadata && doc.metadata.hasPendingWrites) return;
                             if (seen.has(doc.id)) return;
                             const m = doc.data(), ts = m.timestamp;
+                            if (m.channelId !== ch.id) return;
                             const time = ts && (ts.toMillis ? ts.toMillis() : ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime());
                             if (!Number.isFinite(time) || time <= started) return;
                             seen.add(doc.id);
-                            if (m.channelId !== ch.id || m.uid === uid) return;
+                            if (m.uid === uid) return;
                             void display(Object.assign({}, m, { id: doc.id }), ch.id, false, index);
                         });
                     }, error => {
@@ -1076,6 +1080,7 @@
 
         /* PINNED MESSAGES */
         .pinned-panel { display: none; border-bottom: 1px solid var(--border); background: var(--bg-1); padding: 8px 16px; max-height: 140px; overflow-y: auto; }
+        .pinned-panel.open { display: block; }
         .pinned-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
         .pinned-item { font-size: 0.78rem; padding: 4px 0; border-bottom: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
         .pinned-item b { color: var(--accent); }
@@ -1598,7 +1603,7 @@
         .message-body .msg-text, .message-body > div:not(.message-header):not(.message-actions) { line-height: 1.45; }
         .message-actions .composer-btn { padding: 3px 10px; font-size: 0.6rem; letter-spacing: 0.6px; }
         .role-badge { font-size: 0.58rem; padding: 2px 8px; border-radius: 50px; font-weight: 900; letter-spacing: 1px; background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--text); border: 1px solid var(--border-active); }
-        .role-badge.role-owner, .role-badge.role-founder { background: linear-gradient(135deg, #0b3d91, #1e90ff); color: #ffd700; border-color: #ffd700; text-shadow: 0 0 6px rgba(255,215,0,0.7); box-shadow: 0 0 8px rgba(30,144,255,0.5); }
+        .role-badge.role-owner, .role-badge.role-founder, .role-badge.role-developer { background: linear-gradient(135deg, #0b3d91, #1e90ff); color: #ffd700; border-color: #ffd700; text-shadow: 0 0 6px rgba(255,215,0,0.7); box-shadow: 0 0 8px rgba(30,144,255,0.5); }
         .role-badge.role-admin, .role-badge.role-administrator { background: rgba(255,0,85,0.15); color: #ff4d88; border-color: rgba(255,0,85,0.6); }
         .role-badge.role-mod, .role-badge.role-moderator, .role-badge.role-watchdog { background: rgba(160,32,240,0.2); color: #d6a4ff; border-color: rgba(160,32,240,0.55); }
         .role-badge.role-aegis { background: linear-gradient(135deg, #4a00e0, #00d4ff); color: #e8fbff; border-color: #00d4ff; text-shadow: 0 0 8px rgba(0,212,255,0.8); box-shadow: 0 0 10px rgba(0,212,255,0.45); }
@@ -2464,7 +2469,7 @@
     <div class="modal-overlay" id="furballHelpModal" role="dialog" aria-modal="true" aria-labelledby="furballHelpTitle">
         <div class="modal-card" style="max-width:680px;text-align:left;max-height:90vh;overflow-y:auto;">
             <h2 id="furballHelpTitle">Furry Commands</h2>
-            <p class="command-guide-intro">Furry bonus commands are for Furball, the Furball@test.com test account, any member holding the Furry title, and any signed-in staff member (owner, founder, aegis, admin, moderator or watchdog). Furball accounts post as System (Furball); everyone else posts as System (their own display name). The Furry title gives ONLY these commands - it never grants staff, moderation or any other powers.</p>
+            <p class="command-guide-intro">Furry bonus commands are for Furball, the Furball@test.com test account, any member holding the Furry title, and any signed-in staff member (owner, developer, founder, aegis, admin, moderator or watchdog). Furball accounts post as System (Furball); everyone else posts as System (their own display name). The Furry title gives ONLY these commands - it never grants staff, moderation or any other powers.</p>
             <div id="furballHelpList"></div>
             <p class="command-guide-intro" id="furballHelpCooldown"></p>
             <button type="button" class="composer-btn" onclick="closeModal('furballHelpModal')" style="width:100%;margin-top:12px;">Close</button>
@@ -3298,14 +3303,15 @@
         let currentAdminUser = null; /* set only by refreshAdminAccess() after the owner role check - never from browser storage */
         let currentUser = null, userProfile = null, selectedAppCode = '', loaderTimer = null;
         const loadedAppsRegistry = {};
-        const isOwner = () => !!currentAdminUser || ['owner','founder','aegis'].includes(getRole());
+        const isOwner = () => !!currentAdminUser || ['owner','developer','founder','aegis'].includes(getRole());
         /* v4.6.1: the AI account (Aegis) is recognized from the account itself, not just the
            saved profile, so its ban / kick commands work even if the profile role is missing. */
         const getRole = () => currentUser && isOwnerEmail(currentUser.email) ? 'owner' : (currentUser && String(currentUser.email || '').toLowerCase() === AI_EMAIL ? 'aegis' : String((userProfile && userProfile.role) || 'member').toLowerCase());
-        const isStaffUser = () => ['owner','founder','aegis','admin','administrator','watchdog','moderator','mod'].includes(getRole());
-        const canUseOwnerCmds = () => !!currentAdminUser || ['owner','founder','aegis','admin','administrator'].includes(getRole());
+        const isStaffUser = () => ['owner','developer','founder','aegis','admin','administrator','watchdog','moderator','mod'].includes(getRole());
+        const canUseOwnerCmds = () => !!currentAdminUser || ['owner','developer','founder','aegis','admin','administrator'].includes(getRole());
         const canUseStaffCmds = () => canUseOwnerCmds() || ['watchdog','moderator','mod'].includes(getRole());
-        const RANK_LEVELS = { owner:100, aegis:100, founder:90, admin:80, administrator:80, watchdog:50, moderator:50, mod:50 };
+        /* v4.6.2: developer rank — same powers as owner, granted by role instead of email. */
+        const RANK_LEVELS = { owner:100, developer:100, aegis:100, founder:90, admin:80, administrator:80, watchdog:50, moderator:50, mod:50 };
         const roleLevel = (role) => RANK_LEVELS[String(role||'member').toLowerCase()] || 0;
         const getLevel = () => currentAdminUser ? 100 : roleLevel(getRole());
         const userLevel = (u) => roleLevel(u && u.role);
@@ -3470,7 +3476,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
 
         /* ===== 2. STATE ===== */
-        let selectedChannelId = null, currentMessageUnsub = null, currentMessageLimit = 25, currentChanListener = null;
+        let selectedChannelId = null, currentMessageUnsub = null, currentMessageLimit = 25, currentChanListener = null, pinnedUnsub = null;
         let viewingUserProfile = null, channelAdminUser = null;
         const myChannels = {}, onlineUsers = {}, unsubs = {}, messageCache = {}, channelCache = {}, channelProfilesCache = {};
         const settings = {}, notifState = { soundOnly:false, everyone:false }, origNotifSettings = {};
@@ -3988,7 +3994,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const heading = document.createElement('h3'); heading.className = 'command-guide-heading'; heading.textContent = group; content.appendChild(heading);
                 if (group === 'Furry Bonus Commands') {
                     const note = document.createElement('p'); note.className = 'command-guide-intro';
-                    note.textContent = 'For Furball, the Furball@test.com test account, members holding the Furry title, and signed-in staff (owner, founder, aegis, admin, moderator, watchdog). The Furry title grants ONLY these commands - it never grants staff powers. All effect commands share a ' + (FURBALL_COOLDOWN_MS / 1000) + '-second cooldown in the current page session.';
+                    note.textContent = 'For Furball, the Furball@test.com test account, members holding the Furry title, and signed-in staff (owner, developer, founder, aegis, admin, moderator, watchdog). The Furry title grants ONLY these commands - it never grants staff powers. All effect commands share a ' + (FURBALL_COOLDOWN_MS / 1000) + '-second cooldown in the current page session.';
                     content.appendChild(note);
                 }
                 if (group === '4.5.0 Moderation') {
@@ -4038,7 +4044,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 { usage:'/globaldesync', desc:'Toggle the site\'s Firebase desync.', owner:true },
                 { usage:'/role <@user> <role>', desc:'Assign a user a staff role.', staff:true },
                 { usage:'/demote <@user>', desc:'Remove staff roles from a user.', owner:true },
-                { usage:'/pin <@user> <reason>', desc:'Pin a message to the top of chat.', staff:true },
+                { usage:'/pin', desc:'Pin the most recent message in this chat to the top (staff).', staff:true },
                 { usage:'/lock <@user> <role>', desc:'Lock a user\'s name/role.', owner:true },
                 { usage:'/unlock <@user>', desc:'Remove name/role locks.', owner:true },
                 { usage:'/grantsync <@user> [count]', desc:'Grant profile cloud sync credits (staff).', staff:true },
@@ -4732,7 +4738,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             return !!currentUser && !currentUser.isAnonymous && !['guest', 'visitor', 'non-member', 'nonmember'].includes(getRole());
         }
         function isConversationOwnerAccount() {
-            return isConversationAccountMember() && getRole() === 'owner';
+            return isConversationAccountMember() && ['owner','developer'].includes(getRole());
         }
         const ownerConversationPreferences = new Map();
         function ownerConversationsEnabled() {
@@ -4971,6 +4977,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                    background channel-list refreshes must not wipe it. */
                 if (document.querySelector('#panel-community.active')) Sp1derIndicators.markRead(channelId);
                 TypingBar.start(channelId);
+                watchPinnedMessage(channelId);
                 try { ReadReceipts.start(channelId); ComposerPresence.start(channelId); } catch (e) {}
                 setMessageSendStatus('');
             } catch (e) {}
@@ -5471,7 +5478,54 @@ Furball found a sunbeam and is not moving for anyone.`;
         function startReply(msg) { replyToMessage = msg; $('replyBar').style.display = 'flex'; $('replyBarText').textContent = 'Replying to ' + (msg.username || 'message'); $('composerInput').focus(); }
         function cancelReply() { replyToMessage = null; $('replyBar').style.display = 'none'; }
         async function deleteMessage(msgId, channelId) { if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; } const msgDb = getMsgDbForCh(channelId); try { await msgDb.collection('messages').doc(msgId).delete(); toast('Message deleted'); } catch (e) { toast('Failed to delete'); } }
-        async function pinMessage(msg, channelId) { if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; } const chDb = getChDb(); try { await chDb.collection('channels').doc(channelId).set({ pinnedMessage: { content: msg.content, uid: msg.uid, username: msg.username, timestamp: msg.timestamp } }, { merge: true }); toast('Message pinned'); } catch (e) { toast('Failed to pin'); } }
+        /* ===== PINNED MESSAGES (v4.6.2: pinning now actually shows the message) =====
+           pinMessage writes the channel doc; watchPinnedMessage subscribes to that doc so the
+           pinned panel at the top of the chat renders it live for everyone who can read the channel. */
+        async function pinMessage(msg, channelId) {
+            if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; }
+            const chDb = getChDb();
+            try {
+                await chDb.collection('channels').doc(channelId).set({ pinnedMessage: { content: msg.content, uid: msg.uid, username: msg.username || msg.displayName || 'Member', timestamp: msg.timestamp } }, { merge: true });
+                toast('Message pinned');
+            } catch (e) { toast('Failed to pin'); }
+        }
+        async function unpinMessage(channelId) {
+            if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; }
+            try {
+                await getChDb().collection('channels').doc(channelId).set({ pinnedMessage: firebase.firestore.FieldValue.delete() }, { merge: true });
+                toast('Message unpinned');
+            } catch (e) { toast('Failed to unpin'); }
+        }
+        function renderPinnedMessage(pin) {
+            const panel = $('pinnedPanel'), list = $('pinnedList'); if (!panel || !list) return;
+            if (!pin || !pin.content) { panel.classList.remove('open'); list.replaceChildren(); return; }
+            list.replaceChildren();
+            const item = document.createElement('div'); item.className = 'pinned-item';
+            const who = document.createElement('b'); who.textContent = String(pin.username || 'Member').slice(0, 40);
+            const text = document.createElement('span');
+            text.style.cssText = 'overflow-wrap:anywhere;flex:1;';
+            text.textContent = String(pin.content).slice(0, 400);
+            item.appendChild(who); item.appendChild(text);
+            if (canUseStaffCmds()) {
+                const un = document.createElement('button');
+                un.className = 'chat-sidebar-btn'; un.textContent = 'Unpin'; un.style.flexShrink = '0';
+                un.onclick = () => unpinMessage(selectedChannelId);
+                item.appendChild(un);
+            }
+            list.appendChild(item);
+            panel.classList.add('open');
+        }
+        function watchPinnedMessage(channelId) {
+            if (pinnedUnsub) { try { pinnedUnsub(); } catch (e) {} pinnedUnsub = null; }
+            renderPinnedMessage(null);
+            if (!channelId || !isConversationAccountMember()) return;
+            let chDb; try { chDb = getChDb(); } catch (e) { chDb = db; }
+            try {
+                pinnedUnsub = chDb.collection('channels').doc(channelId).onSnapshot(doc => {
+                    renderPinnedMessage(doc.exists ? (doc.data() || {}).pinnedMessage || null : null);
+                }, () => {});
+            } catch (e) {}
+        }
         function handleComposerKeydown(event) {
             if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (editingMessage) { editMessage(); } else { sendMessage(false); } }
         }
@@ -5552,7 +5606,17 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'kick': if (!canUseOwnerCmds()) { toast('Admin only.'); return true; } await modCommand('kick', args); return true;
                 case 'role': if (!isAdminPanelOwner()) { toast('Only an owner can change a rank.'); return true; } if (args.length < 2) { toast('Usage: /role <@user> <role>'); return true; } toast(`Set ${args[0]} role to ${args[1]}`); return true;
                 case 'demote': if (!isOwner()) { toast('Owner only.'); return true; } if (!args[0]) { toast('Usage: /demote <@user>'); return true; } toast(`Demoted ${args[0]}`); return true;
-                case 'pin': if (!canUseStaffCmds()) { toast('Staff only.'); return true; } if (args.length < 2) { toast('Usage: /pin <@user> <reason>'); return true; } toast(`Pinned message from ${args[0]}`); return true;
+                case 'pin': {
+                    if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
+                    if (!selectedChannelId) { toast('Open a conversation first.'); return true; }
+                    /* Pin the most recent message currently rendered in this chat. */
+                    const feedEl = $('commFeed');
+                    const cards = feedEl ? Array.from(feedEl.querySelectorAll('.message-card')) : [];
+                    const lastMsg = cards.length ? cards[cards.length - 1]._sp1derMessage : null;
+                    if (!lastMsg || !lastMsg.content) { toast('No message to pin in this chat.'); return true; }
+                    await pinMessage(lastMsg, selectedChannelId);
+                    return true;
+                }
                 case 'lock': if (!isOwner()) { toast('Owner only.'); return true; } if (args.length < 2) { toast('Usage: /lock <@user> <role>'); return true; } toast(`Locked ${args[0]}`); return true;
                 case 'unlock': if (!isOwner()) { toast('Owner only.'); return true; } if (!args[0]) { toast('Usage: /unlock <@user>'); return true; } toast(`Unlocked ${args[0]}`); return true;
                 case 'grantsync': { if (!canUseStaffCmds()) { toast('Staff only.'); return true; } if (!args[0]) { toast('Usage: /grantsync <@user> [count]'); return true; } const count = parseInt(args[1]) || 1; const targetUid = args[0].replace('@', ''); const result = await grantProfileSync(targetUid, count); toast(result); return true; }
@@ -6434,17 +6498,19 @@ Furball found a sunbeam and is not moving for anyone.`;
                     listeners.set(key, item);
                     const since = lastSeen[key] || Date.now();
                     try {
+                        // Index-free query (see Sp1derDeviceNotifications.sync): equality + range
+                        // filters together require a composite index; order by timestamp alone does not.
                         item.unsubscribe = DB_MANAGER.getMsgDb(idx).collection('messages')
-                            .where('channelId', '==', ch.id)
-                            .where('timestamp', '>', new Date(since))
+                            .orderBy('timestamp', 'desc').limit(20)
                             .onSnapshot({ includeMetadataChanges: true }, snap => {
                                 if (listeners.get(key) !== item || snap.metadata.fromCache) return;
                                 let changed = false;
                                 snap.docs.forEach(doc => {
                                     if (doc.metadata && doc.metadata.hasPendingWrites) return;
                                     if (item.seen.has(doc.id)) return;
-                                    item.seen.add(doc.id); changed = true;
                                     const m = doc.data();
+                                    if (m.channelId !== ch.id) return;
+                                    item.seen.add(doc.id); changed = true;
                                     if (m.uid === currentUser.uid) return;
                                     const ts = m.timestamp;
                                     const time = ts && (ts.toMillis ? ts.toMillis() : ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime());
@@ -7776,7 +7842,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== ADMIN COMMAND PANEL (staff only) ===== */
         const adminLogEntries = [];
-        const ADMIN_ASSIGNABLE = [ { v: 'member', label: 'Member' }, { v: 'moderator', label: 'Moderator' }, { v: 'admin', label: 'Admin' }, { v: 'founder', label: 'Founder' } ];
+        const ADMIN_ASSIGNABLE = [ { v: 'member', label: 'Member' }, { v: 'moderator', label: 'Moderator' }, { v: 'admin', label: 'Admin' }, { v: 'founder', label: 'Founder' }, { v: 'developer', label: 'Developer (same powers as Owner)' } ];
         let restrictedBanned = {}, restrictedMuted = {}, restrictedUnsubs = [], adminSearchHits = [], adminPick = null;
         function adminLogAdd(text) { adminLogEntries.unshift({ t: Date.now(), text: text }); if (adminLogEntries.length > 30) adminLogEntries.pop(); renderAdminLog(); }
         function renderAdminLog() {
@@ -8250,7 +8316,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (!requireAdminOwner()) { mgmtRenderUsersList(); return; }
             const target = (mgmtUsersCache || []).find(function(x) { return x.uid === uid; });
             if (target && isAdminPanelEmail(target.email)) { toast('Owner accounts keep a fixed rank.'); mgmtRenderUsersList(); return; }
-            if ((role === 'owner' || role === 'aegis') && !confirm('Grant the ' + role + ' rank to this user?')) { mgmtRenderUsersList(); return; }
+            if ((role === 'owner' || role === 'developer' || role === 'aegis') && !confirm('Grant the ' + role + ' rank to this user?')) { mgmtRenderUsersList(); return; }
             try {
                 await db.collection('users').doc(uid).set({ role: role, roleGrantedBy: currentUser.uid, roleGrantedAt: Date.now() }, { merge: true });
                 toast('Role set to: ' + role);
@@ -8279,7 +8345,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         function siteEditorExport() { const c=document.getElementById('siteEditorCode').value;if(!c){toast('Nothing to export.');return;}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/html'}));a.download='sp1der-edited.html';a.click();toast('Exported'); }
         function siteEditorToggleLive() { toast('Live edit toggle'); }
         function siteEditorPublish() { toast('Published locally'); }
-        async function publishToLauncher() { if (!currentUser) { toast('Sign in first'); return; } if (getRole() !== 'owner' && getRole() !== 'founder') { toast('Owner/Founder only'); return; } toast('Fetching clean source...'); let code = ''; const editor = document.getElementById('siteEditorCode'); if (editor && editor.value && editor.value.length > 500) { code = editor.value; } else { try { const resp = await fetch(location.href, { cache: 'no-store' }); code = await resp.text(); } catch(e) { toast('Failed: ' + e.message); return; } } if (!code || code.length < 500) { toast('No code to publish'); return; } if (code.length > 900000) { toast('Code too large for Firestore.'); return; } toast('Uploading...'); try { await db.collection('users').doc(currentUser.uid).set({ sp1derCode: code, sp1derCodeVersion: APP_VERSION, sp1derCodeUpdatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); toast('Published to launcher'); } catch(e) { toast('Failed: ' + e.message); } }
+        async function publishToLauncher() { if (!currentUser) { toast('Sign in first'); return; } if (!['owner','developer','founder'].includes(getRole())) { toast('Owner/Developer/Founder only'); return; } toast('Fetching clean source...'); let code = ''; const editor = document.getElementById('siteEditorCode'); if (editor && editor.value && editor.value.length > 500) { code = editor.value; } else { try { const resp = await fetch(location.href, { cache: 'no-store' }); code = await resp.text(); } catch(e) { toast('Failed: ' + e.message); return; } } if (!code || code.length < 500) { toast('No code to publish'); return; } if (code.length > 900000) { toast('Code too large for Firestore.'); return; } toast('Uploading...'); try { await db.collection('users').doc(currentUser.uid).set({ sp1derCode: code, sp1derCodeVersion: APP_VERSION, sp1derCodeUpdatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); toast('Published to launcher'); } catch(e) { toast('Failed: ' + e.message); } }
         /* AI Commands */
         const AI_COMMANDS = [
             {cmd:'@help',desc:'Show this AI command list'}, {cmd:'@say <msg>',desc:'Post AI message'}, {cmd:'@broadcast <msg>',desc:'Notify all users'},
@@ -8827,6 +8893,8 @@ Furball found a sunbeam and is not moving for anyone.`;
                 msgLogEntries = []; if ($('msgLogList')) $('msgLogList').replaceChildren();
                 if (unsubs.channels) { unsubs.channels(); unsubs.channels = null; }
                 if (currentMessageUnsub) { currentMessageUnsub(); currentMessageUnsub = null; }
+                if (pinnedUnsub) { try { pinnedUnsub(); } catch (e) {} pinnedUnsub = null; }
+                try { renderPinnedMessage(null); } catch (e) {}
                 Object.keys(myChannels).forEach(id => delete myChannels[id]);
                 if (user) {
                     currentUser = user;
