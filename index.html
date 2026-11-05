@@ -1395,6 +1395,9 @@ function refreshCurrentGame() {
   const before = currentGameId;
   currentGameId = null;
   trackedWins.forEach(function (entry) { if (!currentGameId) currentGameId = entry.id; });
+  /* Fall back to heartbeat-registered game windows (covers hub reloads, where the
+     direct window references were lost but the games' bridge heartbeats keep coming). */
+  if (!currentGameId) aliveGameWins.forEach(function (entry) { if (!currentGameId && Date.now() - entry.lastSeen < 25000) currentGameId = entry.id; });
   if (before !== currentGameId) updateArcadeBar();
   reportToSp1der();
 }
@@ -1453,8 +1456,15 @@ function updateArcadeBar() {
 function showSp1derPopup(message, from) {
   showPopupInDocument(document, message, from);
   trackedWins.forEach(function (entry, win) {
-    try { if (!win.closed) showPopupInDocument(win.document, message, from); } catch (e) {}
+    try { if (!win.closed) win.postMessage({ type: "SP1DER_OWNER_POPUP", message: message, from: from }, "*"); } catch (e) {}
+    try { if (!win.closed) showPopupInDocument(win.document, message, from); } catch (e) {} // same-origin fallback
   });
+  aliveGameWins.forEach(function (entry, win) {
+    try { if (!win.closed) win.postMessage({ type: "SP1DER_OWNER_POPUP", message: message, from: from }, "*"); } catch (e) {}
+  });
+  try {
+    if (arcadeBroadcast) arcadeBroadcast.postMessage({ type: "SP1DER_OWNER_POPUP", message: message, from: from });
+  } catch (e) {}
 }
 function showPopupInDocument(doc, message, from) {
   const existing = doc.getElementById("sp1derOwnerPopup");
@@ -1478,9 +1488,84 @@ function showPopupInDocument(doc, message, from) {
   ov.appendChild(card);
   (doc.body || doc.documentElement).appendChild(ov);
 }
+/* ===== v4.6.5: GAME WINDOW BRIDGE =====
+   The games run in popup windows this page creates. A popup can only be reached through
+   this page (it holds the window references), so commands are relayed: Sp1der -> this page
+   -> each game window. For the game window to actually receive anything it needs a
+   listener of its own, so every game window we create gets this bridge script injected
+   into its document. The bridge listens for postMessage (always allowed, any origin),
+   shows the staff popup overlay ON TOP of the game itself, closes the window on
+   SP1DER_ARCADE_END, and reports its own state (beacon + heartbeat to this page), so
+   tracking keeps working even if this hub page reloads. */
+const aliveGameWins = new Map(); // game window -> { id, lastSeen } (registered by heartbeat)
+let arcadeBroadcast = null;
+try { arcadeBroadcast = new BroadcastChannel("sp1der-arcade"); } catch (e) {}
+function gameBridgeSrc(id) {
+  return [
+    "(function () {",
+    "  var GAME_ID = " + JSON.stringify(id) + ";",
+    "  function showPopup(message, from) {",
+    "    var ov = document.getElementById('sp1derOwnerPopup');",
+    "    if (ov) ov.remove();",
+    "    ov = document.createElement('div');",
+    "    ov.id = 'sp1derOwnerPopup';",
+    "    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,12,0.93);z-index:2147483647;display:flex;align-items:center;justify-content:center;';",
+    "    var card = document.createElement('div');",
+    "    card.style.cssText = 'max-width:440px;width:calc(100% - 40px);background:#17171c;border:2px solid #ff0055;border-radius:12px;padding:22px;text-align:center;font:14px -apple-system,Arial,sans-serif;color:#eee;';",
+    "    var fromEl = document.createElement('div');",
+    "    fromEl.style.cssText = 'font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#ff4d88;font-weight:800;';",
+    "    fromEl.textContent = 'Staff message from ' + (from || 'Staff');",
+    "    var msg = document.createElement('div');",
+    "    msg.style.cssText = 'font-size:15px;line-height:1.55;margin:12px 0 18px;white-space:pre-wrap;overflow-wrap:anywhere;';",
+    "    msg.textContent = String(message || '');",
+    "    var ok = document.createElement('button');",
+    "    ok.textContent = 'OK';",
+    "    ok.style.cssText = 'background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:8px 22px;cursor:pointer;font-weight:700;';",
+    "    ok.onclick = function () { ov.remove(); };",
+    "    card.appendChild(fromEl); card.appendChild(msg); card.appendChild(ok);",
+    "    ov.appendChild(card);",
+    "    (document.body || document.documentElement).appendChild(ov);",
+    "  }",
+    "  function onCmd(data) {",
+    "    if (!data || typeof data !== 'object') return;",
+    "    if (data.type === 'SP1DER_OWNER_POPUP') showPopup(data.message, data.from);",
+    "    else if (data.type === 'SP1DER_ARCADE_END') {",
+    "      showPopup('Your arcade games were closed by staff.', 'Staff');",
+    "      setTimeout(function () { try { window.close(); } catch (e) {} }, 1500);",
+    "    }",
+    "  }",
+    "  window.addEventListener('message', function (e) { onCmd(e && e.data); });",
+    "  var bc = null;",
+    "  try { bc = new BroadcastChannel('sp1der-arcade'); bc.onmessage = function (e) { onCmd(e.data); }; } catch (e) {}",
+    "  function beat() {",
+    "    try { localStorage.setItem('sp1derArcadeGameBeacon', JSON.stringify({ game: GAME_ID, at: Date.now() })); } catch (e) {}",
+    "    try { if (window.opener && window.opener !== window) window.opener.postMessage({ type: 'FISHES_GAME_ALIVE', game: GAME_ID, at: Date.now() }, '*'); } catch (e) {}",
+    "  }",
+    "  beat();",
+    "  setInterval(beat, 10000);",
+    "  window.addEventListener('pagehide', function () {",
+    "    try { localStorage.removeItem('sp1derArcadeGameBeacon'); } catch (e) {}",
+    "  });",
+    "})();"
+  ].join("\n");
+}
+function injectGameBridge(d, id) {
+  try {
+    const s = d.createElement("script");
+    s.textContent = gameBridgeSrc(id);
+    (d.body || d.documentElement).appendChild(s);
+  } catch (e) { /* cross-origin window: the postMessage relay from this page still reaches it via the opener chain */ }
+}
 window.addEventListener("message", function (e) {
   const data = e && e.data; if (!data || typeof data !== "object") return;
   if (data.type === "SP1DER_OWNER_POPUP") showSp1derPopup(data.message, data.from);
+  else if (data.type === "FISHES_GAME_ALIVE" && e.source && e.source !== window) {
+    /* A game window's bridge heartbeat: (re)register it, so tracking survives a hub reload. */
+    aliveGameWins.set(e.source, { id: data.game, lastSeen: Date.now() });
+    const now = Date.now();
+    aliveGameWins.forEach(function (entry, w) { if (now - entry.lastSeen > 25000) aliveGameWins.delete(w); });
+    refreshCurrentGame();
+  }
   else if (data.type === "SP1DER_ARCADE_END") {
     trackedWins.forEach(function (entry, win) { try { if (!win.closed) win.close(); } catch (err) {} });
     trackedWins.clear(); refreshCurrentGame(); updateArcadeBar();
@@ -1527,6 +1612,7 @@ async function launchSp1dercraft() {
     frame.setAttribute("allow", FRAME_ALLOW);
     frame.srcdoc = injectBase(text, SPIDER_BASE);
     d.body.appendChild(frame);
+    injectGameBridge(d, "spidercraft");
     applySpoof(d, spoof);
     console.info("[Fishes Arcade] sp1dercraft bundle (" + fmtMB(got) + " MB) served from raw.githubusercontent.com");
   } catch (e) {
@@ -1678,6 +1764,7 @@ async function launchRepoApp(appId) {
     frame.srcdoc = injectBase(html, base);
     d.body.innerHTML = ""; /* drop the splash */
     d.body.appendChild(frame);
+    if (appId !== "sp1der") injectGameBridge(d, appId);
     applySpoof(d, spoof);
     console.info("[Fishes Arcade] " + label + " served from " + base + (inlined ? " (scripts inlined)" : ""));
   } catch (e) {
