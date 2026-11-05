@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Sp1der — 4.6.3</title>
+    <title>Project Sp1der — 4.6.4</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -2761,7 +2761,7 @@
         /* ============================================
            PROJECT SP1DER V4 — APPLICATION LOGIC
            ============================================ */
-        const APP_VERSION = '4.6.3';
+        const APP_VERSION = '4.6.4';
         function isNewerAppVersion(candidate, current = APP_VERSION) {
             const parse = value => {
                 const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/i);
@@ -3972,6 +3972,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         async function openFishesArcade() {
             const win = window.open('about:blank', '_blank', 'width=' + screen.width + ',height=' + screen.height + ',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes,popup=yes');
             if (!win) { toast('Allow popups to open the Fishes Arcade'); return; }
+            arcadeWindows.add(win); // v4.6.4: owner popups forward to the arcade through this reference
             const d = win.document;
             d.open(); d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:-apple-system,Arial,sans-serif}svg{width:84px;height:84px}.ring{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;margin:0}</style></head><body><svg viewBox="0 0 96 96" fill="none"><g stroke="#8b5cf6" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M40 40 C30 32 22 24 24 10"/><path d="M56 40 C66 32 74 24 72 10"/><path d="M46 38 C40 28 38 18 38 6"/><path d="M50 38 C56 28 58 18 58 6"/><path d="M40 56 C30 64 22 72 24 86"/><path d="M56 56 C66 64 74 72 72 86"/><path d="M46 58 C40 68 38 78 38 90"/><path d="M50 58 C56 68 58 78 58 90"/></g><path d="M42 34 L48 24 L56 34 Z" fill="#e8721f"/><path d="M42 62 L48 72 L56 62 Z" fill="#e8721f" opacity="0.9"/><ellipse cx="48" cy="48" rx="24" ry="15" fill="#f5b83d"/><path d="M68 48 L90 35 L90 61 Z" fill="#e8721f"/><circle cx="38" cy="46" r="4.5" fill="#17181c"/></svg><div class="ring"></div><p>Opening the Fishes Arcade</p></body></html>'); d.close();
             try {
@@ -4055,6 +4056,9 @@ Furball found a sunbeam and is not moving for anyone.`;
                 { usage:'/role <@user> <role>', desc:'Assign a user a staff role.', staff:true },
                 { usage:'/demote <@user>', desc:'Remove staff roles from a user.', owner:true },
                 { usage:'/pin', desc:'Pin the most recent message in this chat to the top (staff).', staff:true },
+                { usage:'/popup @user <message>', desc:'Force a popup over anything the user has open, including arcade games (staff).', staff:true },
+                { usage:'/arcadeend @user', desc:'Close the user\'s arcade game windows (staff).', staff:true },
+                { usage:'/arcadegames', desc:'See who is in the Fishes Arcade and what they are playing (staff).', staff:true },
                 { usage:'/lock <@user> <role>', desc:'Lock a user\'s name/role.', owner:true },
                 { usage:'/unlock <@user>', desc:'Remove name/role locks.', owner:true },
                 { usage:'/grantsync <@user> [count]', desc:'Grant profile cloud sync credits (staff).', staff:true },
@@ -4663,6 +4667,36 @@ Furball found a sunbeam and is not moving for anyone.`;
             };
             reader.readAsDataURL(file);
         }
+        /* ===== v4.6.4: arcade & account stats shown on profiles ===== */
+        function arcadePlayText(sec) {
+            sec = Math.max(0, Math.floor(+sec || 0));
+            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+            if (h) return h + 'h ' + (m ? m + 'm' : '');
+            if (m) return m + 'm' + (s ? ' ' + s + 's' : '');
+            return s + 's';
+        }
+        function arcadeStatsSectionHtml(p) {
+            try {
+                const rows = [];
+                const since = Number(p && p.memberSince);
+                if (Number.isFinite(since) && since > 0) {
+                    const days = Math.floor((Date.now() - since) / 86400000);
+                    rows.push('<div style="display:flex;justify-content:space-between;gap:10px;"><span>Account age</span><b>' + days + ' day' + (days === 1 ? '' : 's') + ' (since ' + new Date(since).toLocaleDateString() + ')</b></div>');
+                }
+                const lastMs = tsToMs(p && p.lastActive);
+                if (lastMs > 0) rows.push('<div style="display:flex;justify-content:space-between;gap:10px;"><span>Last active</span><b>' + timeAgoShort(lastMs) + '</b></div>');
+                const stats = (p && p.arcadeStats) || {};
+                const ids = Object.keys(stats);
+                if (ids.length) {
+                    ids.forEach(id => {
+                        const s = stats[id] || {};
+                        const high = Number(s.high);
+                        rows.push('<div style="display:flex;justify-content:space-between;gap:10px;"><span>' + arcadeGameLabel(id) + '</span><b>' + arcadePlayText(s.sec) + ' played' + (Number.isFinite(high) && high > 0 ? ' · high score ' + high.toLocaleString() : '') + '</b></div>');
+                    });
+                } else rows.push('<div style="color:var(--text-faint);">No arcade stats yet - play a game in the Fishes Arcade.</div>');
+                return '<div style="text-align:left;margin-top:16px;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Arcade & Account</div><div style="font-size:0.78rem;color:var(--text-dim);display:flex;flex-direction:column;gap:4px;">' + rows.join('') + '</div></div>';
+            } catch (e) { return ''; }
+        }
         function openProfile() {
             if (!currentUser) { openAuth(); return; }
             var p = normalizeAccountDisplayName(Object.assign({}, userProfile || {}, { email: currentUser.email }));
@@ -4704,7 +4738,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             }
             var c = document.getElementById('profileModalContent');
             if (c) {
-                c.innerHTML = '<div style="' + headerStyle + '">' + avatarHtml + uploadBtn + '<div style="font-size:1.2rem;font-weight:700;color:' + uColor + ';text-shadow:' + (uGlow === 'none' ? 'none' : '0 0 8px ' + glowColor) + ';">' + name + '</div>' + roleBadge + '</div><div style="text-align:left;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Bio</div><div style="font-size:0.85rem;color:var(--text);line-height:1.5;">' + bio + '</div></div>';
+                c.innerHTML = '<div style="' + headerStyle + '">' + avatarHtml + uploadBtn + '<div style="font-size:1.2rem;font-weight:700;color:' + uColor + ';text-shadow:' + (uGlow === 'none' ? 'none' : '0 0 8px ' + glowColor) + ';">' + name + '</div>' + roleBadge + '</div><div style="text-align:left;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Bio</div><div style="font-size:0.85rem;color:var(--text);line-height:1.5;">' + bio + '</div></div>' + arcadeStatsSectionHtml(p);
             }
             modal.classList.add('active');
         }
@@ -5124,6 +5158,10 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const note = document.createElement('p'); note.textContent = status || '';
                 note.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-top:12px;';
                 content.append(avatar, heading, role, title, bio, note);
+                /* v4.6.4: arcade & account stats (high scores, play time, account age, last active). */
+                const arcWrap = document.createElement('div');
+                arcWrap.innerHTML = arcadeStatsSectionHtml(p);
+                if (arcWrap.firstChild) content.append(arcWrap.firstChild);
             };
             render(channelProfilesCache[uid], 'Loading profile...');
             modal.classList.add('active');
@@ -5715,6 +5753,34 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'kick': if (!canUseOwnerCmds()) { toast('Admin only.'); return true; } await modCommand('kick', args); return true;
                 case 'role': if (!isAdminPanelOwner()) { toast('Only an owner can change a rank.'); return true; } if (args.length < 2) { toast('Usage: /role <@user> <role>'); return true; } toast(`Set ${args[0]} role to ${args[1]}`); return true;
                 case 'demote': if (!isOwner()) { toast('Owner only.'); return true; } if (!args[0]) { toast('Usage: /demote <@user>'); return true; } toast(`Demoted ${args[0]}`); return true;
+                case 'popup': {
+                    if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
+                    if (!args[0] || !args[0].startsWith('@') || !args[1]) { toast('Usage: /popup @user <message>'); return true; }
+                    const targetUid = args[0].replace('@', '');
+                    const text = args.slice(1).join(' ');
+                    try {
+                        await db.collection('notifications').add({ uid: targetUid, fromUid: currentUser.uid, fromName: adminMyName(), message: text, popup: true, createdAt: sv(), read: false });
+                        toast('Popup sent to ' + args[0] + ' - it will appear over anything they have open, including arcade games.');
+                    } catch (e) { toast('Failed to send popup: ' + (e.message || e)); }
+                    return true;
+                }
+                case 'arcadeend': {
+                    if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
+                    if (!args[0] || !args[0].startsWith('@')) { toast('Usage: /arcadeend @user'); return true; }
+                    const targetUid = args[0].replace('@', '');
+                    try {
+                        await db.collection('notifications').add({ uid: targetUid, fromUid: currentUser.uid, fromName: adminMyName(), message: 'Your arcade games were closed by staff.', popup: true, popupAction: 'arcadeEnd', createdAt: sv(), read: false });
+                        toast('Arcade close sent to ' + args[0] + '.');
+                    } catch (e) { toast('Failed: ' + (e.message || e)); }
+                    return true;
+                }
+                case 'arcadegames': {
+                    if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
+                    const players = Object.values(onlineUsers).filter(u => u.online && (u.arcadeGame || u.inArcade));
+                    if (!players.length) { toast('Nobody is in the Fishes Arcade right now.'); return true; }
+                    toast('Arcade now: ' + players.map(u => (u.username || u.uid) + ' - ' + (u.arcadeGame ? 'playing ' + arcadeGameLabel(u.arcadeGame) : 'in the hub')).join(' | '));
+                    return true;
+                }
                 case 'pin': {
                     if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
                     if (!selectedChannelId) { toast('Open a conversation first.'); return true; }
@@ -6703,6 +6769,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                                 .map(d => Object.assign({}, d.data(), { _id: d.id }))
                                 .sort((a, b) => tsOf(b) - tsOf(a));
                             try { playEffectNotifs(notifDocs); } catch (e) {}
+                            try { playOwnerPopups(notifDocs); } catch (e) {}
                             renderBell();
                         }, showError);
                 } catch (error) { showError(error); }
@@ -6729,6 +6796,60 @@ Furball found a sunbeam and is not moving for anyone.`;
                 if (s < 3600) return Math.floor(s / 60) + 'm ago';
                 if (s < 86400) return Math.floor(s / 3600) + 'h ago';
                 return Math.floor(s / 86400) + 'd ago';
+            }
+            /* ===== v4.6.4: OWNER POPUPS (sent with /popup) =====
+               A notification with popup: true forces a modal over everything in this tab and is
+               also forwarded to the Fishes Arcade window (which shows it over any running game). */
+            const seenPopupIds = new Set();
+            function playOwnerPopups(docs) {
+                docs.forEach(n => {
+                    if (!n || n.popup !== true || seenPopupIds.has(n._id)) return;
+                    seenPopupIds.add(n._id);
+                    if (Date.now() - tsOf(n) > 180000) return; // only fresh popups
+                    if (n.popupAction === 'arcadeEnd') { try { closeMyArcadeGames(); } catch (e) {} }
+                    showOwnerPopup(n);
+                });
+            }
+            function arcadeForwardTargets() {
+                const targets = [];
+                arcadeWindows.forEach(w => { try { if (!w.closed) targets.push(w); } catch (e) {} });
+                try { if (window.opener && window.opener !== window) targets.push(window.opener); } catch (e) {}
+                try { if (window.parent && window.parent !== window && window.parent.opener && window.parent.opener !== window.parent) targets.push(window.parent.opener); } catch (e) {}
+                return targets;
+            }
+            function showOwnerPopup(n) {
+                closeOwnerPopup();
+                const ov = document.createElement('div');
+                ov.id = 'sp1derOwnerPopup';
+                ov.style.cssText = 'position:fixed;inset:0;background:rgba(2,1,8,0.92);z-index:999999999;display:flex;align-items:center;justify-content:center;';
+                const card = document.createElement('div');
+                card.style.cssText = 'max-width:460px;width:calc(100% - 40px);background:var(--bg-1);border:2px solid var(--danger);border-radius:var(--radius);padding:24px;text-align:center;box-shadow:0 0 40px rgba(255,0,85,0.45);';
+                const from = document.createElement('div');
+                from.style.cssText = 'font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--danger);font-weight:800;';
+                from.textContent = 'Staff message from ' + (n.fromName || 'Staff');
+                const msg = document.createElement('div');
+                msg.style.cssText = 'font-size:1rem;line-height:1.55;margin:14px 0 20px;white-space:pre-wrap;overflow-wrap:anywhere;';
+                msg.textContent = String(n.message || '');
+                const ok = document.createElement('button');
+                ok.className = 'composer-btn primary'; ok.style.width = '100%'; ok.textContent = 'OK';
+                ok.onclick = () => closeOwnerPopup();
+                card.appendChild(from); card.appendChild(msg); card.appendChild(ok);
+                ov.appendChild(card); document.body.appendChild(ov);
+                try { toast('Staff popup from ' + (n.fromName || 'Staff')); } catch (e) {}
+                /* Forward to the arcade / game windows so it shows even while playing. */
+                arcadeForwardTargets().forEach(w => {
+                    try { w.postMessage({ type: 'SP1DER_OWNER_POPUP', message: String(n.message || ''), from: n.fromName || 'Staff' }, '*'); } catch (e) {}
+                });
+            }
+            function closeOwnerPopup() {
+                const el = $('sp1derOwnerPopup');
+                if (el) el.remove();
+            }
+            function closeMyArcadeGames() {
+                arcadeForwardTargets().forEach(w => {
+                    try { w.postMessage({ type: 'SP1DER_ARCADE_END' }, '*'); } catch (e) {}
+                });
+                toast('Arcade games closed.');
             }
             function renderBell() {
                 const countEl = $('notifBellCount'), list = $('notifList');
@@ -6889,6 +7010,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.6.4', date: '2026-11-05', author: 'fish01-jpg', title: 'Fishes Arcade Tracking, Arcade Stats on Profiles, Staff Popups', changes: ["The Active Users panel now shows when someone is in the Fishes Arcade and which game they are playing (Sp1dercraft, PolyTrack, Fluid Sim)", "You stay marked Active while you have a game window open, even if the Sp1der tab is idle in the background", "Profiles now show an Arcade & Account section: account age, last active, play time per game and high scores", "High scores are logged from the arcade's Now Playing bar while a game is open; play time is tracked automatically", "New staff commands: /popup @user <message> forces a popup over anything the user has open - including their arcade game windows; /arcadeend @user closes their games; /arcadegames shows who is playing what", "The arcade reports to Sp1der through a live message channel plus a beacon that survives tab reloads"] },
             { version: '4.6.3', date: '2026-11-05', author: 'fish01-jpg', title: 'Emoji Chat Reactions', changes: ["Every message now has a React button that opens an emoji picker (16 emojis: thumbs up/down, heart, laugh, fire, party and more)", "Reaction chips appear under the message with live counts - click a chip to add your reaction, click it again to remove it", "Chips you reacted with are highlighted, and reactions update live for everyone reading the channel", "Works in Global, DMs, group chats and the Aegis AI chat; read-only conversations show the chips but cannot be changed", "Reactions are stored on the message itself, so they load with the chat history"] },
             { version: '4.6.2', date: '2026-11-05', author: 'fish01-jpg', title: 'Working Chat Notifications, Pin Messages, Developer Role', changes: ["Chat notifications and the unread counter next to the Community button now actually work:", "The listeners used a query that needs a Firestore composite index that was never created, so they failed silently - they now use a query that works without any index", "The unread badge on the Community button and the per-channel badges in the sidebar show live counts again", "/pin now pins the most recent message in the chat, and the pinned panel at the top actually displays it for everyone, with an Unpin button for staff", "The pinned panel also had no CSS to ever show up - fixed", "New developer role: same powers as owner (rank level 100), assignable from the admin panel, with the Owner-style gold badge"] },
             { version: '4.6.0', date: '2026-11-03', author: 'fish01-jpg', title: 'Verify Command, Review Terms, Reliable Trackers', changes: ["New /verify chat command — a second way into the Fishes Arcade", "It opens a menu with the full terms: agree, have an account at least 5 days old, then pass 15 different CAPTCHAs (math, codes, odd-one-out and more — no two alike), with progress saved if you stop halfway", "Verified accounts skip the active-user checklist and the fair-warning form and get straight into the arcade", "The arcade gate now has a Review terms button so anyone can re-read the terms after agreeing", "The activity trackers were rebuilt: time on screen, messages and page visits are banked locally first and synced to your profile with retries, so being offline, over quota or in a sandboxed frame no longer wipes your progress", "The gate checklist merges your not-yet-synced progress, so the list stays live and accurate", "The Sp1der Runner (fishes.html) now loads the sp1der backup copy (sp1der-backup.html), and the Fishes Arcade hub has a new cloaked Project Sp1der launcher that opens it"] },
@@ -7670,6 +7792,8 @@ Furball found a sunbeam and is not moving for anyone.`;
             return false;
         }
         function myPresenceState() {
+            /* v4.6.4: an open arcade game counts as activity even if this tab is idle or hidden. */
+            if (myArcade.game) return 'online';
             const idle = Date.now() - lastInputTs > PRESENCE_IDLE_MS;
             const hidden = document.hidden && !otherTabVisible();
             return (hidden || idle) ? 'away' : 'online';
@@ -7765,7 +7889,10 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const sub = document.createElement('div'); sub.style.cssText = 'font-size:0.7rem;color:var(--text-dim);';
                 const roleName = u.role || 'member';
                 const age = Date.now() - (u.lastActiveMs || 0);
-                sub.textContent = roleName + ' \u00b7 ' + (!u.online ? 'Offline' : away ? 'Away' : (age <= PRESENCE_ACTIVE_MS ? 'Active now' : 'Seen ' + agoText(u.lastActiveMs)));
+                /* v4.6.4: arcade state wins the status line - "Playing PolyTrack" / "In the Fishes Arcade". */
+                const arcadeTxt = u.online && u.arcadeGame ? 'Playing ' + arcadeGameLabel(u.arcadeGame) + ' \u00b7 Fishes Arcade'
+                    : (u.online && u.inArcade ? 'In the Fishes Arcade' : null);
+                sub.textContent = roleName + ' \u00b7 ' + (arcadeTxt || (!u.online ? 'Offline' : away ? 'Away' : (age <= PRESENCE_ACTIVE_MS ? 'Active now' : 'Seen ' + agoText(u.lastActiveMs))));
                 info.appendChild(nm); info.appendChild(sub);
                 const batt = u.online && u.battery != null && u.shareBattery !== false ? Math.max(0, Math.min(100, +u.battery || 0)) : null;
                 if (batt != null) { const bat = document.createElement('div'); bat.className = 'battery-indicator'; bat.innerHTML = '<div class="battery-icon"><div style="width:' + batt + '%;height:100%;background:' + (batt < 20 ? 'var(--danger)' : 'var(--success)') + ';"></div></div><span>' + batt + '%</span>'; info.appendChild(bat); }
@@ -7782,7 +7909,9 @@ Furball found a sunbeam and is not moving for anyone.`;
             const uid = currentUser.uid, p = normalizeAccountDisplayName(Object.assign({}, userProfile || {}, { email: currentUser.email }));
             const state = online ? myPresenceState() : 'offline';
             const base = { online: !!online, presenceState: state, lastActive: Date.now() };
-            const full = cleanObj(Object.assign({ uid: uid, username: p.username || currentUser.displayName || (currentUser.email || 'user').split('@')[0], role: getRole(), background: p.background, border: p.border, usernameColor: p.usernameColor, shareOnlineStatus: p.shareOnlineStatus === false ? false : true, shareBattery: p.shareBattery === false ? false : true }, base));
+            /* v4.6.4: arcade state rides along on presence so the Active Users panel can show it. */
+            const arcadeGame = online ? (myArcade.game || null) : null;
+            const full = cleanObj(Object.assign({ uid: uid, username: p.username || currentUser.displayName || (currentUser.email || 'user').split('@')[0], role: getRole(), background: p.background, border: p.border, usernameColor: p.usernameColor, shareOnlineStatus: p.shareOnlineStatus === false ? false : true, shareBattery: p.shareBattery === false ? false : true, inArcade: !!(online && myArcade.inArcade), arcadeGame: arcadeGame }, base));
             const mirror = presenceMirrorDb();
             return Promise.all([
                 db.collection('users').doc(uid).set(base, { merge: true }).catch(() => {}),
@@ -7830,6 +7959,57 @@ Furball found a sunbeam and is not moving for anyone.`;
             }
             loadActiveUsers();
         }
+        /* ===== v4.6.4: FISHES ARCADE TRACKER =====
+           The arcade page (opened from the Games grid) reports its state to this tab:
+           which game window is open, play time and high scores per game. The state rides
+           along on presence so the Active Users panel shows "Playing PolyTrack", and the
+           user stays Active while a game window is open. Stats sync to the profile doc. */
+        const ARCADE_GAME_LABELS = { spidercraft: 'Sp1dercraft', polytrack: 'PolyTrack', fluid: 'Fluid Sim' };
+        const arcadeGameLabel = (id) => ARCADE_GAME_LABELS[id] || String(id || '');
+        let myArcade = { inArcade: false, game: null };
+        const arcadeWindows = new Set(); // arcade popup windows this tab opened
+        let arcadeStatsSyncTimer = null;
+        function arcadeStateUpdate(inArcade, game) {
+            if (myArcade.inArcade === !!inArcade && (myArcade.game || null) === (game || null)) return;
+            myArcade.inArcade = !!inArcade; myArcade.game = game || null;
+            /* A running game is real activity: keep the session marked active. */
+            lastInputTs = Date.now();
+            try { if (currentUser) { writePresence(true); recomputeOnlineUsers(); } } catch (e) {}
+        }
+        function scheduleArcadeStatsSync(stats) {
+            if (!currentUser || !stats || typeof stats !== 'object') return;
+            if (arcadeStatsSyncTimer) return; // already pending
+            arcadeStatsSyncTimer = setTimeout(() => {
+                arcadeStatsSyncTimer = null;
+                try {
+                    db.collection('users').doc(currentUser.uid).set({ arcadeStats: stats, lastActive: Date.now() }, { merge: true }).catch(() => {});
+                } catch (e) {}
+            }, 8000);
+        }
+        window.addEventListener('message', e => {
+            const data = e && e.data;
+            if (!data || typeof data !== 'object') return;
+            if (data.type === 'FISHES_ARCADE_STATE') {
+                arcadeStateUpdate(true, data.game || null);
+                if (data.stats) scheduleArcadeStatsSync(data.stats);
+            } else if (data.type === 'FISHES_ARCADE_BYE') {
+                arcadeStateUpdate(false, null);
+            }
+        });
+        /* Same-origin fallback: the arcade popup shares this tab's origin, so a localStorage
+           beacon survives a reload of this page (which loses the postMessage window refs). */
+        setInterval(() => {
+            try {
+                const raw = localStorage.getItem('sp1derArcadeBeacon');
+                if (!raw) return;
+                const beacon = JSON.parse(raw);
+                if (beacon && Number.isFinite(beacon.at) && Date.now() - beacon.at < 25000) {
+                    arcadeStateUpdate(true, beacon.game || null);
+                } else if (myArcade.inArcade && !myArcade._byMsg) {
+                    arcadeStateUpdate(false, null);
+                }
+            } catch (e) {}
+        }, 5000);
         function stopActiveUserListeners() {
             presenceUnsubs.forEach(fn => { try { fn(); } catch (e) {} }); presenceUnsubs = [];
         }
