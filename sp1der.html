@@ -1608,6 +1608,16 @@
         .role-badge.role-mod, .role-badge.role-moderator, .role-badge.role-watchdog { background: rgba(160,32,240,0.2); color: #d6a4ff; border-color: rgba(160,32,240,0.55); }
         .role-badge.role-aegis { background: linear-gradient(135deg, #4a00e0, #00d4ff); color: #e8fbff; border-color: #00d4ff; text-shadow: 0 0 8px rgba(0,212,255,0.8); box-shadow: 0 0 10px rgba(0,212,255,0.45); }
         .role-badge.title-furry, .title-furry { color: #8ce8ef; background: #12383d; border: 1px solid #4fb8c2; font-size: 0.75rem; }
+        /* ===== v4.6.3: EMOJI CHAT REACTIONS ===== */
+        .msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+        .reaction-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 50px; font-size: 0.78rem; background: var(--glass); border: 1px solid var(--border); color: var(--text); cursor: pointer; line-height: 1.4; }
+        .reaction-chip:hover { border-color: var(--border-active); background: var(--bg-hover); }
+        .reaction-chip.mine { background: color-mix(in srgb, var(--primary) 26%, transparent); border-color: var(--border-active); }
+        .reaction-chip .rc-count { font-size: 0.62rem; color: var(--text-dim); font-weight: 800; }
+        .reaction-chip.mine .rc-count { color: var(--accent); }
+        .emoji-picker { position: fixed; z-index: 1200; background: var(--bg-2); border: 1px solid var(--border-active); border-radius: var(--radius); padding: 8px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; box-shadow: 0 8px 24px rgba(0,0,0,0.55); }
+        .emoji-picker button { background: none; border: none; font-size: 1.05rem; cursor: pointer; padding: 4px 5px; border-radius: 8px; line-height: 1.2; }
+        .emoji-picker button:hover { background: var(--bg-hover); }
         .role-badge.role-system { color: #8ce8ef; background: #12383d; border-color: #4fb8c2; }
         .message-body { min-width: 0; }
         .command-guide-intro { font-size: 0.875rem; color: var(--text-dim); line-height: 1.5; margin: 8px 0 16px; }
@@ -5152,6 +5162,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         function renderMessageCard(msg, channelId) {
             const card = document.createElement('div'); card.className = 'message-card' + (msg.isAnnouncement ? ' is-announcement' : '') + (String(msg.role || '').toLowerCase() === 'aegis' ? ' is-ai' : '');
             card._sp1derMessage = msg;
+            if (msg.id) card.dataset.msgId = String(msg.id);
             const displayUid = messageDisplayUid(msg);
             const senderProfile = normalizeAccountDisplayName(channelProfilesCache[displayUid] || {});
             const senderName = fixedAccountDisplayName(senderProfile) || (msg.spoofed !== true && msg.uid && currentUser && msg.uid === currentUser.uid && fixedAccountDisplayName(currentUser)) || fixedAccountDisplayName(msg) || msg.displayName || msg.username || msg.senderName || 'Unknown';
@@ -5224,12 +5235,17 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (msg.imageUrl) { const img = document.createElement('img'); img.src = msg.imageUrl; img.className = 'msg-image'; img.onclick = () => openLightbox(msg.imageUrl); textEl.appendChild(document.createElement('br')); textEl.appendChild(img); }
             if (msg.videoUrl) { const vid = document.createElement('video'); vid.src = msg.videoUrl; vid.controls = true; vid.className = 'msg-video'; textEl.appendChild(document.createElement('br')); textEl.appendChild(vid); }
             body.appendChild(textEl);
+            /* v4.6.3: emoji reaction chips under the message (click a chip to toggle your own reaction). */
+            const reactionsRow = document.createElement('div'); reactionsRow.className = 'msg-reactions';
+            renderReactionChips(msg, channelId, reactionsRow);
+            body.appendChild(reactionsRow);
             const actions = document.createElement('div'); actions.className = 'message-actions';
             if (!conversationReadOnly(channelId)) {
             if (isMe || isStaffUser()) { const delBtn = document.createElement('button'); delBtn.className = 'composer-btn'; delBtn.textContent = 'Delete'; delBtn.onclick = () => deleteMessage(msg.id, channelId); actions.appendChild(delBtn); }
             if (isMe || isStaffUser()) { const editBtn = document.createElement('button'); editBtn.className = 'composer-btn'; editBtn.textContent = 'Edit'; editBtn.onclick = () => startEditMessage(msg, channelId); actions.appendChild(editBtn); }
             if (currentUser && !isMe) { const replyBtn = document.createElement('button'); replyBtn.className = 'composer-btn'; replyBtn.textContent = 'Reply'; replyBtn.onclick = () => { if (channelId === aegisChannelId) { startAegisReply(msg); } else { startReply(msg); } }; actions.appendChild(replyBtn); }
             if (isStaffUser()) { const pinBtn = document.createElement('button'); pinBtn.className = 'composer-btn'; pinBtn.textContent = 'Pin'; pinBtn.onclick = () => pinMessage(msg, channelId); actions.appendChild(pinBtn); }
+            if (currentUser && msg.id) { const reactBtn = document.createElement('button'); reactBtn.className = 'composer-btn'; reactBtn.textContent = '😊 React'; reactBtn.title = 'Add an emoji reaction'; reactBtn.onclick = ev => openEmojiPicker(ev.currentTarget, msg, channelId); actions.appendChild(reactBtn); }
             }
             /* v4.5.5: read-receipt label under your own messages (DMs and group chats only). */
             if (isMe && msg.spoofed !== true && typeof ReadReceipts !== 'undefined' && ReadReceipts.supported(channelId)) {
@@ -5478,6 +5494,99 @@ Furball found a sunbeam and is not moving for anyone.`;
         function startReply(msg) { replyToMessage = msg; $('replyBar').style.display = 'flex'; $('replyBarText').textContent = 'Replying to ' + (msg.username || 'message'); $('composerInput').focus(); }
         function cancelReply() { replyToMessage = null; $('replyBar').style.display = 'none'; }
         async function deleteMessage(msgId, channelId) { if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; } const msgDb = getMsgDbForCh(channelId); try { await msgDb.collection('messages').doc(msgId).delete(); toast('Message deleted'); } catch (e) { toast('Failed to delete'); } }
+        /* ===== v4.6.3: EMOJI CHAT REACTIONS =====
+           Reactions live on the message doc as reactions: { emoji: [uid, ...] }.
+           The chat's existing message listener re-renders the feed on every snapshot, so
+           reaction changes appear live for everyone reading the channel. */
+        const REACTION_EMOJIS = ['👍','👎','❤️','😂','😮','😢','🔥','🎉','😎','🤔','👀','💀','🙏','💯','✨','🚀'];
+        function messageReactions(msg) {
+            const out = [], r = msg && msg.reactions;
+            if (r && typeof r === 'object') Object.keys(r).forEach(emoji => {
+                const users = Array.isArray(r[emoji]) ? r[emoji].filter(Boolean) : [];
+                if (users.length) out.push({ emoji: emoji, users: users });
+            });
+            out.sort((a, b) => b.users.length - a.users.length);
+            return out;
+        }
+        async function toggleReaction(msg, channelId, emoji) {
+            if (!currentUser) { toast('Sign in to react.'); return; }
+            if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; }
+            if (!msg || !msg.id) return;
+            const mine = currentUser.uid;
+            const list = (msg.reactions && Array.isArray(msg.reactions[emoji])) ? msg.reactions[emoji] : [];
+            const has = list.includes(mine);
+            const msgDb = getMsgDbForCh(channelId);
+            try {
+                const path = new firebase.firestore.FieldPath('reactions', emoji);
+                if (has) {
+                    if (list.length <= 1) await msgDb.collection('messages').doc(msg.id).update(path, firebase.firestore.FieldValue.delete());
+                    else await msgDb.collection('messages').doc(msg.id).update(path, firebase.firestore.FieldValue.arrayRemove(mine));
+                } else {
+                    await msgDb.collection('messages').doc(msg.id).update(path, firebase.firestore.FieldValue.arrayUnion(mine));
+                }
+                /* Optimistic local flip so the chip updates instantly; the snapshot confirms it. */
+                msg.reactions = msg.reactions || {};
+                if (has) { if (list.length <= 1) delete msg.reactions[emoji]; else msg.reactions[emoji] = list.filter(u => u !== mine); }
+                else msg.reactions[emoji] = list.concat([mine]);
+                refreshReactionRow(msg, channelId);
+            } catch (e) { toast('Could not save reaction.'); }
+        }
+        function refreshReactionRow(msg, channelId) {
+            const id = String(msg && msg.id || '').replace(/"/g, '\\"');
+            if (!id) return;
+            const row = document.querySelector('.message-card[data-msg-id="' + id + '"] .msg-reactions');
+            if (row) renderReactionChips(msg, channelId, row);
+        }
+        function renderReactionChips(msg, channelId, row) {
+            row.replaceChildren();
+            const reactions = messageReactions(msg);
+            if (!reactions.length) { row.style.display = 'none'; return; }
+            row.style.display = '';
+            reactions.forEach(r => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'reaction-chip' + (currentUser && r.users.includes(currentUser.uid) ? ' mine' : '');
+                chip.title = r.users.length + ' reaction' + (r.users.length > 1 ? 's' : '');
+                const face = document.createElement('span'); face.textContent = r.emoji;
+                const count = document.createElement('span'); count.className = 'rc-count'; count.textContent = String(r.users.length);
+                chip.appendChild(face); chip.appendChild(count);
+                if (currentUser && !conversationReadOnly(channelId)) chip.onclick = () => toggleReaction(msg, channelId, r.emoji);
+                row.appendChild(chip);
+            });
+        }
+        let emojiPickerEl = null;
+        function closeEmojiPicker() {
+            if (!emojiPickerEl) return;
+            emojiPickerEl.remove(); emojiPickerEl = null;
+            document.removeEventListener('pointerdown', onEmojiPickerOutside);
+            document.removeEventListener('keydown', onEmojiPickerEsc);
+        }
+        function onEmojiPickerOutside(e) { if (emojiPickerEl && !emojiPickerEl.contains(e.target)) closeEmojiPicker(); }
+        function onEmojiPickerEsc(e) { if (e.key === 'Escape') closeEmojiPicker(); }
+        function openEmojiPicker(anchor, msg, channelId) {
+            closeEmojiPicker();
+            const pick = document.createElement('div');
+            pick.className = 'emoji-picker';
+            pick.setAttribute('role', 'menu');
+            pick.setAttribute('aria-label', 'Pick a reaction');
+            REACTION_EMOJIS.forEach(emoji => {
+                const b = document.createElement('button');
+                b.type = 'button'; b.textContent = emoji; b.title = 'React ' + emoji;
+                b.onclick = () => { closeEmojiPicker(); toggleReaction(msg, channelId, emoji); };
+                pick.appendChild(b);
+            });
+            document.body.appendChild(pick);
+            emojiPickerEl = pick;
+            const rect = anchor.getBoundingClientRect(), ph = pick.offsetHeight, pw = pick.offsetWidth;
+            pick.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - pw - 8)) + 'px';
+            pick.style.top = (rect.top - ph - 6 > 8 ? rect.top - ph - 6 : Math.min(rect.bottom + 6, window.innerHeight - ph - 8)) + 'px';
+            /* Defer the outside-click listener so the opening click is not its own first hit. */
+            setTimeout(() => {
+                if (emojiPickerEl !== pick) return;
+                document.addEventListener('pointerdown', onEmojiPickerOutside);
+                document.addEventListener('keydown', onEmojiPickerEsc);
+            }, 0);
+        }
         /* ===== PINNED MESSAGES (v4.6.2: pinning now actually shows the message) =====
            pinMessage writes the channel doc; watchPinnedMessage subscribes to that doc so the
            pinned panel at the top of the chat renders it live for everyone who can read the channel. */
