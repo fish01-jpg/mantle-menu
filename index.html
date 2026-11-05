@@ -1358,9 +1358,146 @@ function armCloseGuard(win) {
   win.addEventListener("beforeunload", guard);
   win.onbeforeunload = guard;
 }
+/* ---- Sp1der arcade tracker (v4.6.4) ----
+   Reports to the Sp1der tab that opened this page (postMessage + a localStorage beacon
+   that survives Sp1der reloads): which game window is open, cumulative play time and
+   high scores per game (kept in localStorage here, synced to the profile by Sp1der).
+   Also receives staff popups (SP1DER_OWNER_POPUP) and game-close orders (SP1DER_ARCADE_END). */
+const SP1DER_GAME_LABELS = { spidercraft: "Sp1dercraft", polytrack: "PolyTrack", fluid: "Fluid Sim" };
+const ARCADE_STATS_KEY = "fishesArcadeStats";
+const trackedWins = new Map(); // game window -> { id, lastTick }
+let currentGameId = null;
+function loadArcadeStats() { try { return JSON.parse(localStorage.getItem(ARCADE_STATS_KEY)) || {}; } catch (e) { return {}; } }
+function saveArcadeStats(s) { try { localStorage.setItem(ARCADE_STATS_KEY, JSON.stringify(s)); } catch (e) {} }
+function addArcadeSeconds(id, sec) {
+  const s = loadArcadeStats(); const g = s[id] || (s[id] = {});
+  g.sec = Math.max(0, Math.floor((g.sec || 0) + sec));
+  saveArcadeStats(s);
+}
+function setArcadeHigh(id, value) {
+  const s = loadArcadeStats(); const g = s[id] || (s[id] = {});
+  g.high = Math.max(0, Math.floor(Math.max(+g.high || 0, value)));
+  saveArcadeStats(s);
+}
+function fmtPlay(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h) return h + "h " + (m ? m + "m" : "");
+  if (m) return m + "m" + (s ? " " + s + "s" : "");
+  return s + "s";
+}
+function reportToSp1der() {
+  const payload = { type: "FISHES_ARCADE_STATE", game: currentGameId, stats: loadArcadeStats() };
+  try { if (window.opener && window.opener !== window) window.opener.postMessage(payload, "*"); } catch (e) {}
+  try { localStorage.setItem("sp1derArcadeBeacon", JSON.stringify({ game: currentGameId, at: Date.now() })); } catch (e) {}
+}
+function refreshCurrentGame() {
+  const before = currentGameId;
+  currentGameId = null;
+  trackedWins.forEach(function (entry) { if (!currentGameId) currentGameId = entry.id; });
+  if (before !== currentGameId) updateArcadeBar();
+  reportToSp1der();
+}
+function trackGameWindow(win, id) {
+  trackedWins.set(win, { id: id, lastTick: Date.now() });
+  refreshCurrentGame(); updateArcadeBar();
+  const ticker = setInterval(function () {
+    let closed = false; try { closed = win.closed; } catch (e) { closed = true; }
+    const entry = trackedWins.get(win);
+    if (!entry) { clearInterval(ticker); return; }
+    const now = Date.now();
+    if (!closed) {
+      const dt = Math.min(60, Math.round((now - entry.lastTick) / 1000));
+      if (dt > 0) addArcadeSeconds(id, dt);
+    }
+    entry.lastTick = now;
+    if (closed) { clearInterval(ticker); trackedWins.delete(win); refreshCurrentGame(); updateArcadeBar(); }
+    else {
+      const t = document.getElementById("sp1derArcadeBarTime");
+      if (t && currentGameId) { const st = loadArcadeStats()[currentGameId] || {}; t.textContent = "\u00b7 " + fmtPlay(st.sec || 0) + " played"; }
+    }
+  }, 10000);
+}
+function updateArcadeBar() {
+  let bar = document.getElementById("sp1derArcadeBar");
+  if (!currentGameId) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "sp1derArcadeBar";
+    bar.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:2147483646;background:#101014;border-top:2px solid #8b5cf6;color:#eee;font:13px -apple-system,Arial,sans-serif;display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:wrap;";
+    (document.body || document.documentElement).appendChild(bar);
+  }
+  const label = SP1DER_GAME_LABELS[currentGameId] || currentGameId;
+  const g = (loadArcadeStats()[currentGameId]) || {};
+  bar.replaceChildren();
+  const txt = document.createElement("span"); txt.style.fontWeight = "700";
+  txt.textContent = "Now playing: " + label;
+  const time = document.createElement("span"); time.id = "sp1derArcadeBarTime"; time.style.color = "#9a9a9d";
+  time.textContent = "\u00b7 " + fmtPlay(g.sec || 0) + " played";
+  const hi = document.createElement("span"); hi.style.color = "#9a9a9d";
+  hi.textContent = g.high ? "\u00b7 high score " + g.high : "\u00b7 no high score yet";
+  const inp = document.createElement("input");
+  inp.type = "number"; inp.placeholder = "Log high score"; inp.min = "0";
+  inp.style.cssText = "background:#1b1b20;border:1px solid #8b5cf6;color:#eee;border-radius:6px;padding:4px 8px;width:130px;";
+  const btn = document.createElement("button");
+  btn.textContent = "Save score";
+  btn.style.cssText = "background:#8b5cf6;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:700;";
+  btn.onclick = function () {
+    const v = Math.floor(+inp.value);
+    if (!Number.isFinite(v) || v <= 0) { alert("Enter your high score as a number."); return; }
+    setArcadeHigh(currentGameId, v); reportToSp1der(); updateArcadeBar();
+  };
+  bar.append(txt, time, hi, inp, btn);
+}
+/* Staff popup overlay: shown on this page and injected into every open game window. */
+function showSp1derPopup(message, from) {
+  showPopupInDocument(document, message, from);
+  trackedWins.forEach(function (entry, win) {
+    try { if (!win.closed) showPopupInDocument(win.document, message, from); } catch (e) {}
+  });
+}
+function showPopupInDocument(doc, message, from) {
+  const existing = doc.getElementById("sp1derOwnerPopup");
+  if (existing) existing.remove();
+  const ov = doc.createElement("div");
+  ov.id = "sp1derOwnerPopup";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(10,10,12,0.93);z-index:2147483647;display:flex;align-items:center;justify-content:center;";
+  const card = doc.createElement("div");
+  card.style.cssText = "max-width:440px;width:calc(100% - 40px);background:#17171c;border:2px solid #ff0055;border-radius:12px;padding:22px;text-align:center;font:14px -apple-system,Arial,sans-serif;color:#eee;";
+  const fromEl = doc.createElement("div");
+  fromEl.style.cssText = "font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#ff4d88;font-weight:800;";
+  fromEl.textContent = "Staff message from " + (from || "Staff");
+  const msg = doc.createElement("div");
+  msg.style.cssText = "font-size:15px;line-height:1.55;margin:12px 0 18px;white-space:pre-wrap;overflow-wrap:anywhere;";
+  msg.textContent = String(message || "");
+  const ok = doc.createElement("button");
+  ok.textContent = "OK";
+  ok.style.cssText = "background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:8px 22px;cursor:pointer;font-weight:700;";
+  ok.onclick = function () { ov.remove(); };
+  card.appendChild(fromEl); card.appendChild(msg); card.appendChild(ok);
+  ov.appendChild(card);
+  (doc.body || doc.documentElement).appendChild(ov);
+}
+window.addEventListener("message", function (e) {
+  const data = e && e.data; if (!data || typeof data !== "object") return;
+  if (data.type === "SP1DER_OWNER_POPUP") showSp1derPopup(data.message, data.from);
+  else if (data.type === "SP1DER_ARCADE_END") {
+    trackedWins.forEach(function (entry, win) { try { if (!win.closed) win.close(); } catch (err) {} });
+    trackedWins.clear(); refreshCurrentGame(); updateArcadeBar();
+    showSp1derPopup("Your arcade games were closed by staff.", "Staff");
+  }
+});
+/* Presence heartbeat + clean exit so Sp1der knows when the arcade closes. */
+reportToSp1der();
+setInterval(reportToSp1der, 15000);
+window.addEventListener("pagehide", function () {
+  try { localStorage.removeItem("sp1derArcadeBeacon"); } catch (e) {}
+  try { if (window.opener && window.opener !== window) window.opener.postMessage({ type: "FISHES_ARCADE_BYE" }, "*"); } catch (e) {}
+});
 async function launchSp1dercraft() {
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
+  trackGameWindow(win, "spidercraft");
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
   d.open(); d.write(SPIDER_SPLASH_HTML); d.close();
@@ -1516,6 +1653,7 @@ async function launchRepoApp(appId) {
   const label = (app && app.label) || appId;
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
+  if (appId !== "sp1der") trackGameWindow(win, appId); // the sp1der card opens the chat app, not a game
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
   d.open(); d.write(appSplashHtml(label)); d.close();
