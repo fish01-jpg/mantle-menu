@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Sp1der — 4.6.4</title>
+    <title>Project Sp1der — 4.6.5</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -2761,7 +2761,7 @@
         /* ============================================
            PROJECT SP1DER V4 — APPLICATION LOGIC
            ============================================ */
-        const APP_VERSION = '4.6.4';
+        const APP_VERSION = '4.6.5';
         function isNewerAppVersion(candidate, current = APP_VERSION) {
             const parse = value => {
                 const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/i);
@@ -6817,6 +6817,15 @@ Furball found a sunbeam and is not moving for anyone.`;
                 try { if (window.parent && window.parent !== window && window.parent.opener && window.parent.opener !== window.parent) targets.push(window.parent.opener); } catch (e) {}
                 return targets;
             }
+            /* Same-origin broadcast channel: reaches the arcade hub and the game windows
+               directly (they each run a listener), without needing window references. */
+            let sp1derArcadeChannel = null;
+            function arcadeBroadcast(type, payload) {
+                try {
+                    if (!sp1derArcadeChannel) sp1derArcadeChannel = new BroadcastChannel('sp1der-arcade');
+                    sp1derArcadeChannel.postMessage(Object.assign({ type: type }, payload || {}));
+                } catch (e) {}
+            }
             function showOwnerPopup(n) {
                 closeOwnerPopup();
                 const ov = document.createElement('div');
@@ -6836,10 +6845,12 @@ Furball found a sunbeam and is not moving for anyone.`;
                 card.appendChild(from); card.appendChild(msg); card.appendChild(ok);
                 ov.appendChild(card); document.body.appendChild(ov);
                 try { toast('Staff popup from ' + (n.fromName || 'Staff')); } catch (e) {}
-                /* Forward to the arcade / game windows so it shows even while playing. */
+                /* Forward to the arcade / game windows so it shows even while playing.
+                   The channel reaches the game windows' own bridge listeners directly. */
                 arcadeForwardTargets().forEach(w => {
                     try { w.postMessage({ type: 'SP1DER_OWNER_POPUP', message: String(n.message || ''), from: n.fromName || 'Staff' }, '*'); } catch (e) {}
                 });
+                arcadeBroadcast('SP1DER_OWNER_POPUP', { message: String(n.message || ''), from: n.fromName || 'Staff' });
             }
             function closeOwnerPopup() {
                 const el = $('sp1derOwnerPopup');
@@ -6849,6 +6860,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 arcadeForwardTargets().forEach(w => {
                     try { w.postMessage({ type: 'SP1DER_ARCADE_END' }, '*'); } catch (e) {}
                 });
+                arcadeBroadcast('SP1DER_ARCADE_END');
                 toast('Arcade games closed.');
             }
             function renderBell() {
@@ -7010,6 +7022,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.6.5', date: '2026-11-05', author: 'fish01-jpg', title: 'Commands Now Reach Players Inside the Games', changes: ["Every game window the arcade opens now runs a small bridge script, so staff commands affect the games themselves:", "/popup now shows its message on top of the actual game window the user is playing, not just the arcade hub and Sp1der tabs", "/arcadeend closes the user's game windows and tells them why, right inside the game", "Each game window also reports what it is directly - it keeps its own tracking beacon and heartbeat, so Playing X in the Active Users panel survives the arcade hub reloading or closing", "Sp1der, the arcade hub and the game windows talk over a broadcast channel when they share an origin, as an extra delivery path that needs no window references"] },
             { version: '4.6.4', date: '2026-11-05', author: 'fish01-jpg', title: 'Fishes Arcade Tracking, Arcade Stats on Profiles, Staff Popups', changes: ["The Active Users panel now shows when someone is in the Fishes Arcade and which game they are playing (Sp1dercraft, PolyTrack, Fluid Sim)", "You stay marked Active while you have a game window open, even if the Sp1der tab is idle in the background", "Profiles now show an Arcade & Account section: account age, last active, play time per game and high scores", "High scores are logged from the arcade's Now Playing bar while a game is open; play time is tracked automatically", "New staff commands: /popup @user <message> forces a popup over anything the user has open - including their arcade game windows; /arcadeend @user closes their games; /arcadegames shows who is playing what", "The arcade reports to Sp1der through a live message channel plus a beacon that survives tab reloads"] },
             { version: '4.6.3', date: '2026-11-05', author: 'fish01-jpg', title: 'Emoji Chat Reactions', changes: ["Every message now has a React button that opens an emoji picker (16 emojis: thumbs up/down, heart, laugh, fire, party and more)", "Reaction chips appear under the message with live counts - click a chip to add your reaction, click it again to remove it", "Chips you reacted with are highlighted, and reactions update live for everyone reading the channel", "Works in Global, DMs, group chats and the Aegis AI chat; read-only conversations show the chips but cannot be changed", "Reactions are stored on the message itself, so they load with the chat history"] },
             { version: '4.6.2', date: '2026-11-05', author: 'fish01-jpg', title: 'Working Chat Notifications, Pin Messages, Developer Role', changes: ["Chat notifications and the unread counter next to the Community button now actually work:", "The listeners used a query that needs a Firestore composite index that was never created, so they failed silently - they now use a query that works without any index", "The unread badge on the Community button and the per-channel badges in the sidebar show live counts again", "/pin now pins the most recent message in the chat, and the pinned panel at the top actually displays it for everyone, with an Unpin button for staff", "The pinned panel also had no CSS to ever show up - fixed", "New developer role: same powers as owner (rank level 100), assignable from the admin panel, with the Owner-style gold badge"] },
@@ -7986,28 +7999,37 @@ Furball found a sunbeam and is not moving for anyone.`;
                 } catch (e) {}
             }, 8000);
         }
+        let arcadeLastMsgAt = 0;
         window.addEventListener('message', e => {
             const data = e && e.data;
             if (!data || typeof data !== 'object') return;
             if (data.type === 'FISHES_ARCADE_STATE') {
+                arcadeLastMsgAt = Date.now();
                 arcadeStateUpdate(true, data.game || null);
                 if (data.stats) scheduleArcadeStatsSync(data.stats);
             } else if (data.type === 'FISHES_ARCADE_BYE') {
+                arcadeLastMsgAt = Date.now();
                 arcadeStateUpdate(false, null);
             }
         });
-        /* Same-origin fallback: the arcade popup shares this tab's origin, so a localStorage
-           beacon survives a reload of this page (which loses the postMessage window refs). */
+        /* Same-origin fallback: the arcade popup (and each game window, via its bridge) shares
+           this tab's origin, so localStorage beacons survive a reload of this page (which
+           loses the postMessage window refs). The game window beacon wins: it is the game
+           actually being played. */
         setInterval(() => {
             try {
-                const raw = localStorage.getItem('sp1derArcadeBeacon');
-                if (!raw) return;
-                const beacon = JSON.parse(raw);
-                if (beacon && Number.isFinite(beacon.at) && Date.now() - beacon.at < 25000) {
-                    arcadeStateUpdate(true, beacon.game || null);
-                } else if (myArcade.inArcade && !myArcade._byMsg) {
-                    arcadeStateUpdate(false, null);
-                }
+                const read = key => {
+                    const raw = localStorage.getItem(key);
+                    if (!raw) return null;
+                    const b = JSON.parse(raw);
+                    return b && Number.isFinite(b.at) && Date.now() - b.at < 25000 ? b : null;
+                };
+                const game = read('sp1derArcadeGameBeacon'), hub = read('sp1derArcadeBeacon');
+                if (game) arcadeStateUpdate(true, game.game || null);
+                else if (hub) arcadeStateUpdate(true, hub.game || null);
+                /* Only clear when the postMessage channel has also gone quiet, so the
+                   poll never wipes state that live messages are still refreshing. */
+                else if (myArcade.inArcade && Date.now() - arcadeLastMsgAt > 25000) arcadeStateUpdate(false, null);
             } catch (e) {}
         }, 5000);
         function stopActiveUserListeners() {
