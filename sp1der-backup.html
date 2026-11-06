@@ -9410,6 +9410,19 @@ Furball found a sunbeam and is not moving for anyone.`;
         function mcEscape(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return String.fromCharCode(38) + ({ 38: 'amp', 60: 'lt', 62: 'gt', 34: 'quot', 39: '#39' }[c.charCodeAt(0)]) + ';'; }); }
         function mcWidgetHidden() { try { return localStorage.getItem('sp1derMcHidden') === '1'; } catch (e) { return false; } }
         function mcSetHidden(hidden) { try { localStorage.setItem('sp1derMcHidden', hidden ? '1' : '0'); } catch (e) {} }
+        function mcOpenEditor(codes) {
+            const current = (codes || []).map(c => (c.name || '') + ' = ' + (c.code || '')).join('\n');
+            const input = prompt('One world per line, like:  World name = join code\n\nLeave empty and press OK to clear the widget.', current);
+            if (input === null) return;
+            const parsed = input.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+                const m = l.split('=');
+                return { name: (m[0] || '').trim(), code: (m.slice(1).join('=') || '').trim() };
+            }).filter(c => c.code);
+            try {
+                db.collection('system').doc('minecraft').set({ codes: parsed, updatedBy: adminMyName(), updatedAt: Date.now() });
+                toast('Minecraft codes saved');
+            } catch (e) { toast('Failed: ' + (e.message || e)); }
+        }
         function initMinecraftWidget() {
             if (mcWidgetUnsub) { try { mcWidgetUnsub(); } catch (e) {} mcWidgetUnsub = null; }
             let codes = [];
@@ -9417,7 +9430,17 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const old = document.getElementById('sp1derMcWidget'), pill = document.getElementById('sp1derMcPill');
                 if (old) old.remove();
                 if (pill) pill.remove();
-                if (!codes.length) return;
+                if (!codes.length) {
+                    /* No codes set yet: staff still see the box so they can add the first codes. */
+                    if (typeof canUseStaffCmds === 'function' && canUseStaffCmds()) {
+                        const w = document.createElement('div');
+                        w.id = 'sp1derMcWidget';
+                        w.innerHTML = '<div class="mc-head">⛏ Our Minecraft Worlds</div><div class="mc-updated" style="margin:0 0 8px;">No join codes set yet.</div><button class="mc-btn" id="mcEditBtn" style="width:100%;">Add join codes (staff)</button>';
+                        document.body.appendChild(w);
+                        w.querySelector('#mcEditBtn').onclick = () => mcOpenEditor(codes);
+                    }
+                    return;
+                }
                 if (mcWidgetHidden()) {
                     const p = document.createElement('div');
                     p.id = 'sp1derMcPill';
@@ -9445,19 +9468,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                     };
                 });
                 const edit = w.querySelector('#mcEditBtn');
-                if (edit) edit.onclick = () => {
-                    const current = codes.map(c => (c.name || '') + ' = ' + (c.code || '')).join('\n');
-                    const input = prompt('One world per line, like:  World name = join code\n\nLeave empty and press OK to clear the widget.', current);
-                    if (input === null) return;
-                    const parsed = input.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-                        const m = l.split('=');
-                        return { name: (m[0] || '').trim(), code: (m.slice(1).join('=') || '').trim() };
-                    }).filter(c => c.code);
-                    try {
-                        db.collection('system').doc('minecraft').set({ codes: parsed, updatedBy: adminMyName(), updatedAt: Date.now() });
-                        toast('Minecraft codes saved');
-                    } catch (e) { toast('Failed: ' + (e.message || e)); }
-                };
+                if (edit) edit.onclick = () => mcOpenEditor(codes);
             };
             try {
                 mcWidgetUnsub = db.collection('system').doc('minecraft').onSnapshot(doc => {
