@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Project Sp1der — 4.5.5</title>
+    <title>Project Sp1der — 4.6.6</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -828,6 +828,36 @@
         .notif-item .notif-dot.read { background: var(--text-faint); opacity: 0.4; }
         .notif-item .notif-time { display: block; font-size: 0.65rem; color: var(--text-faint); margin-top: 2px; }
         .notif-empty { padding: 26px 14px; text-align: center; font-size: 0.78rem; color: var(--text-faint); }
+        /* v4.6.6: glowing bell while there are unread notifications + announcement rows. */
+        @keyframes sp1derNotifGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(160, 32, 240, 0); border-color: var(--border); }
+            50% { box-shadow: 0 0 16px 4px rgba(160, 32, 240, 0.85); border-color: var(--primary); }
+        }
+        .topbar-btn.notif-glow { animation: sp1derNotifGlow 1.4s ease-in-out infinite; }
+        .notif-item.is-announcement { border-left: 3px solid var(--primary); padding-left: 8px; }
+        /* v4.6.6: Minecraft world join-code widget (bottom-left, hideable). */
+        #sp1derMcWidget {
+            position: fixed; left: 14px; bottom: 14px; z-index: 9000;
+            background: rgba(10, 6, 24, 0.94); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 12px 14px; max-width: 260px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            font-size: 0.78rem; color: var(--text);
+        }
+        #sp1derMcWidget .mc-head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.4px; margin-bottom: 8px; }
+        #sp1derMcWidget .mc-code-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+        #sp1derMcWidget .mc-code-row .mc-code { font-family: monospace; font-weight: 700; letter-spacing: 0.5px; color: var(--success); overflow-wrap: anywhere; }
+        #sp1derMcWidget .mc-world { color: var(--text-dim); }
+        #sp1derMcWidget .mc-btn {
+            background: var(--bg-2); border: 1px solid var(--border); color: var(--text-dim);
+            border-radius: 5px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer; flex-shrink: 0;
+        }
+        #sp1derMcWidget .mc-btn:hover { color: var(--text); border-color: var(--primary); }
+        #sp1derMcWidget .mc-updated { font-size: 0.62rem; color: var(--text-faint); margin-top: 8px; }
+        #sp1derMcPill {
+            position: fixed; left: 14px; bottom: 14px; z-index: 9000;
+            background: rgba(10, 6, 24, 0.94); border: 1px solid var(--border); border-radius: 999px;
+            padding: 6px 12px; font-size: 0.72rem; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+        #sp1derMcPill:hover { color: var(--text); border-color: var(--primary); }
 
         /* THEME VOTE EVENT (v4.5.4) */
         .vote-card {
@@ -1695,7 +1725,7 @@
         #sigmaAlert { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 99999; display: none; background: rgba(120,0,0,0.97); border: 1px solid #ff2b2b; border-radius: 12px; color: #ffd9d9; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; padding: 12px 20px; box-shadow: 0 0 30px rgba(255,0,0,0.5); max-width: 86vw; }
         #sigmaAlert.show { display: block; animation: sigmaPulse 0.9s infinite alternate; }
     </style>
-<style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style></head>
+</head>
 <body>
 
     <!-- LOADING SCREEN -->
@@ -1823,7 +1853,7 @@
                 <div class="topbar-spacer"></div>
                 <button class="topbar-btn" id="updateProgressBtn" onclick="openUpdateModal()" style="display:none" title="View latest update notes" aria-label="View latest update notes">
                     <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"></path></svg>
-                    <span id="updateProgressText">v4.5.5</span>
+                    <span id="updateProgressText">v4.6.6</span>
                 </button>
                 <button class="topbar-btn" id="notifBellBtn" onclick="Sp1derIndicators.toggleBell()" title="Notifications" aria-label="Notifications" aria-haspopup="true">
                     <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 7.36 6 9.92 6 13v5l-2 2v1h16v-1l-2-2z"></path></svg>
@@ -2561,7 +2591,7 @@
     <!-- UPDATE PROGRESS MODAL -->
     <div class="modal-overlay" id="updateModal" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
         <div class="modal-card">
-            <h2 id="updateModalTitle" style="text-align:center;">Version 4.5.5 Update Notes</h2>
+            <h2 id="updateModalTitle" style="text-align:center;">Version 4.6.6 Update Notes</h2>
             <div class="update-status-text" id="updateStatusText">Checking for updates...</div>
             <div class="update-progress-bar"><div class="update-progress-fill" id="updateProgressFill"></div></div>
             <div id="updateDetails" style="font-size:0.78rem;color:var(--text-dim);line-height:1.6;margin-top:12px;"></div>
@@ -2759,7 +2789,7 @@
         /* ============================================
            PROJECT SP1DER V4 — APPLICATION LOGIC
            ============================================ */
-        const APP_VERSION = '4.5.5';
+        const APP_VERSION = '4.6.6';
         function isNewerAppVersion(candidate, current = APP_VERSION) {
             const parse = value => {
                 const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/i);
@@ -5414,6 +5444,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 input.value = ''; autoResizeComposer(); return;
             }
             if (modBlockSend('chat')) return;
+            if (!isAnnouncement && !(await tierConsumeQuota())) return;
             if (!isAnnouncement && content.startsWith('/')) {
                 const handled = await handleCommand(content, selectedChannelId || 'global', true);
                 if (handled) { input.value = ''; autoResizeComposer(); return; }
@@ -5720,7 +5751,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'mute': { const feed = $('commFeed'); if (feed) feed.style.opacity = '0.4'; toast('Chat muted (local)'); return true; }
                 case 'unmute': { const feed2 = $('commFeed'); if (feed2) feed2.style.opacity = '1'; toast('Chat unmuted'); return true; }
                 case 'poll': { if (!args[0]) { toast('Usage: /poll <question>'); return true; } const msgDb = getMsgDbForCh(selectedChannelId || 'global'); try { await msgDb.collection('messages').add({ channelId: selectedChannelId || 'global', uid: currentUser.uid, username: (userProfile && userProfile.username) || 'User', role: getRole(), content: '📊 POLL: ' + args.join(' ') + '\nReact with 👍 or 👎', timestamp: sv(), isPoll: true }); toast('Poll created'); } catch(e) { toast('Failed'); } return true; }
-                case 'announce': { if (!canUseStaffCmds()) { toast('Staff only'); return true; } if (!args[0]) { toast('Usage: /announce <message>'); return true; } sendMessage(true); return true; }
+                case 'announce': { if (!canUseStaffCmds()) { toast('Staff only'); return true; } if (!args[0]) { toast('Usage: /announce <message>'); return true; } broadcastAnnouncement(args.join(' ')); sendMessage(true); return true; }
                 case 'stats': toast(`Online: ${Object.keys(onlineUsers).length} | Role: ${getRole()} | DB: DB-${DB_MANAGER.currentMsgDbIndex + 1}`); return true;
                 case 'theme': settings.theme = settings.theme === 'arcane' ? 'dark' : 'arcane'; applyTheme(); saveSettingsInstant(); toast('Theme: ' + settings.theme); return true;
                 case 'ping': toast('Pong! Latency: ' + Math.floor(Math.random() * 50 + 10) + 'ms'); return true;
@@ -5754,7 +5785,8 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'popup': {
                     if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
                     if (!args[0] || !args[0].startsWith('@') || !args[1]) { toast('Usage: /popup @user <message>'); return true; }
-                    const targetUid = args[0].replace('@', '');
+                    const targetUid = await resolveTargetUid(args[0]);
+                    if (!targetUid) { toast('No user found named "' + args[0].replace('@', '') + '".'); return true; }
                     const text = args.slice(1).join(' ');
                     try {
                         await db.collection('notifications').add({ uid: targetUid, fromUid: currentUser.uid, fromName: adminMyName(), message: text, popup: true, createdAt: sv(), read: false });
@@ -5765,10 +5797,24 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'arcadeend': {
                     if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
                     if (!args[0] || !args[0].startsWith('@')) { toast('Usage: /arcadeend @user'); return true; }
-                    const targetUid = args[0].replace('@', '');
+                    const targetUid = await resolveTargetUid(args[0]);
+                    if (!targetUid) { toast('No user found named "' + args[0].replace('@', '') + '".'); return true; }
                     try {
                         await db.collection('notifications').add({ uid: targetUid, fromUid: currentUser.uid, fromName: adminMyName(), message: 'Your arcade games were closed by staff.', popup: true, popupAction: 'arcadeEnd', createdAt: sv(), read: false });
                         toast('Arcade close sent to ' + args[0] + '.');
+                    } catch (e) { toast('Failed: ' + (e.message || e)); }
+                    return true;
+                }
+                case 'tier': {
+                    if (!canUseOwnerCmds()) { toast('Owner only.'); return true; }
+                    if (args.length < 2) { toast('Usage: /tier @user <free|pro|ultra>'); return true; }
+                    const wanted = String(args[1]).toLowerCase();
+                    if (!SERVER_TIERS[wanted]) { toast('Tier must be free, pro or ultra.'); return true; }
+                    const targetUid = await resolveTargetUid(args[0]);
+                    if (!targetUid) { toast('No user found named "' + args[0].replace('@', '') + '".'); return true; }
+                    try {
+                        await db.collection('users').doc(targetUid).set({ tier: wanted }, { merge: true });
+                        toast('Set ' + args[0] + ' to the ' + SERVER_TIERS[wanted].label + ' tier.');
                     } catch (e) { toast('Failed: ' + (e.message || e)); }
                     return true;
                 }
@@ -5792,7 +5838,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 }
                 case 'lock': if (!isOwner()) { toast('Owner only.'); return true; } if (args.length < 2) { toast('Usage: /lock <@user> <role>'); return true; } toast(`Locked ${args[0]}`); return true;
                 case 'unlock': if (!isOwner()) { toast('Owner only.'); return true; } if (!args[0]) { toast('Usage: /unlock <@user>'); return true; } toast(`Unlocked ${args[0]}`); return true;
-                case 'grantsync': { if (!canUseStaffCmds()) { toast('Staff only.'); return true; } if (!args[0]) { toast('Usage: /grantsync <@user> [count]'); return true; } const count = parseInt(args[1]) || 1; const targetUid = args[0].replace('@', ''); const result = await grantProfileSync(targetUid, count); toast(result); return true; }
+                case 'grantsync': { if (!canUseStaffCmds()) { toast('Staff only.'); return true; } if (!args[0]) { toast('Usage: /grantsync <@user> [count]'); return true; } const count = parseInt(args[1]) || 1; const targetUid = await resolveTargetUid(args[0]); if (!targetUid) { toast('No user found named "' + args[0].replace('@', '') + '".'); return true; } const result = await grantProfileSync(targetUid, count); toast(result); return true; }
                 case 'dbstatus': { toast('Current Server: ' + (selectedMsgDbIndex + 1) + ' of 5'); return true; }
                 case 'server': case 'manage': case 'commandcenter': openServerLogin(); return true;
                 case 'dbrotate': { if (!canUseStaffCmds()) { toast('Staff only.'); return true; } const result = DB_MANAGER.manualRotate(); toast(result); if ($('serverSelector')) $('serverSelector').value = selectedMsgDbIndex; if (selectedChannelId) openChannel(selectedChannelId); return true; }
@@ -6865,6 +6911,9 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const countEl = $('notifBellCount'), list = $('notifList');
                 const unread = notifDocs.filter(n => !n.read).length;
                 if (countEl) countEl.textContent = unread ? (unread > 99 ? '99+' : String(unread)) : '';
+                /* v4.6.6: the bell glows while there is anything unread (announcements included). */
+                const bellBtn = $('notifBellBtn');
+                if (bellBtn) bellBtn.classList.toggle('notif-glow', unread > 0);
                 if (!list) return;
                 if (!notifDocs.length) {
                     list.innerHTML = '<div class="notif-empty">No notifications yet. Announcements, broadcasts and staff messages will show up here.</div>';
@@ -6873,7 +6922,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 list.innerHTML = '';
                 notifDocs.slice(0, 30).forEach(n => {
                     const row = document.createElement('div');
-                    row.className = 'notif-item' + (n.read ? '' : ' unread');
+                    row.className = 'notif-item' + (n.read ? '' : ' unread') + (n.announcement ? ' is-announcement' : '');
                     const dot = document.createElement('span');
                     dot.className = 'notif-dot' + (n.read ? ' read' : '');
                     row.appendChild(dot);
@@ -7020,6 +7069,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.6.6', date: '2026-11-06', author: 'fish01-jpg', title: 'Announcements That Glow, Fixed Profiles and Game Commands, Minecraft Codes, Server Tiers BETA', changes: ["Announcements now also land in the notification box:", "/announce still posts the chat message, but every user now also gets a bell notification from 📢 Announcement", "The bell glows purple while you have unread notifications and stops as soon as you read them", "Announcement rows in the notification list get a highlighted left edge", "", "Fixed - profiles and the game commands:", "Clicking a card in Active Users now opens that user's profile (your own card opens your own profile) - this was silently missing, so profiles looked gone", "The profile still shows the Arcade and Account section: account age, last active, play time per game and high scores", "/popup and /arcadeend now accept @username - they only worked with raw account IDs before, which is why they seemed to do nothing", "The commands now tell you when no user with that name was found, and /grantsync got the same fix", "", "Minecraft world join codes:", "A small box in the bottom-left corner shows the Minecraft world join codes, with a Copy button for each", "Press Hide and it stays hidden - a tiny Minecraft codes pill remains in the corner to bring it back", "Staff (owner or developer) see an Edit codes button on the box: one world per line, written as World name = join code; leave it empty to clear", "", "Server tiers (BETA):", "New tiers page (tiers.html), opened from the Fishes Arcade - clearly marked BETA - listing the Free, Pro and Ultra tiers", "Tiers control how much server data you can use: your daily chat allowance (Free 150 messages a day, Pro 600, Ultra unlimited) plus profile sync allowances", "Everyone starts on Free; the owner can change anyone's tier with /tier @user <free|pro|ultra>", "The counter resets every day, and if the check ever fails it never blocks chat"] },
             { version: '4.5.5', date: '2026-11-05', author: 'fish01-jpg', title: 'Combined Update — Arcade, Chat, Notifications and Staff Tools', changes: ["Halloween Event Ended, Fishes Arcade Home:", "Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt has ended: the hidden sp1ders, the Sp1ders counter, the hunt how-to-play guide and the admin Sp1der Hunt tab are all gone", "New featured Fishes Arcade card on the Games page - bigger than the other games, it opens the Fishes Arcade in its own window", "", "Featured Card Opens the Fishes Arcade:", "The featured card on the Games page is now the Fishes Arcade card:", "It still stands out - bigger than the other games, with the gradient border, glow and Featured badge", "Clicking it opens the Fishes Arcade itself in its own window, not the Sp1der Runner", "If your Games page card still says Project Sp1der or opens the Sp1der Runner, you are running an old copy: close the app window and open it again to get 4.5.5", "", "Fishes Arcade Active-User Gate, Stay Logged In:", "The Fishes Arcade card on the Games page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox", "", "Arcade Gate Bypass, Explosive Arcade Background:", "The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines", "", "Forced Chat Commands - AI Detects Commands Written Straight to Firestore:", "Commands typed in the composer were always executed before the message reached Firestore, so a command forced directly into the messages collection (Firebase console, REST API, the Sigma Remote or any other client) only rendered as plain text and never ran", "The chat now detects command-shaped messages arriving through Firestore and runs them through the normal command handlers: / commands via the chat command handler, @ commands via the AI command handler, in both the main chat channels and the Aegis AI chat", "Each forced command message is claimed once with a cmdHandled marker on the message document - the same claim idea as the Sigma command queue - so multiple AI tabs never run the same command twice", "Only the AI accounts and the admin-panel owner execute forced commands, and only for messages posted by their own account or by the AI itself - a command message forged by another account is never executed with staff powers", "On first load only unmarked commands from the last 15 minutes are picked up, so channel history is never replayed; forced commands that arrive while the AI is offline still run when it comes back online", "Unrecognized forced commands are not removed - they keep rendering as normal chat text, and a toast reports whether each forced command ran", "", "Verify Command, Review Terms, Reliable Trackers:", "New /verify chat command — a second way into the Fishes Arcade", "It opens a menu with the full terms: agree, have an account at least 5 days old, then pass 15 different CAPTCHAs (math, codes, odd-one-out and more — no two alike), with progress saved if you stop halfway", "Verified accounts skip the active-user checklist and the fair-warning form and get straight into the arcade", "The arcade gate now has a Review terms button so anyone can re-read the terms after agreeing", "The activity trackers were rebuilt: time on screen, messages and page visits are banked locally first and synced to your profile with retries, so being offline, over quota or in a sandboxed frame no longer wipes your progress", "The gate checklist merges your not-yet-synced progress, so the list stays live and accurate", "The Sp1der Runner (fishes.html) now loads the sp1der backup copy (sp1der-backup.html), and the Fishes Arcade hub has a new cloaked Project Sp1der launcher that opens it", "", "Working Chat Notifications, Pin Messages, Developer Role:", "Chat notifications and the unread counter next to the Community button now actually work:", "The listeners used a query that needs a Firestore composite index that was never created, so they failed silently - they now use a query that works without any index", "The unread badge on the Community button and the per-channel badges in the sidebar show live counts again", "/pin now pins the most recent message in the chat, and the pinned panel at the top actually displays it for everyone, with an Unpin button for staff", "The pinned panel also had no CSS to ever show up - fixed", "New developer role: same powers as owner (rank level 100), assignable from the admin panel, with the Owner-style gold badge", "", "Emoji Chat Reactions:", "Every message now has a React button that opens an emoji picker (16 emojis: thumbs up/down, heart, laugh, fire, party and more)", "Reaction chips appear under the message with live counts - click a chip to add your reaction, click it again to remove it", "Chips you reacted with are highlighted, and reactions update live for everyone reading the channel", "Works in Global, DMs, group chats and the Aegis AI chat; read-only conversations show the chips but cannot be changed", "Reactions are stored on the message itself, so they load with the chat history", "", "Fishes Arcade Tracking, Arcade Stats on Profiles, Staff Popups:", "The Active Users panel now shows when someone is in the Fishes Arcade and which game they are playing (Sp1dercraft, PolyTrack, Fluid Sim)", "You stay marked Active while you have a game window open, even if the Sp1der tab is idle in the background", "Profiles now show an Arcade & Account section: account age, last active, play time per game and high scores", "High scores are logged from the arcade's Now Playing bar while a game is open; play time is tracked automatically", "New staff commands: /popup @user <message> forces a popup over anything the user has open - including their arcade game windows; /arcadeend @user closes their games; /arcadegames shows who is playing what", "The arcade reports to Sp1der through a live message channel plus a beacon that survives tab reloads", "", "Commands Now Reach Players Inside the Games:", "Every game window the arcade opens now runs a small bridge script, so staff commands affect the games themselves:", "/popup now shows its message on top of the actual game window the user is playing, not just the arcade hub and Sp1der tabs", "/arcadeend closes the user's game windows and tells them why, right inside the game", "Each game window also reports what it is directly - it keeps its own tracking beacon and heartbeat, so Playing X in the Active Users panel survives the arcade hub reloading or closing", "Sp1der, the arcade hub and the game windows talk over a broadcast channel when they share an origin, as an extra delivery path that needs no window references"] },
             { version: '4.5.4', date: '2026-11-01', author: 'redfish and p1xelf1n', title: 'Sigma Security Agent + Sigma Remote + Omega AI, testing the AIs', changes: ["Sigma:", "Sigma is the new security agent for Aegis / Sp1der - when Aegis calls it (@sigma in chat, or from the Sigma Remote) it can pause the current chat for review", "While Sigma is engaged the selected page (or every page) turns red with a border, a SIGMA banner appears and all user input is locked out", "The AI can select specific users who are allowed to talk during the review - everyone else stays locked until Sigma releases the chat", "Sigma can save and view all raw user data from the Remote, scan recent chat for suspicious activity and run a full network audit", "Remote:", "New separate page: the Sigma Remote - it connects to the main site chats, lets the AI type in them as Aegis AI, and runs every Sigma command", "The Remote can highlight any element on the main site in red so you can see exactly what Sigma is doing", "Sigma commands exist in the main site code but can only be executed through the Remote - typing them in chat just points you to the Remote", "Over 25 remote commands: pause, lock, allow, highlight, scan, audit, viewdata, savedata, broadcast, alert, banner, redirect, reload, slowmode, chatlock and more", "Games:", "Added Conner's Polytrack Project to the Games panel; clicking the card redirects to https://education.framer.photos in the current tab.", "Card description: Conner's Polytrack Project- does not work on school chromebook", "", "Typing bar (added November 1):", "When someone is writing a message in the conversation you have open, a small line appears above the composer: Allison is typing... with animated dots", "Shows for the Global chat, DMs and group chats; you never see your own typing indicator", "The indicator starts when a draft has text, refreshes about every 2.5 seconds while typing continues, disappears when the message is sent or the draft is cleared, and expires by itself after 6 seconds", "Each member's typing entry is stored under their own user ID, so nobody can fake someone else typing", "", "Notification numbers (added November 1):", "Every conversation in the Community sidebar now shows a red number badge with the count of unread messages", "The Community item in the sidebar shows the total number of unread messages across all your conversations", "The Events item shows a 1 badge until you open the newest event", "New notification bell in the top bar with the number of unread personal notifications - click it to see announcements, broadcasts and staff messages, and they are marked read when you open it", "Unread counts are remembered per conversation, survive page refreshes, and clear when you open that conversation while it is on screen", "", "Community Theme Vote event (added November 1):", "New event: vote for the site's next look - Fall (warm autumn oranges and gold), Blue (cool deep-blue night), or keep Arcane (classic violet and gold)", "Both new themes are already available to preview in Settings - Appearance - Theme", "One vote per account and you can change it while the event is active; AI accounts do not vote", "Live tallies with vote counts and percentage bars are shown to everyone, and the final result is displayed when the event ends", "", "Furry title (added November 1):", "The Furry title (cosmeticTitle furry on an account) now grants the Furry bonus commands to whoever holds it - /dragon, /purr, /cat, /nap, /yarn, /zoomies, /fortune and /furhelp", "The title gives ONLY those commands: it grants no staff, moderation or any other powers anywhere on the site", "All staff roles keep access to the Furry commands, and the title never overrides rank - a member with the title stays a member, and staff with the title keep their staff status displayed", "Granting the title is owner/AI only: set cosmeticTitle to furry on the account's user document (Remote Manager raw editor); regular members and staff cannot set it on themselves", "The cyan Furry badge now shows on messages and profiles for anyone holding the title, not just the Furball accounts"] },
             { version: '4.5.3', date: '2026-10-24', author: 'P1xelF1n', title: 'User Data Sync - Customization Saved to Your Account, Redstone Rush Puzzle Game, Lava Arena Game', changes: ["Customization now saves to your account:", "Every settings change (theme, colors, animations, notifications, profile look) now saves automatically to your account in the cloud", "Signing out and signing back in no longer loses your customization - everything comes back automatically", "This also fixes customization disappearing on refresh or when the app updates, since storage inside the Runner is temporary and only the cloud save keeps it", "", "Profile pictures:", "Profile pictures now restore automatically when you sign in - they were already synced but never came back after re-login", "", "Custom backgrounds:", "Custom background images now save to your account too - they are compressed automatically so they fit", "A background that is too large to sync is rejected with a clear message instead of quietly not saving", "", "Safety:", "Signing out now finishes saving your changes first, and warns you if a save fails so you can choose to stay signed in", "One account's customization never leaks into another account on the same browser", "", "Older accounts:", "Accounts that saved their profile look before this update carry it over automatically", "", "Redstone Rush:", "New puzzle game: rotate the redstone wires to connect the power source to every target", "10 handcrafted levels that get harder as you go - corners, junctions, crossing wires and stone blocks in the way", "Star ratings based on how few moves you use, a level select screen, and your progress and best scores are saved when browser storage is available (the game still works fully without it)", "Opens like the other games: the Redstone Rush card in the Games hub explains that you type redstoneRush in the Runner box to play", "The back button on the game page is labeled main, and clicking it reminds you to type main in the Runner box to return to the hub", "", "Lava Arena:", "New battle game: the floor is lava - touch it and you die instantly", "Multiplayer wizard arena - enter a room name, pick RED or BLUE team, and select 2 spells to deploy", "All spells have increased knockback: blast your enemies into the lava instead of just damaging them", "Standing still burns you for damage ticks, so keep moving - die and you respawn 3 seconds later with the death on your scoreboard", "Track your kills and deaths on the scoreboard, and chat with the room by pressing Enter", "Opens like the other games: the Lava Arena card in the Games hub explains that you type lava in the Runner box to play"] },
@@ -7899,6 +7949,13 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const batt = u.online && u.battery != null && u.shareBattery !== false ? Math.max(0, Math.min(100, +u.battery || 0)) : null;
                 if (batt != null) { const bat = document.createElement('div'); bat.className = 'battery-indicator'; bat.innerHTML = '<div class="battery-icon"><div style="width:' + batt + '%;height:100%;background:' + (batt < 20 ? 'var(--danger)' : 'var(--success)') + ';"></div></div><span>' + batt + '%</span>'; info.appendChild(bat); }
                 card.appendChild(wrap); card.appendChild(info); grid.appendChild(card);
+                /* v4.6.6: clicking a card opens that user's profile (own card opens your profile). */
+                card.style.cursor = 'pointer';
+                card.title = 'View profile';
+                card.addEventListener('click', function (ev) {
+                    if (ev.target.closest && ev.target.closest('.mc-btn')) return;
+                    try { openChatProfile(u.uid); } catch (e) {}
+                });
             });
             if (hiddenCount > 0) { const n = document.createElement('div'); n.className = 'admin-sub'; n.style.cssText = 'grid-column:1/-1;text-align:center;opacity:0.7;'; n.textContent = hiddenCount + ' more user' + (hiddenCount !== 1 ? 's are' : ' is') + ' hidden by privacy settings.'; grid.appendChild(n); }
         }
@@ -8294,6 +8351,81 @@ Furball found a sunbeam and is not moving for anyone.`;
            (it works wherever the rules allow reading it), but every signed-in client also gets a
            per-account notification - the same channel @broadcast already uses - so the effect
            genuinely reaches everyone. The staffer who starts it sees it immediately too. */
+        /* ===== v4.6.6: ANNOUNCEMENTS ALSO GO TO THE NOTIFICATION BOX =====
+           /announce still posts the chat message, but now every user also gets a
+           bell notification, and the bell glows while there are unread items. */
+        async function broadcastAnnouncement(text) {
+            if (!currentUser) return;
+            const clean = String(text || '').trim(); if (!clean) return;
+            try {
+                const snap = await db.collection('users').limit(450).get();
+                const batch = db.batch(); let n = 0;
+                snap.forEach(d => {
+                    batch.set(db.collection('notifications').doc(), { uid: d.id, fromUid: currentUser.uid, fromName: '📢 Announcement', message: clean, announcement: true, createdAt: sv(), read: false });
+                    n++;
+                });
+                if (n) await batch.commit();
+                toast('Announcement sent to ' + n + ' users\' notification boxes');
+            } catch (e) { toast('Announcement bell delivery failed: ' + (e.message || e)); }
+        }
+        /* ===== v4.6.6: @name -> uid resolver for staff commands =====
+           Staff used to have to paste raw Firebase UIDs. Now @username (or a uid,
+           or an email handle) is looked up in the user directory first. */
+        async function resolveTargetUid(ref) {
+            const r = String(ref || '').replace(/^@/, '').trim().toLowerCase();
+            if (!r) return null;
+            const pools = [];
+            try { pools.push(Object.values(onlineUsers || {})); } catch (e) {}
+            try { if (typeof allUsersDirectory !== 'undefined' && allUsersDirectory) pools.push(allUsersDirectory); } catch (e) {}
+            try { if (typeof mgmtUsersCache !== 'undefined' && mgmtUsersCache) pools.push(mgmtUsersCache); } catch (e) {}
+            for (const pool of pools) {
+                const hit = (pool || []).find(u => u && (
+                    String(u.uid || '').toLowerCase() === r ||
+                    String(u.username || '').toLowerCase() === r ||
+                    String(u.accountUsername || '').toLowerCase() === r ||
+                    String(u.email || '').split('@')[0].toLowerCase() === r));
+                if (hit && hit.uid) return hit.uid;
+            }
+            try {
+                const snap = await db.collection('users').limit(450).get();
+                let hit = null;
+                snap.forEach(d => {
+                    const u = d.data() || {};
+                    if (String(d.id).toLowerCase() === r ||
+                        String(u.username || '').toLowerCase() === r ||
+                        String(u.accountUsername || '').toLowerCase() === r ||
+                        String(u.email || '').split('@')[0].toLowerCase() === r) hit = hit || d.id;
+                });
+                if (hit) return hit;
+            } catch (e) {}
+            return null;
+        }
+        /* ===== v4.6.6: SERVER TIERS (BETA) =====
+           Every account gets a daily chat allowance based on its tier.
+           Defaults to free; staff can change it with /tier @user <free|pro|ultra>.
+           The tiers page (opened from the Fishes Arcade) lists the allowances. */
+        const SERVER_TIERS = {
+            free:  { label: 'Free',  dailyMessages: 150, syncs: 1 },
+            pro:   { label: 'Pro',   dailyMessages: 600, syncs: 3 },
+            ultra: { label: 'Ultra', dailyMessages: Infinity, syncs: 10 }
+        };
+        function tierToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+        async function tierConsumeQuota() {
+            /* Returns true if the message may be sent (quota consumed). */
+            if (!currentUser || !db) return true;
+            try {
+                const ref = db.collection('users').doc(currentUser.uid);
+                const doc = await ref.get();
+                const data = doc.exists ? (doc.data() || {}) : {};
+                const tier = SERVER_TIERS[data.tier] ? data.tier : 'free';
+                const day = tierToday();
+                const used = (data.tierDay === day) ? (data.tierMsgs || 0) : 0;
+                const limit = SERVER_TIERS[tier].dailyMessages;
+                if (used >= limit) { toast('Daily ' + SERVER_TIERS[tier].label + ' message limit reached (' + limit + '/day). Your allowance resets tomorrow. (BETA)'); return false; }
+                await ref.set({ tier: tier, tierDay: day, tierMsgs: used + 1 }, { merge: true });
+                return true;
+            } catch (e) { return true; /* never block chat on a beta counter failure */ }
+        }
         async function adminEffect(type) {
             if (!canUseStaffCmds()) { toast('Staff only'); return; }
             const fxId = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -9270,6 +9402,71 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp); else initApp();
 
+        /* ===== v4.6.6: MINECRAFT WORLD JOIN CODES (bottom-left, hideable) =====
+           Staff keep the codes in the system/minecraft doc (the widget's Edit button,
+           owner/developer only, writes it). Everyone sees the current codes in the
+           bottom-left corner until they press Hide; a small pill brings them back. */
+        let mcWidgetUnsub = null;
+        function mcEscape(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return String.fromCharCode(38) + ({ 38: 'amp', 60: 'lt', 62: 'gt', 34: 'quot', 39: '#39' }[c.charCodeAt(0)]) + ';'; }); }
+        function mcWidgetHidden() { try { return localStorage.getItem('sp1derMcHidden') === '1'; } catch (e) { return false; } }
+        function mcSetHidden(hidden) { try { localStorage.setItem('sp1derMcHidden', hidden ? '1' : '0'); } catch (e) {} }
+        function initMinecraftWidget() {
+            if (mcWidgetUnsub) { try { mcWidgetUnsub(); } catch (e) {} mcWidgetUnsub = null; }
+            let codes = [];
+            const render = () => {
+                const old = document.getElementById('sp1derMcWidget'), pill = document.getElementById('sp1derMcPill');
+                if (old) old.remove();
+                if (pill) pill.remove();
+                if (!codes.length) return;
+                if (mcWidgetHidden()) {
+                    const p = document.createElement('div');
+                    p.id = 'sp1derMcPill';
+                    p.title = 'Show the Minecraft world join codes';
+                    p.textContent = '⛏ Minecraft codes';
+                    p.onclick = () => { mcSetHidden(false); render(); };
+                    document.body.appendChild(p);
+                    return;
+                }
+                const w = document.createElement('div');
+                w.id = 'sp1derMcWidget';
+                let h = '<div class="mc-head">⛏ Our Minecraft Worlds<button class="mc-btn" style="margin-left:auto;" id="mcHideBtn" title="Hide this box">Hide</button></div>';
+                codes.forEach((c, i) => {
+                    h += '<div class="mc-code-row"><span class="mc-world">' + mcEscape(c.name || 'World ' + (i + 1)) + ':</span> <span class="mc-code">' + mcEscape(c.code || '') + '</span><button class="mc-btn" data-mc-copy="' + i + '" title="Copy code">Copy</button></div>';
+                });
+                h += '<div class="mc-updated">Codes from staff · join in Minecraft (Multiplayer)</div>';
+                if (typeof canUseStaffCmds === 'function' && canUseStaffCmds()) h += '<button class="mc-btn" id="mcEditBtn" style="margin-top:8px;width:100%;">Edit codes (staff)</button>';
+                w.innerHTML = h;
+                document.body.appendChild(w);
+                w.querySelector('#mcHideBtn').onclick = () => { mcSetHidden(true); render(); };
+                w.querySelectorAll('[data-mc-copy]').forEach(btn => {
+                    btn.onclick = async () => {
+                        const code = String((codes[+btn.getAttribute('data-mc-copy')] || {}).code || '');
+                        try { await navigator.clipboard.writeText(code); toast('Join code copied'); } catch (e) { toast('Copy failed - the code is ' + code); }
+                    };
+                });
+                const edit = w.querySelector('#mcEditBtn');
+                if (edit) edit.onclick = () => {
+                    const current = codes.map(c => (c.name || '') + ' = ' + (c.code || '')).join('\n');
+                    const input = prompt('One world per line, like:  World name = join code\n\nLeave empty and press OK to clear the widget.', current);
+                    if (input === null) return;
+                    const parsed = input.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+                        const m = l.split('=');
+                        return { name: (m[0] || '').trim(), code: (m.slice(1).join('=') || '').trim() };
+                    }).filter(c => c.code);
+                    try {
+                        db.collection('system').doc('minecraft').set({ codes: parsed, updatedBy: adminMyName(), updatedAt: Date.now() });
+                        toast('Minecraft codes saved');
+                    } catch (e) { toast('Failed: ' + (e.message || e)); }
+                };
+            };
+            try {
+                mcWidgetUnsub = db.collection('system').doc('minecraft').onSnapshot(doc => {
+                    codes = (doc.exists && Array.isArray(doc.data().codes)) ? doc.data().codes : [];
+                    render();
+                }, () => { /* rules may block guests - stay quiet */ });
+            } catch (e) {}
+        }
+
         /* Initialize aegisWeb, managed apps, and Aegis status listener */
         setTimeout(function() {
             try { aegisWeb.init(); } catch(e) { console.error('AegisWeb init error:', e); }
@@ -9279,6 +9476,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             try { initStaffListener(); } catch(e) {}
             try { startArcadeActivityTracking(); } catch(e) {}
             try { Sp1derIndicators.initBell(); } catch(e) {}
+            try { initMinecraftWidget(); } catch(e) {}
         }, 100);
 
         /* ===== UPDATE ENFORCEMENT ===== */
@@ -9312,447 +9510,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 })();
 </script>
 
-<script data-pplx-inline-edit="">
-(function () {
-  if (window === window.top) return;
 
-  const allowedParentOrigins = ["https://www.perplexity.ai","https://perplexity.ai","https://testing.perplexity.ai","https://staging.perplexity.ai","https://*.preview.i.perplexity.ai","http://perplexity.localhost","http://localhost:1420","http://127.0.0.1:1420","http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173"];
-  const MAX_FONT_BYTES = 500 * 1024;
-  const MAX_TOTAL_FONT_BYTES = 2 * 1024 * 1024;
-  const DEFAULT_LINE_HEIGHT = 16;
-  let scrollForwarding = false;
-  let scrollRaf = 0;
-  let trustedTopOrigin = null;
-
-  // Allow entries like "https://*.preview.i.perplexity.ai" — the wildcard
-  // matches a single DNS label (no dots), so "https://*.foo" cannot stretch
-  // across multiple labels.
-  function matchesAllowedOrigin(origin) {
-    if (!origin) return false;
-    for (const entry of allowedParentOrigins) {
-      if (!entry.includes("*")) {
-        if (entry === origin) return true;
-        continue;
-      }
-      const pattern = new RegExp(
-        "^" +
-          entry.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^.]+") +
-          "$",
-      );
-      if (pattern.test(origin)) return true;
-    }
-    return false;
-  }
-
-  // Trust decision: when the sender is same-origin-visible (event.origin is a
-  // real origin like https://www.perplexity.ai) we trust event.origin directly.
-  // When event.origin is "null" (opaque broker srcdoc), we fall back to the
-  // broker's stamped `parentOrigin` to identify the top window. The fallback
-  // is claim-only — we rely on the browser's native `targetOrigin` enforcement
-  // on the response path (see postToTrustedTop) to ensure replies can't be
-  // delivered to anyone but the actual top window of that claimed origin.
-  function getTrustedParentOrigin(event) {
-    const forwardedParentOrigin =
-      typeof event.data.parentOrigin === "string" ? event.data.parentOrigin : null;
-    const parentOrigin = event.origin === "null" ? forwardedParentOrigin : event.origin;
-    return matchesAllowedOrigin(parentOrigin) ? parentOrigin : null;
-  }
-
-  // All responses go to window.top with targetOrigin = the allowlisted origin.
-  // An attacker that iframes us inside their own null-origin broker can claim
-  // any parentOrigin they like, but the browser will drop the reply whenever
-  // the real top's origin doesn't match — so the screenshot never leaves.
-  function postToTrustedTop(message) {
-    if (!trustedTopOrigin) return;
-    try {
-      window.top.postMessage(message, trustedTopOrigin);
-    } catch (_error) {}
-  }
-
-  const PICK_CAPABILITIES = ["pick"];
-  const PICK_CHAIN_LENGTH = 4;
-  const PICK_MAX_TEXT_CHARS = 120;
-  const PICK_MAX_HTML_CHARS = 300;
-
-  function truncate(value, maxChars) {
-    return value.length > maxChars ? value.slice(0, maxChars - 1) + "…" : value;
-  }
-
-  function isPickableElement(element) {
-    return (
-      element instanceof Element &&
-      element !== document.documentElement &&
-      element !== document.body
-    );
-  }
-
-  function resolvePickTarget(x, y) {
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    const element = document.elementFromPoint(x, y);
-    return isPickableElement(element) ? element.closest("svg") || element : null;
-  }
-
-  function pickLabel(element) {
-    if (element.id) return element.localName + "#" + element.id;
-    return [element.localName].concat(Array.from(element.classList).slice(0, 2)).join(".");
-  }
-
-  // Only attributes that help find the element in source. data-* values and URL
-  // query strings or fragments can carry tokens.
-  const PICK_ATTRIBUTES = new Set([
-    "id",
-    "class",
-    "name",
-    "type",
-    "role",
-    "alt",
-    "aria-label",
-    "href",
-    "src",
-  ]);
-
-  function pickAttributeValue(attribute) {
-    return attribute.name === "href" || attribute.name === "src"
-      ? attribute.value.split(/[?#]/)[0]
-      : attribute.value;
-  }
-
-  function describePickElement(element) {
-    const chain = [];
-    for (
-      let current = element;
-      isPickableElement(current) && chain.length < PICK_CHAIN_LENGTH;
-      current = current.parentElement
-    ) {
-      chain.unshift(current);
-    }
-    const attributes = Array.from(element.attributes)
-      .filter((attribute) => PICK_ATTRIBUTES.has(attribute.name))
-      .map((attribute) => ` ${attribute.name}="${pickAttributeValue(attribute).replace(/"/g, "&quot;")}"`)
-      .join("");
-    const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
-    return {
-      chain: chain.map(pickLabel),
-      html: truncate(`<${element.localName}${attributes}>`, PICK_MAX_HTML_CHARS),
-      text: text ? truncate(text, PICK_MAX_TEXT_CHARS) : undefined,
-    };
-  }
-
-  // Hover asks once per frame, and innerText on a large section forces layout,
-  // so only the rect is re-read while the pointer stays on the same element.
-  // Clicks ask for fresh details since the page may have changed the element.
-  let lastPick = null;
-
-  function describePickTarget(element, fresh) {
-    if (fresh || lastPick?.element !== element) {
-      lastPick = { element, details: describePickElement(element) };
-    }
-    const rect = element.getBoundingClientRect();
-    return {
-      rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
-      ...lastPick.details,
-    };
-  }
-
-  function inlineAll(original, clone) {
-    if (original.nodeType !== 1 || clone.nodeType !== 1) return;
-
-    try {
-      const computedStyle = getComputedStyle(original);
-      // cssText on a computed style is the serialized declaration in modern
-      // Chromium/Safari — a single read beats enumerating ~400 longhand
-      // properties. Firefox returns "" here, so we fall back on empty.
-      const serialized = computedStyle.cssText;
-      if (serialized) {
-        clone.style.cssText = serialized;
-      } else {
-        const parts = new Array(computedStyle.length);
-        for (let index = 0; index < computedStyle.length; index += 1) {
-          const property = computedStyle[index];
-          parts[index] = `${property}:${computedStyle.getPropertyValue(property)};`;
-        }
-        clone.style.cssText = parts.join("");
-      }
-    } catch (_error) {}
-
-    const originalChildren = original.children;
-    const clonedChildren = clone.children;
-    for (
-      let index = 0;
-      index < originalChildren.length && index < clonedChildren.length;
-      index += 1
-    ) {
-      inlineAll(originalChildren[index], clonedChildren[index]);
-    }
-  }
-
-  function extractFontUrl(srcValue) {
-    const matches = [
-      ...srcValue.matchAll(
-        /url["']?([^"']+)["']?(?:\s*format["']?([^"']+)["']?)?/gi,
-      ),
-    ];
-    if (matches.length === 0) return null;
-    const woff2 = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff2"));
-    if (woff2) return woff2[1];
-    const woff = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff"));
-    if (woff) return woff[1];
-    return matches[0][1];
-  }
-
-  // Cache resolved font URL -> data URI across captures. Fonts on a page
-  // essentially never change, and a batch run emits multiple captures back to
-  // back — without this we'd refetch + re-base64 every time.
-  const fontDataUriCache = new Map();
-  const SRC_DECLARATION_RE = /src\s*:\s*[^;}]+/i;
-
-  async function fetchAsDataUri(url) {
-    if (fontDataUriCache.has(url)) return fontDataUriCache.get(url);
-    let dataUri = null;
-    try {
-      const response = await fetch(url, { mode: "cors", credentials: "omit" });
-      if (response.ok) {
-        const blob = await response.blob();
-        if (blob.size <= MAX_FONT_BYTES) {
-          dataUri = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () =>
-              resolve(typeof reader.result === "string" ? reader.result : null);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          });
-        }
-      }
-    } catch (_error) {
-      dataUri = null;
-    }
-    fontDataUriCache.set(url, dataUri);
-    return dataUri;
-  }
-
-  function collectFontFaceRuleTexts() {
-    const rules = [];
-    for (const sheet of document.styleSheets) {
-      let cssRules;
-      try {
-        cssRules = sheet.cssRules;
-      } catch (_error) {
-        continue;
-      }
-      if (!cssRules) continue;
-      for (const rule of cssRules) {
-        const cssText = rule.cssText || "";
-        if (cssText.startsWith("@font-face")) rules.push(cssText);
-      }
-    }
-    return rules;
-  }
-
-  async function buildInlinedFontCss() {
-    const ruleTexts = collectFontFaceRuleTexts();
-    if (ruleTexts.length === 0) return null;
-
-    const resolved = ruleTexts.map((cssText) => {
-      if (!SRC_DECLARATION_RE.test(cssText)) return null;
-      const srcMatch = cssText.match(/src\s*:\s*([^;}]+)[;}]/i);
-      if (!srcMatch) return null;
-      const url = extractFontUrl(srcMatch[1]);
-      if (!url) return null;
-      try {
-        return { cssText, url: new URL(url, document.baseURI).href };
-      } catch (_error) {
-        return null;
-      }
-    });
-
-    const dataUris = await Promise.all(
-      resolved.map((entry) => (entry ? fetchAsDataUri(entry.url) : Promise.resolve(null))),
-    );
-
-    const inlined = [];
-    let totalBytes = 0;
-    for (let index = 0; index < resolved.length; index += 1) {
-      const entry = resolved[index];
-      const dataUri = dataUris[index];
-      if (!entry || !dataUri) continue;
-      const approxBytes = dataUri.length * 0.75;
-      if (totalBytes + approxBytes > MAX_TOTAL_FONT_BYTES) break;
-      totalBytes += approxBytes;
-      inlined.push(entry.cssText.replace(SRC_DECLARATION_RE, `src: url("${dataUri}")`));
-    }
-    return inlined.length > 0 ? inlined.join("\n") : null;
-  }
-
-  function stripExternal(clone) {
-    const images = clone.querySelectorAll("img");
-    for (let index = 0; index < images.length; index += 1) {
-      const src = images[index].getAttribute("src");
-      if (src && !src.startsWith("data:")) images[index].removeAttribute("src");
-    }
-
-    const elements = clone.querySelectorAll("*");
-    for (let index = 0; index < elements.length; index += 1) {
-      const style = elements[index].style.cssText;
-      if (style && style.includes("url(")) {
-        elements[index].style.cssText = style.replace(
-          /url["']?(?!data:)["']?[^"')]*\)/gi,
-          "none",
-        );
-      }
-    }
-  }
-
-  function emitScroll() {
-    scrollRaf = 0;
-    if (!scrollForwarding) return;
-    postToTrustedTop({
-      type: "INLINE_EDIT_SCROLL",
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
-      capabilities: PICK_CAPABILITIES,
-    });
-  }
-
-  window.addEventListener(
-    "scroll",
-    function () {
-      if (!scrollForwarding || scrollRaf) return;
-      scrollRaf = requestAnimationFrame(emitScroll);
-    },
-    { passive: true, capture: true },
-  );
-
-  async function handleCaptureRequest(event) {
-    const requestId = event.data.requestId;
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    function postResult(dataUrl) {
-      postToTrustedTop({
-        type: "INLINE_EDIT_SCREENSHOT_RESULT",
-        requestId,
-        dataUrl,
-        scrollX,
-        scrollY,
-      });
-    }
-
-    try {
-      // Wait for any pending web fonts to resolve so both inline metrics and
-      // the @font-face inlining below see the same loaded faces.
-      if (document.fonts && document.fonts.ready) {
-        try {
-          await document.fonts.ready;
-        } catch (_error) {}
-      }
-
-      const clone = document.documentElement.cloneNode(true);
-      inlineAll(document.documentElement, clone);
-
-      const removedNodes = clone.querySelectorAll("script,link[rel=\"stylesheet\"],style");
-      for (let index = 0; index < removedNodes.length; index += 1) {
-        removedNodes[index].remove();
-      }
-
-      stripExternal(clone);
-
-      // Re-embed web fonts as data-URI @font-face rules so the SVG rasterizer
-      // can resolve them — external font URLs aren't fetched during
-      // foreignObject rendering, which would otherwise force a fallback face
-      // and change text metrics.
-      const inlinedFontCss = await buildInlinedFontCss();
-      if (inlinedFontCss) {
-        const styleEl = document.createElement("style");
-        styleEl.textContent = inlinedFontCss;
-        const head = clone.querySelector("head");
-        if (head) head.appendChild(styleEl);
-        else clone.insertBefore(styleEl, clone.firstChild);
-      }
-
-      const html = new XMLSerializer().serializeToString(clone);
-      const svg =
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-        '<foreignObject width="100%" height="100%">' +
-        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px; height:${height}px;overflow:hidden">` +
-        `<div style="position:relative;left:-${scrollX}px; top:-${scrollY}px">` +
-        html +
-        "</div></div></foreignObject></svg>";
-      const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-      const image = new Image();
-      image.onload = function () {
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(image, 0, 0);
-        postResult(canvas.toDataURL("image/png"));
-      };
-      image.onerror = function () {
-        postResult(null);
-      };
-      image.src = svgUrl;
-    } catch (_error) {
-      postResult(null);
-    }
-  }
-
-  window.addEventListener("message", function (event) {
-    if (!event.data) return;
-    // Only accept messages from the direct parent frame. Blocks sibling /
-    // unrelated-window postMessage senders that could otherwise reach us.
-    if (event.source !== window.parent) return;
-
-    const trustedParentOrigin = getTrustedParentOrigin(event);
-    if (!trustedParentOrigin) return;
-    trustedTopOrigin = trustedParentOrigin;
-
-    if (event.data.type === "INLINE_EDIT_PICK") {
-      const element = resolvePickTarget(event.data.x, event.data.y);
-      postToTrustedTop({
-        type: "INLINE_EDIT_PICK_RESULT",
-        seq: event.data.seq,
-        target: element ? describePickTarget(element, event.data.fresh === true) : null,
-      });
-      return;
-    }
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_START") {
-      scrollForwarding = true;
-      emitScroll();
-      return;
-    }
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_STOP") {
-      scrollForwarding = false;
-      if (scrollRaf) cancelAnimationFrame(scrollRaf);
-      scrollRaf = 0;
-      return;
-    }
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_BY") {
-      const { deltaX, deltaY, deltaMode } = event.data;
-      if (!scrollForwarding || !Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return;
-      if (deltaMode !== 0 && deltaMode !== 1 && deltaMode !== 2) return;
-      const lineHeight =
-        parseFloat(getComputedStyle(document.documentElement).lineHeight) || DEFAULT_LINE_HEIGHT;
-      const scaleX = deltaMode === 1 ? lineHeight : deltaMode === 2 ? window.innerWidth : 1;
-      const scaleY = deltaMode === 1 ? lineHeight : deltaMode === 2 ? window.innerHeight : 1;
-      // The selection overlay receives the wheel event instead of this iframe.
-      // Instant scrolling preserves trackpad deltas even on smooth-scroll sites.
-      window.scrollBy({ left: deltaX * scaleX, top: deltaY * scaleY, behavior: "instant" });
-      emitScroll();
-      return;
-    }
-
-    if (event.data.type !== "INLINE_EDIT_CAPTURE_REQUEST") return;
-
-    handleCaptureRequest(event);
-  });
-})();
-
-
-</script>
 
     <!-- ===== SIGMA SECURITY AGENT (4.5.4) — banner, alert, review modal ===== -->
     <div id="sigmaBanner"><span class="sigma-dot"></span><span id="sigmaBannerText">SIGMA ACTIVE — CHAT PAUSED FOR SECURITY REVIEW</span></div>
