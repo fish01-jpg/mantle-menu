@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Project Sp1der — 4.5.5</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -1696,7 +1695,7 @@
         #sigmaAlert { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 99999; display: none; background: rgba(120,0,0,0.97); border: 1px solid #ff2b2b; border-radius: 12px; color: #ffd9d9; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; padding: 12px 20px; box-shadow: 0 0 30px rgba(255,0,0,0.5); max-width: 86vw; }
         #sigmaAlert.show { display: block; animation: sigmaPulse 0.9s infinite alternate; }
     </style>
-</head>
+<style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style></head>
 <body>
 
     <!-- LOADING SCREEN -->
@@ -1768,41 +1767,41 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <span class="sidebar-logo">Project Sp1der</span>
-                <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">&#9776;</button>
+                <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰</button>
             </div>
             <div class="nav-list" id="navList">
                 <button class="nav-item active" data-view="home" onclick="showView('home')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg> Home
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"></path></svg> Home
                 </button>
                 <button class="nav-item" data-view="community" onclick="showView('community')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg> Community
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"></path></svg> Community
                     <span class="nav-badge" id="chatBadge" style="display:none">0</span>
                 </button>
                 <button class="nav-item" data-view="games" onclick="showView('games')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM8 14H6v-2H4v-2h2V8h2v2h2v2H8v2zm7 1c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3-3c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg> Games
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM8 14H6v-2H4v-2h2V8h2v2h2v2H8v2zm7 1c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3-3c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path></svg> Games
                 </button>
                 <button class="nav-item" data-view="activeusers" onclick="showView('activeusers')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V20h6v-3c0-2.66-5.33-4-8-4z"/></svg> Active Users <span class="nav-badge" id="onlineNavBadge" style="display:none">0</span>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V20h6v-3c0-2.66-5.33-4-8-4z"></path></svg> Active Users <span class="nav-badge" id="onlineNavBadge" style="display:none">0</span>
                 </button>
                 <button class="nav-item" data-view="events" onclick="showView('events')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg> Events
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"></path></svg> Events
                     <span class="nav-badge" id="eventsNavBadge" style="display:none">1</span>
                 </button>
                 <button class="nav-item" data-view="staff" onclick="showView('staff')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Staff
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg> Staff
                 </button>
                 <button class="nav-item" data-view="aegis" onclick="showView('aegis')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.82-1.01-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> Aegis AI
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.82-1.01-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path></svg> Aegis AI
                 </button>
                 <button class="nav-item" data-view="updates" onclick="showView('updates')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Updates
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg> Updates
                 </button>
                 <button class="nav-item" data-view="admin" onclick="showView('admin')" style="display:none">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg> Admin
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"></path></svg> Admin
                 </button>
                 <div class="nav-divider"></div>
                 <button class="nav-item" onclick="openSettings()">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.42.12-.64l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.42-.49-.42h-3.84c-.25 0-.45.18-.49.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.22-.07.5.12.64l2.03 1.58c-.05.3-.07.62-.07.94 0 .32.02.64.07.94l-2.03 1.58c-.18.14-.23.42-.12.64l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.42.49.42h3.84c.25 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.5-.12-.64l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg> Settings
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.42.12-.64l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.42-.49-.42h-3.84c-.25 0-.45.18-.49.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.22-.07.5.12.64l2.03 1.58c-.05.3-.07.62-.07.94 0 .32.02.64.07.94l-2.03 1.58c-.18.14-.23.42-.12.64l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.42.49.42h3.84c.25 0 .45-.18.49-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.5-.12-.64l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path></svg> Settings
                 </button>
             </div>
             <div class="sidebar-footer">
@@ -1819,23 +1818,23 @@
         <!-- MAIN AREA -->
         <div class="main-area">
             <div class="topbar">
-                <button class="topbar-btn menu-btn" id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('collapsed')" title="Menu" aria-label="Toggle menu">&#9776;</button>
+                <button class="topbar-btn menu-btn" id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('collapsed')" title="Menu" aria-label="Toggle menu">☰</button>
                 <span class="topbar-title" id="topbarTitle">Home</span>
                 <div class="topbar-spacer"></div>
                 <button class="topbar-btn" id="updateProgressBtn" onclick="openUpdateModal()" style="display:none" title="View latest update notes" aria-label="View latest update notes">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"></path></svg>
                     <span id="updateProgressText">v4.5.5</span>
                 </button>
                 <button class="topbar-btn" id="notifBellBtn" onclick="Sp1derIndicators.toggleBell()" title="Notifications" aria-label="Notifications" aria-haspopup="true">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 7.36 6 9.92 6 13v5l-2 2v1h16v-1l-2-2z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 7.36 6 9.92 6 13v5l-2 2v1h16v-1l-2-2z"></path></svg>
                     <span class="notif-count" id="notifBellCount"></span>
                 </button>
                 <button class="topbar-btn" id="aboutBlankBtn" onclick="openInAboutBlank()" title="Open this page in an about:blank tab" aria-label="Open in about:blank">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"></path></svg>
                     <span id="aboutBlankBtnText">about:blank</span>
                 </button>
                 <button class="topbar-btn" id="globalFullscreenBtn" onclick="toggleGlobalFullscreen()" title="Toggle Fullscreen">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"></path></svg>
                     <span id="fullscreenBtnText">Fullscreen</span>
                 </button>
             </div>
@@ -1859,49 +1858,49 @@
                         <div class="home-actions">
                             <div class="home-card" onclick="showView('community')">
                                 <div class="home-card-icon">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--primary)"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--primary)"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"></path></svg>
                                 </div>
                                 <div class="home-card-title">Community</div>
                                 <div class="home-card-desc">Chat with friends, join channels, and stay connected.</div>
                             </div>
                             <div class="home-card" onclick="showView('games')">
                                 <div class="home-card-icon">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--accent)"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM8 14H6v-2H4v-2h2V8h2v2h2v2H8v2zm7 1c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3-3c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--accent)"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM8 14H6v-2H4v-2h2V8h2v2h2v2H8v2zm7 1c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3-3c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path></svg>
                                 </div>
                                 <div class="home-card-title">Games</div>
                                 <div class="home-card-desc">Browse and play a collection of games.</div>
                             </div>
                             <div class="home-card" onclick="showView('activeusers')">
                                 <div class="home-card-icon">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--success)"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V20h6v-3c0-2.66-5.33-4-8-4z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--success)"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V20h6v-3c0-2.66-5.33-4-8-4z"></path></svg>
                                 </div>
                                 <div class="home-card-title">Active Users</div>
                                 <div class="home-card-desc">See who's online and active right now.</div>
                             </div>
                             <div class="home-card" onclick="showView('events')">
                                 <div class="home-card-icon">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:#f59e0b"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:#f59e0b"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"></path></svg>
                                 </div>
                                 <div class="home-card-title">Events</div>
                                 <div class="home-card-desc">View ongoing events, leaderboard, and winners hall.</div>
                             </div>
                             <div class="home-card" onclick="showView('staff')">
                                 <div class="home-card-icon">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--accent)"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--accent)"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg>
                                 </div>
                                 <div class="home-card-title">Staff</div>
                                 <div class="home-card-desc">View live staff, their roles, and message them.</div>
                             </div>
                             <div class="home-card" onclick="showView('updates');switchUpdatesTab('feedback');">
                                 <div class="home-card-icon">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:#ffd700"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:#ffd700"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"></path></svg>
                                 </div>
-                                <div class="home-card-title">Feedback & Ideas</div>
+                                <div class="home-card-title">Feedback &amp; Ideas</div>
                                 <div class="home-card-desc">Share ideas for future updates and see what gets planned or shipped.</div>
                             </div>
                             <div class="home-card" onclick="showView('updates')">
                                 <div class="home-card-icon">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--primary)"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--primary)"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>
                                 </div>
                                 <div class="home-card-title">Updates</div>
                                 <div class="home-card-desc">View the latest changelog and patch notes.</div>
@@ -1928,7 +1927,7 @@
                                 <span class="chat-sidebar-title">Channels</span>
                                 <button class="chat-sidebar-btn" onclick="openNewDM()" title="New DM or Group">+</button>
                             </div>
-                            <div class="owner-conversation-control" id="ownerConversationSwitchRow" hidden>
+                            <div class="owner-conversation-control" id="ownerConversationSwitchRow" hidden="">
                                 <div class="owner-conversation-views" role="group" aria-label="Conversation view">
                                     <button type="button" class="owner-conversation-view" id="myConversationsButton" aria-pressed="true" aria-controls="commChannels" onclick="toggleOwnerConversations(false)">My conversations</button>
                                     <button type="button" class="owner-conversation-view" id="ownerConversationsButton" aria-pressed="false" aria-controls="commChannels" aria-describedby="ownerConversationViewStatus" onclick="toggleOwnerConversations(true)">Owner conversations</button>
@@ -2044,7 +2043,7 @@
                                 <div class="chat-empty">Aegis AI chat interface.</div>
                             </div>
                             <div class="chat-composer">
-                                <textarea id="aegisInput" rows="1" placeholder="Message Aegis AI... (Enter to send)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAegisMessage();}" oninput="autoResize(this)"></textarea>
+                                <textarea id="aegisInput" rows="1" placeholder="Message Aegis AI... (Enter to send)" onkeydown="if(event.key==='Enter'&amp;&amp;!event.shiftKey){event.preventDefault();sendAegisMessage();}" oninput="autoResize(this)"></textarea>
                                 <button class="composer-btn primary" onclick="sendAegisMessage()">Send</button>
                             </div>
                         </div>
@@ -2055,18 +2054,18 @@
                 <div class="panel" id="panel-updates">
                     <div style="display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
                         <button class="games-cat active" id="updatesTabChangelog" onclick="switchUpdatesTab('changelog')" style="font-size:0.75rem;">Changelog</button>
-                        <button class="games-cat" id="updatesTabFeedback" onclick="switchUpdatesTab('feedback')" style="font-size:0.75rem;">Feedback & Ideas</button>
+                        <button class="games-cat" id="updatesTabFeedback" onclick="switchUpdatesTab('feedback')" style="font-size:0.75rem;">Feedback &amp; Ideas</button>
                     </div>
                     <div id="updatesChangelogView" style="flex:1;overflow-y:auto;padding:20px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-                            <h2 style="font-size:1.2rem;font-weight:700;">Changelog & Updates</h2>
+                            <h2 style="font-size:1.2rem;font-weight:700;">Changelog &amp; Updates</h2>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                 <button class="composer-btn" onclick="startAegisTourFromUpdates()" style="padding:8px 16px;font-size:0.82rem;border-color:rgba(0,212,255,0.4);color:#00d4ff;">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-right:6px;vertical-align:middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.82-1.01-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-right:6px;vertical-align:middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.82-1.01-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path></svg>
                                     Aegis AI Tour
                                 </button>
                                 <button class="composer-btn primary" onclick="startTour()" style="padding:8px 16px;font-size:0.82rem;">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-right:6px;vertical-align:middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-right:6px;vertical-align:middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"></path></svg>
                                     Site Tour
                                 </button>
                             </div>
@@ -2075,7 +2074,7 @@
                     </div>
                     <div id="updatesFeedbackView" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
                         <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                            <span style="font-weight:700;font-size:0.9rem;">Feedback & Ideas</span>
+                            <span style="font-weight:700;font-size:0.9rem;">Feedback &amp; Ideas</span>
                             <button class="composer-btn" onclick="showFeedbackInfo()" style="padding:4px 10px;font-size:0.72rem;margin-left:auto;">How it works</button>
                         </div>
                         <div id="feedbackInfoBox" style="display:none;padding:12px 16px;background:rgba(0,212,255,0.06);border-bottom:1px solid var(--border);font-size:0.8rem;color:var(--text-dim);line-height:1.6;flex-shrink:0;">
@@ -2085,7 +2084,7 @@
                             <div class="chat-empty">Sign in to view and post ideas.</div>
                         </div>
                         <div class="chat-composer">
-                            <textarea id="feedbackInput" rows="1" placeholder="Share one idea per message... (Enter to send)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendFeedbackMessage();}" oninput="autoResize(this)"></textarea>
+                            <textarea id="feedbackInput" rows="1" placeholder="Share one idea per message... (Enter to send)" onkeydown="if(event.key==='Enter'&amp;&amp;!event.shiftKey){event.preventDefault();sendFeedbackMessage();}" oninput="autoResize(this)"></textarea>
                             <button class="composer-btn primary" onclick="sendFeedbackMessage()">Post Idea</button>
                         </div>
                     </div>
@@ -2285,7 +2284,7 @@
             <h2 style="text-align:center;">Settings</h2>
             <div id="accountBox"></div>
 
-            <details class="settings-section" open>
+            <details class="settings-section" open="">
                 <summary>APPEARANCE</summary>
                 <div class="setting-row"><span>Theme</span>
                     <select id="prefTheme" onchange="applyThemeFromSelect()">
@@ -2331,7 +2330,7 @@
             <details class="settings-section">
                 <summary>LAUNCH</summary>
                 <div class="setting-row" id="aboutBlankSettingRow"><span>Open in about:blank</span><button class="composer-btn" onclick="closeModal('settingsModal');openInAboutBlank()" style="padding:6px 12px;font-size:0.75rem;">Open</button></div>
-                <div class="setting-row"><span>Show fullscreen button</span><label class="switch"><input type="checkbox" id="prefShowFullscreen" checked><span class="slider"></span></label></div>
+                <div class="setting-row"><span>Show fullscreen button</span><label class="switch"><input type="checkbox" id="prefShowFullscreen" checked=""><span class="slider"></span></label></div>
                 <div class="setting-row"><span>Direct fullscreen</span><label class="switch"><input type="checkbox" id="prefDirectFullscreen"><span class="slider"></span></label></div>
                 <div class="setting-row"><span>Default app target</span>
                     <select id="prefAppTarget"><option value="prompt">Always Prompt</option><option value="page">Run On Page</option><option value="blank">Run In Separate Tab</option></select>
@@ -2500,7 +2499,7 @@
             <textarea id="spoofMessageInput" rows="4" maxlength="4000" placeholder="Write a message…" oninput="updateSpoofSendButton()"></textarea>
             <p class="spoof-note">Visual anonymity only: the real sender’s UID and spoofing metadata remain in the message data and may be inspected. This does not grant the selected user’s permissions.</p>
             <div id="spoofStatus" role="status" aria-live="polite"></div>
-            <button type="button" class="composer-btn primary" id="spoofSendButton" onclick="sendSpoofFromModal()" disabled style="width:100%;min-height:44px;">Send as selected user</button>
+            <button type="button" class="composer-btn primary" id="spoofSendButton" onclick="sendSpoofFromModal()" disabled="" style="width:100%;min-height:44px;">Send as selected user</button>
             <button type="button" class="composer-btn" onclick="closeModal('spoofModal')" style="width:100%;min-height:44px;margin-top:8px;">Cancel</button>
         </div>
     </div>
@@ -2574,10 +2573,10 @@
     <div class="modal-overlay" id="writeLimitModal" style="display:none;z-index:2100000;">
       <div class="modal" style="max-width:520px;">
         <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="#fbbf24"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="#fbbf24"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"></path></svg>
           <span id="writeLimitTitle">Server write limit reached</span>
         </h3>
-        <div id="writeLimitTestBadge" style="display:none;background:rgba(251,191,36,0.15);border:1px solid #fbbf24;color:#fbbf24;border-radius:var(--radius);padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px;">TEST MODE &mdash; preview only. Buttons will not change or delete anything.</div>
+        <div id="writeLimitTestBadge" style="display:none;background:rgba(251,191,36,0.15);border:1px solid #fbbf24;color:#fbbf24;border-radius:var(--radius);padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px;">TEST MODE — preview only. Buttons will not change or delete anything.</div>
         <p id="writeLimitBody" style="color:var(--text-dim);font-size:0.85rem;line-height:1.5;margin-bottom:14px;">
           This server has hit its daily write quota. You can switch to another server to keep chatting, or clear this server's chat data to reduce load. Clearing data does <strong>not</strong> restore today's quota — but it reduces stored data and read amplification.
         </p>
@@ -2610,17 +2609,17 @@
     <div class="modal-overlay" id="readLimitModal" style="display:none;z-index:2100000;">
       <div class="modal" style="max-width:520px;">
         <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="#60a5fa"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="#60a5fa"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"></path></svg>
           <span id="readLimitTitle">Server read limit reached</span>
         </h3>
-        <div id="readLimitTestBadge" style="display:none;background:rgba(96,165,250,0.15);border:1px solid #60a5fa;color:#60a5fa;border-radius:var(--radius);padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px;">TEST MODE &mdash; preview only. Buttons will not change anything.</div>
+        <div id="readLimitTestBadge" style="display:none;background:rgba(96,165,250,0.15);border:1px solid #60a5fa;color:#60a5fa;border-radius:var(--radius);padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px;">TEST MODE — preview only. Buttons will not change anything.</div>
         <p id="readLimitBody" style="color:var(--text-dim);font-size:0.85rem;line-height:1.5;margin-bottom:14px;">
           This server has hit its daily read quota, so messages and live updates may not load. You can switch to another server to keep chatting, or try again later. Clearing data will <strong>not</strong> restore today's quota.
         </p>
         <div style="background:var(--bg-2);border-radius:var(--radius);padding:10px;font-size:0.75rem;color:var(--text-dim);margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;">
             <span>Affected server</span>
-            <strong id="readLimitDbName" style="color:var(--text);">&mdash;</strong>
+            <strong id="readLimitDbName" style="color:var(--text);">—</strong>
           </div>
           <div style="display:flex;justify-content:space-between;margin-top:4px;">
             <span>Last error</span>
@@ -2646,11 +2645,10 @@
           This will permanently delete <strong>all chat messages</strong> stored on the affected server. Users, roles, presence, and staff data are stored on a separate server and are <strong>not</strong> affected.
         </p>
         <p style="font-size:0.75rem;color:var(--text-dim);margin-bottom:10px;">Type <code>CLEAR</code> to confirm:</p>
-        <input id="clearServerConfirmInput" type="text" placeholder="CLEAR" autocomplete="off"
-               style="width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-family:var(--font-mono);color:var(--input-text);margin-bottom:10px;">
+        <input id="clearServerConfirmInput" type="text" placeholder="CLEAR" autocomplete="off" style="width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-family:var(--font-mono);color:var(--input-text);margin-bottom:10px;">
         <div style="display:flex;gap:8px;">
           <button class="composer-btn" style="flex:1;" onclick="closeClearServerConfirm()">Cancel</button>
-          <button class="composer-btn" style="flex:1;background:var(--danger, #dc2626);color:#fff;" id="clearServerGoBtn" onclick="confirmClearServer()" disabled>Clear messages</button>
+          <button class="composer-btn" style="flex:1;background:var(--danger, #dc2626);color:#fff;" id="clearServerGoBtn" onclick="confirmClearServer()" disabled="">Clear messages</button>
         </div>
       </div>
     </div>
@@ -9314,7 +9312,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 })();
 </script>
 
-<script data-pplx-inline-edit>
+<script data-pplx-inline-edit="">
 (function () {
   if (window === window.top) return;
 
@@ -10251,5 +10249,6 @@ Furball found a sunbeam and is not moving for anyone.`;
         else SIGMA.listen();
     })();
     </script>
-</body>
-</html>
+
+
+</body></html>
