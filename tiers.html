@@ -40,6 +40,13 @@
     .tier li { font-size: 0.85rem; color: var(--dim); padding: 6px 0; border-top: 1px solid rgba(44, 31, 82, 0.6); display: flex; gap: 8px; align-items: baseline; }
     .tier li b { color: var(--text); }
     .tier li .yes { color: var(--success); font-weight: 700; flex-shrink: 0; }
+    .note {
+        width: 100%; max-width: 820px; margin-top: 16px; background: rgba(68, 209, 160, 0.07);
+        border: 1px solid rgba(68, 209, 160, 0.45); border-radius: 14px; padding: 18px 22px;
+    }
+    .note .from { font-size: 0.66rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--success); font-weight: 800; margin-bottom: 8px; }
+    .note p { font-size: 0.88rem; color: var(--dim); line-height: 1.65; }
+    .note p + p { margin-top: 8px; }
     .default-chip {
         position: absolute; top: -10px; right: 14px; background: var(--bg); border: 1px solid var(--border);
         color: var(--faint); font-size: 0.62rem; letter-spacing: 1px; border-radius: 999px; padding: 3px 10px; text-transform: uppercase;
@@ -70,6 +77,9 @@
             <div class="t-tag">Everyone starts here</div>
             <ul>
                 <li><span class="yes">&#10003;</span><span><b>150</b> chat messages a day</span></li>
+                <li><span class="yes">&#10003;</span><span><b>500</b> server reads a day (loading chats, profiles, lists)</span></li>
+                <li><span class="yes">&#10003;</span><span><b>100</b> server writes a day (messages, reactions, profile saves)</span></li>
+                <li><span class="yes">&#10003;</span><span><b>5</b> game fetches a day (each time a game loads from our servers / GitHub)</span></li>
                 <li><span class="yes">&#10003;</span><span><b>1</b> profile sync a day</span></li>
                 <li><span class="yes">&#10003;</span><span>Full access to the arcade and chat</span></li>
             </ul>
@@ -79,6 +89,9 @@
             <div class="t-tag">For regulars</div>
             <ul>
                 <li><span class="yes">&#10003;</span><span><b>600</b> chat messages a day</span></li>
+                <li><span class="yes">&#10003;</span><span><b>2,000</b> server reads a day</span></li>
+                <li><span class="yes">&#10003;</span><span><b>400</b> server writes a day</span></li>
+                <li><span class="yes">&#10003;</span><span><b>20</b> game fetches a day</span></li>
                 <li><span class="yes">&#10003;</span><span><b>3</b> profile syncs a day</span></li>
                 <li><span class="yes">&#10003;</span><span>Full access to the arcade and chat</span></li>
             </ul>
@@ -88,14 +101,23 @@
             <div class="t-tag">For staff and power users</div>
             <ul>
                 <li><span class="yes">&#10003;</span><span><b>Unlimited</b> chat messages</span></li>
+                <li><span class="yes">&#10003;</span><span><b>Unlimited</b> server reads</span></li>
+                <li><span class="yes">&#10003;</span><span><b>Unlimited</b> server writes</span></li>
+                <li><span class="yes">&#10003;</span><span><b>Unlimited</b> game fetches</span></li>
                 <li><span class="yes">&#10003;</span><span><b>10</b> profile syncs a day</span></li>
                 <li><span class="yes">&#10003;</span><span>Full access to the arcade and chat</span></li>
             </ul>
         </div>
     </div>
+
+    <div class="note">
+        <div class="from">A note from the owner</div>
+        <p>Hey — real talk about why this page exists. I want to keep the servers <b>free for everyone</b>, but the servers cost money and some people talk <b>a lot</b>, which uses a lot of data and makes me pay a little bit to keep it all running.</p>
+        <p>So this is just a test: basic use stays completely free, and if you blow past the Free limits every day, the Pro tier is there for the heavy users. Nothing is set in stone — this is a beta, and the numbers may change as I see how it goes.</p>
+    </div>
     <div class="how">
         <h2>How it works (BETA)</h2>
-        <p>When you send a chat message, Sp1der checks your tier's daily allowance and counts the message toward it. If you hit the limit you'll see a notice telling you your allowance resets tomorrow — nothing breaks, chat just waits.</p>
+        <p>When you send a chat message, Sp1der checks your tier's daily allowance and counts the message toward it. The same idea applies to server reads, server writes and game fetches — each one counts toward your tier's daily amount. If you hit a limit you'll see a notice telling you your allowance resets tomorrow — nothing breaks, it just waits.</p>
         <p>Tiers are set by the owner with the command <code>/tier @user <free|pro|ultra></code> — for example <code>/tier @fish01-jpg pro</code>. To check or change your own tier, ask an owner.</p>
         <p>This page is a beta: the numbers above are the current limits and they may be tuned as we see how much server data the community actually uses.</p>
     </div>
