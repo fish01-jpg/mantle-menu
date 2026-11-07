@@ -6,7 +6,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <meta name="theme-color" content="#0f0823">
+    <meta name="theme-color" content="#030916">
     <script id="sp1der-device-notifications">
 /* Single-HTML notification support. No sidecar scripts, worker, manifest, or icons. */
 (function () {
@@ -1725,7 +1725,8 @@
         #sigmaAlert { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 99999; display: none; background: rgba(120,0,0,0.97); border: 1px solid #ff2b2b; border-radius: 12px; color: #ffd9d9; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; padding: 12px 20px; box-shadow: 0 0 30px rgba(255,0,0,0.5); max-width: 86vw; }
         #sigmaAlert.show { display: block; animation: sigmaPulse 0.9s infinite alternate; }
     </style>
-<style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style></head>
+<style id="default-dark-blue">:root {--primary:#3b82c4;--accent:#78b4e3;--bg-0:#01040a;--bg-1:#030916;--bg-2:#071120;--bg-3:#0b192b;--bg-hover:#10233a;--text:#e3eefb;--text-dim:#93acc7;--text-faint:#67829f;--border:rgba(59,130,196,0.24);--border-active:rgba(59,130,196,0.6);--input-text:#b4d8fa;--chat-side:#030916;--chat-main:rgba(7,17,32,0.96);--chat-hover:#10233a;--chat-dim:#93acc7;--input-bg:rgba(1,4,10,0.75);--glow:rgba(59,130,196,0.45);}</style>
+</head>
 <body>
 
     <!-- LOADING SCREEN -->
@@ -2324,7 +2325,7 @@
                 <summary>APPEARANCE</summary>
                 <div class="setting-row"><span>Theme</span>
                     <select id="prefTheme" onchange="applyThemeFromSelect()">
-                        <option value="arcane">Arcane (default)</option>
+                        <option value="arcane">Arcane</option>
                         <option value="fall">🍂 Fall</option>
                         <option value="blue">🔷 Blue</option>
                         <option value="modern">Modern</option>
@@ -4288,12 +4289,12 @@ Furball found a sunbeam and is not moving for anyone.`;
         function setAegisStatus(status, text) { const dot = $('aegisStatusDot'); dot.className = 'status-dot ' + status; $('aegisStatusText').textContent = 'Aegis AI: ' + text; }
 
         /* ===== 7. THEME & PREFERENCES ===== */
-        const DEFAULT_SETTINGS = { darkMode:true, theme:'arcane', showAnimations:false, primaryColor:'#a020f0', accentColor:'#ffd700', showAnimBackground:true, notifMaster:true, notifGlobal:true, notifDMs:true, notifSound:'chime', notifEveryone:false, showFullscreenBtn:true, directFullscreen:false, defaultAppTarget:'prompt', inspectCode:false, profileBg:'#0f0823', profileBorder:'#a020f0', profileBio:'', usernameColor:'#f2ecff', usernameGlow:'primary', usernameStyle:'normal' };
+        const DEFAULT_SETTINGS = { darkMode:true, theme:'blue', showAnimations:false, primaryColor:'#3b82c4', accentColor:'#78b4e3', showAnimBackground:true, notifMaster:true, notifGlobal:true, notifDMs:true, notifSound:'chime', notifEveryone:false, showFullscreenBtn:true, directFullscreen:false, defaultAppTarget:'prompt', inspectCode:false, profileBg:'#0f0823', profileBorder:'#a020f0', profileBio:'', usernameColor:'#f2ecff', usernameGlow:'primary', usernameStyle:'normal' };
         /* Every theme defines the full CSS-variable set so switching never leaves stale colours behind. */
         const THEME_PRESETS = {
             arcane:     { primary:'#a020f0', accent:'#ffd700', bg0:'#020108', bg1:'#0f0823', bg2:'#170c33', bg3:'#231449', hover:'#2f1a5e', text:'#f2ecff', dim:'#b7a9d9', faint:'#7d6fa3', border:'rgba(160,32,240,0.28)', borderActive:'rgba(160,32,240,0.65)', inputText:'#00ffcc', chatSide:'#1e1f22', chatMain:'rgba(43,45,49,0.88)', chatHover:'#35373c', chatDim:'#949ba4', inputBg:'rgba(0,0,0,0.5)', danger:'#ff0055', success:'#28e0a0', stars:true },
             fall:       { primary:'#e0762e', accent:'#f2b134', bg0:'#0d0702', bg1:'#170c04', bg2:'#20120a', bg3:'#2a170e', hover:'#341d12', text:'#f7ead9', dim:'#cf9e6d', faint:'#9a7048', border:'rgba(224,118,46,0.26)', borderActive:'rgba(224,118,46,0.6)', inputText:'#ffd9a8', chatSide:'#170c04', chatMain:'rgba(32,18,10,0.88)', chatHover:'#341d12', chatDim:'#cf9e6d', inputBg:'rgba(0,0,0,0.5)', danger:'#d64545', success:'#e0952e', stars:true },
-            blue:       { primary:'#2e9be0', accent:'#7ee0ff', bg0:'#020812', bg1:'#05101f', bg2:'#0a182b', bg3:'#0f2137', hover:'#152a42', text:'#e3f0fb', dim:'#8fb0cc', faint:'#5a7d99', border:'rgba(46,155,224,0.26)', borderActive:'rgba(46,155,224,0.6)', inputText:'#a8d8ff', chatSide:'#05101f', chatMain:'rgba(10,24,43,0.88)', chatHover:'#152a42', chatDim:'#8fb0cc', inputBg:'rgba(0,0,0,0.5)', danger:'#ef4444', success:'#28e0a0', stars:true },
+            blue:       { primary:'#3b82c4', accent:'#78b4e3', bg0:'#01040a', bg1:'#030916', bg2:'#071120', bg3:'#0b192b', hover:'#10233a', text:'#e3eefb', dim:'#93acc7', faint:'#67829f', border:'rgba(59,130,196,0.24)', borderActive:'rgba(59,130,196,0.6)', inputText:'#b4d8fa', chatSide:'#030916', chatMain:'rgba(7,17,32,0.96)', chatHover:'#10233a', chatDim:'#93acc7', inputBg:'rgba(1,4,10,0.75)', danger:'#ef4444', success:'#28e0a0', stars:true },
             modern:     { primary:'#00d97e', accent:'#00b4d8', bg0:'#060a08', bg1:'#0a1110', bg2:'#0f1816', bg3:'#15201d', hover:'#1a2825', text:'#d4e8e0', dim:'#6b8a7a', faint:'#4a6358', border:'rgba(0,217,126,0.2)', borderActive:'rgba(0,217,126,0.55)', inputText:'#a8ffd8', chatSide:'#0a1110', chatMain:'rgba(15,24,22,0.88)', chatHover:'#1a2825', chatDim:'#6b8a7a', inputBg:'rgba(0,0,0,0.5)', danger:'#ef4444', success:'#10b981', stars:true },
             dark:       { primary:'#00b4d8', accent:'#00d97e', bg0:'#030608', bg1:'#070d10', bg2:'#0c1418', bg3:'#111c20', hover:'#16232a', text:'#e0f0f4', dim:'#7a9ba8', faint:'#4a6068', border:'rgba(0,180,216,0.2)', borderActive:'rgba(0,180,216,0.55)', inputText:'#9cecff', chatSide:'#070d10', chatMain:'rgba(12,20,24,0.88)', chatHover:'#16232a', chatDim:'#7a9ba8', inputBg:'rgba(0,0,0,0.5)', danger:'#ef4444', success:'#10b981', stars:true },
             clean:      { primary:'#00a878', accent:'#0096c7', bg0:'#f5f8f7', bg1:'#ffffff', bg2:'#f0f5f3', bg3:'#e5eeeb', hover:'#dae5e1', text:'#1a2e28', dim:'#5a7268', faint:'#9ab0a8', border:'rgba(0,0,0,0.12)', borderActive:'rgba(0,168,120,0.45)', inputText:'#0b4d3a', chatSide:'#f0f5f3', chatMain:'rgba(255,255,255,0.9)', chatHover:'#dae5e1', chatDim:'#5a7268', inputBg:'rgba(255,255,255,0.92)', danger:'#dc2626', success:'#059669', stars:false },
@@ -4304,7 +4305,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             document.body.classList.toggle('anim-off', settings.showAnimations !== true);
         }
         function applyTheme() {
-            const t = THEME_PRESETS[settings.theme] ? settings.theme : 'arcane'; settings.theme = t;
+            const t = THEME_PRESETS[settings.theme] ? settings.theme : 'blue'; settings.theme = t;
             const root = document.documentElement; root.setAttribute('data-theme', t);
             const p = THEME_PRESETS[t]; const set = (k, v) => root.style.setProperty(k, v);
             const prim = settings.primaryColor || p.primary, acc = settings.accentColor || p.accent;
@@ -4319,7 +4320,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
         function applyThemeFromSelect() {
             const sel = $('prefTheme'); if (!sel) return;
-            settings.theme = sel.value; const preset = THEME_PRESETS[sel.value] || THEME_PRESETS.arcane;
+            settings.theme = sel.value; const preset = THEME_PRESETS[sel.value] || THEME_PRESETS.blue;
             settings.primaryColor = preset.primary; settings.accentColor = preset.accent;
             $('prefPrimary').value = preset.primary; $('prefAccent').value = preset.accent;
             applyTheme(); updateProfileBgPreview(); updateUsernamePreview(); saveSettingsInstant();
@@ -4482,12 +4483,12 @@ Furball found a sunbeam and is not moving for anyone.`;
             document.body.style.backgroundImage = '';
         }
         function syncLocalProfileFromSettings() { const local = getLocalProfile(); local.background = settings.profileBg; local.border = settings.profileBorder; local.profileBio = settings.profileBio; local.usernameColor = settings.usernameColor; local.usernameGlow = settings.usernameGlow; local.usernameStyle = settings.usernameStyle; local.glow = settings.usernameGlow; saveLocalProfile(local); }
-        function loadSettings() { try { const s = JSON.parse(localStorage.getItem('aa_settings_v3') || '{}'); Object.assign(settings, DEFAULT_SETTINGS, s); if (settings._v !== 5) { settings.primaryColor = '#a020f0'; settings.accentColor = '#ffd700'; settings.theme = 'arcane'; settings.profileBg = '#0f0823'; settings.profileBorder = '#a020f0'; settings.usernameColor = '#f2ecff'; settings._v = 5; try { localStorage.setItem('aa_settings_v3', JSON.stringify(settings)); } catch (e) {} } } catch (e) { Object.assign(settings, DEFAULT_SETTINGS); } }
+        function loadSettings() { try { const s = JSON.parse(localStorage.getItem('aa_settings_v3') || '{}'); Object.assign(settings, DEFAULT_SETTINGS, s); if (settings._v !== 5) { settings.theme = THEME_PRESETS[settings.theme] ? settings.theme : 'blue'; settings.primaryColor = s.primaryColor || THEME_PRESETS[settings.theme].primary; settings.accentColor = s.accentColor || THEME_PRESETS[settings.theme].accent; settings.profileBg = '#0f0823'; settings.profileBorder = '#a020f0'; settings.usernameColor = '#f2ecff'; settings._v = 5; try { localStorage.setItem('aa_settings_v3', JSON.stringify(settings)); } catch (e) {} } } catch (e) { Object.assign(settings, DEFAULT_SETTINGS); } }
         function populateSettingsForm() {
             const local = getLocalProfile();
-            if ($('prefTheme')) $('prefTheme').value = settings.theme || 'arcane';
-            if ($('prefPrimary')) $('prefPrimary').value = settings.primaryColor || '#a020f0';
-            if ($('prefAccent')) $('prefAccent').value = settings.accentColor || '#ffd700';
+            if ($('prefTheme')) $('prefTheme').value = settings.theme || 'blue';
+            if ($('prefPrimary')) $('prefPrimary').value = settings.primaryColor || '#3b82c4';
+            if ($('prefAccent')) $('prefAccent').value = settings.accentColor || '#78b4e3';
             if ($('prefStarfield')) $('prefStarfield').checked = !!settings.showAnimBackground;
             if ($('prefShowAnimations')) $('prefShowAnimations').checked = settings.showAnimations === true;
             if ($('prefNotifMaster')) $('prefNotifMaster').checked = !!settings.notifMaster;
@@ -7031,12 +7032,12 @@ Furball found a sunbeam and is not moving for anyone.`;
             const host = $('themeVoteCard');
             if (!host) return;
             if (!themeVoteActive()) { host.innerHTML = ''; return; }
-            const ended = currentEventData && currentEventData.status === 'ended';
+            const ended = true; // This theme poll is permanently closed in this build.
             const tallies = themeVoteTallies || {};
             const total = THEME_VOTE_OPTIONS.reduce((sum, o) => sum + (tallies[o.id] || 0), 0);
             let html = '<div class="vote-card">';
             html += '<div class="vote-card-title">🗳️ Community Theme Vote' + (ended ? ' — Final Results' : '') + '</div>';
-            html += '<div class="vote-card-desc">Help pick the site\'s next look. Vote for the warm <b>Fall</b> palette, the cool <b>Blue</b> palette, or <b>keep Arcane</b> as it is. You can preview both new looks right now in <b>Settings → Appearance → Theme</b>. One vote per account — you can change it while the event is active.</div>';
+            html += '<div class="vote-card-desc">Voting has ended. The updated darker Blue palette is now the default. All themes remain available in Settings → Appearance → Theme. Existing saved theme choices are preserved.</div>';
             html += '<div class="vote-options">';
             THEME_VOTE_OPTIONS.forEach(o => {
                 const n = tallies[o.id] || 0;
@@ -7049,9 +7050,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             });
             html += '</div>';
             if (ended) {
-                let winner = null, best = -1;
-                THEME_VOTE_OPTIONS.forEach(o => { const n = tallies[o.id] || 0; if (n > best) { best = n; winner = o; } });
-                html += '<div class="vote-footer"><span>' + (winner ? 'Winner: <b>' + escapeHtml(winner.label) + '</b>' : 'No votes were cast.') + '</span><span>' + total + ' total vote' + (total === 1 ? '' : 's') + '</span></div>';
+                html += '<div class="vote-footer"><span>Poll closed · Default theme: <b>Blue</b></span><span>' + total + ' total vote' + (total === 1 ? '' : 's') + '</span></div>';
             } else {
                 html += '<div class="vote-footer"><span>' + total + ' vote' + (total === 1 ? '' : 's') + ' so far</span>' + (myThemeVote ? '<span class="vote-mine-tag">Your vote: ' + escapeHtml((THEME_VOTE_OPTIONS.find(o => o.id === myThemeVote) || {}).label || myThemeVote) + '</span>' : '<span>You have not voted yet</span>') + '</div>';
             }
@@ -7059,18 +7058,8 @@ Furball found a sunbeam and is not moving for anyone.`;
             host.innerHTML = html;
         }
         async function castThemeVote(choice) {
-            if (!currentUser) { toast('Sign in to vote'); return; }
-            if (!THEME_VOTE_OPTIONS.some(o => o.id === choice)) return;
-            if ((typeof getRole === 'function' ? getRole() : '') === 'aegis') { toast('AI accounts do not vote in community events'); return; }
-            if (currentEventData && currentEventData.status === 'ended') { toast('This vote has ended'); return; }
-            try {
-                await db.collection('themeVotes').doc(currentUser.uid).set({
-                    uid: currentUser.uid, choice,
-                    name: String((userProfile && userProfile.username) || (currentUser.displayName || 'Member')).slice(0, 40),
-                    at: Date.now()
-                });
-                toast('Vote saved: ' + choice.charAt(0).toUpperCase() + choice.slice(1));
-            } catch (e) { toast('Could not save your vote: ' + (e.message || 'database unavailable')); }
+            toast('This vote has ended. Darker Blue is now the default theme.');
+            return;
         }
 
         /* Keep unread counts in step with the device-notification listeners. */
@@ -7492,7 +7481,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             refreshTheme() {
                 const cs = getComputedStyle(document.documentElement);
                 this.bg = (cs.getPropertyValue('--bg-0') || '#020108').trim() || '#020108';
-                const p = THEME_PRESETS[settings.theme] || THEME_PRESETS.arcane; this.starsOn = p.stars !== false;
+                const p = THEME_PRESETS[settings.theme] || THEME_PRESETS.blue; this.starsOn = p.stars !== false;
                 const prim = hexToRgbArr(settings.primaryColor || p.primary), acc = hexToRgbArr(settings.accentColor || p.accent);
                 this.colors = [prim, settings.theme === 'arcane' ? [0,229,255] : acc, settings.theme === 'arcane' ? [255,0,128] : prim];
                 this.dustColors = settings.theme === 'arcane' ? ['#00f0ff','#a020f0','#ff0080','#ffd700'] : [settings.primaryColor || p.primary, settings.accentColor || p.accent, '#ffffff'];
@@ -8911,6 +8900,10 @@ Furball found a sunbeam and is not moving for anyone.`;
                     if (doc.exists) {
                         const d = doc.data();
                         currentEventData = { name: d.eventName || 'Events', description: d.eventDescription || 'Join site events, check the leaderboard, and see the Winners Hall.', status: d.eventStatus || 'active', endNote: d.eventEndNote || '', themeVote: d.themeVoteActive === true };
+                        if (themeVoteActive()) {
+                            currentEventData.status = 'ended';
+                            currentEventData.endNote = 'The theme poll has ended. Darker Blue is now the default; all themes remain available in Settings.';
+                        }
                         winnersData = d.eventWinners || [];
                         staffData = d.staffList || [];
                         sp1derScores = d.sp1derScores || {};
