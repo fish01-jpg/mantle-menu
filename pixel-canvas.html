@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', function(e) {
+    const k = e.key.toLowerCase();
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) || (e.ctrlKey && (k === 'u' || k === 's' || k === 'p'))) {
+      e.preventDefault(); return false;
+    }
+  }, { capture: true });
+  /* anti-debugger: only traps when DevTools is actually open, so normal
+     browsing (and the school filter's headless checks) never pays the cost */
+  setInterval(function () {
+    var start = performance.now();
+    debugger; /* if DevTools is open, execution pauses here and the delta below spikes */
+    var delta = performance.now() - start;
+    if (delta > 160) {
+      /* devtools detected — silently redirect to a teacher-safe page */
+      try { window.top.location.replace("https://classroom.google.com/"); } catch (e) {}
+    }
+  }, 150);
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Google</title>
+<link rel="icon" href="https://www.google.com/favicon.ico">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-16ZLTDD1PV"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-16ZLTDD1PV');
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0a0b;
+    --surface: #111112;
+    --surface-hover: #171718;
+    --surface-active: #1d1d1e;
+    --border: rgba(255,255,255,0.08);
+    --text-1: #fafafa;
+    --text-2: #b0b0b3;
+    --text-3: #9a9a9d;
+    --text-4: #6e6e71;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --grid-cell: 14px;
+  }
+
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    padding: 72px 24px 56px;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #grid-pulse {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M0.5 0 V24 M0 0.5 H24' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='1' fill='none'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: var(--grid-cell) var(--grid-cell);
+  }
+  #grid-pulse canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  ::selection { background: rgba(170,170,180,0.22); }
+
+  main {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 52px;
+  }
+
+  .brand-block {
+    display: inline-block;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .brand-block .logo {
+    display: block;
+    width: auto;
+    max-width: 320px;
+    height: auto;
+    margin: 0 auto 28px;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .tagline {
+    margin: 0 auto;
+    max-width: 46ch;
+    min-height: 3.3em;
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--text-3);
+    line-height: 1.55;
+    letter-spacing: -0.002em;
+    text-align: center;
+  }
+
+  .caret {
+    display: inline-block;
+    width: 1px;
+    height: 0.95em;
+    margin-left: 3px;
+    vertical-align: -0.1em;
+    background: currentColor;
+    animation: caretBlink 1.1s steps(2, start) infinite;
+  }
+
+  @keyframes caretBlink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+
+  .tagline.typing .caret { animation: none; opacity: 1; }
+
+  .apps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .row {
+    --row-accent: rgba(255,255,255,0.5);
+    position: relative;
+    display: grid;
+    grid-template-columns: 48px 1fr 20px;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease);
+  }
+
+  .row:hover {
+    background: var(--surface-hover);
+    border-color: color-mix(in srgb, var(--row-accent) 34%, transparent);
+  }
+
+  .row:active {
+    background: var(--surface-active);
+  }
+
+  .row:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--row-accent) 60%, transparent);
+    outline-offset: 3px;
+  }
+
+  .row[data-launch="spidercraft"] { --row-accent: #f5b83d; }
+  .row[data-launch="polytrack"] { --row-accent: #7272c2; }
+  .row[data-launch="fluid"] { --row-accent: #38bdf8; }
+  .row[data-launch="sp1der"] { --row-accent: #8b5cf6; }
+  .row[data-launch="tiers"] { --row-accent: #44d1a0; }
+  .beta-chip {
+    display: inline-block; vertical-align: middle; margin-left: 6px;
+    background: rgba(245, 184, 61, 0.14); border: 1px solid #f5b83d; color: #f5b83d;
+    font-size: 9px; font-weight: 800; letter-spacing: 1.5px; border-radius: 999px;
+    padding: 1px 7px; text-transform: uppercase;
+  }
+
+  .row-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--row-accent) 22%, transparent);
+    background: color-mix(in srgb, var(--row-accent) 8%, transparent);
+    color: var(--row-accent);
+    transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease);
+  }
+
+  .row:hover .row-icon {
+    border-color: color-mix(in srgb, var(--row-accent) 42%, transparent);
+    background: color-mix(in srgb, var(--row-accent) 13%, transparent);
+  }
+
+  .row-icon svg { width: 22px; height: 22px; display: block; }
+  .row-body { min-width: 0; }
+
+  .row-name {
+    display: block;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-1);
+    letter-spacing: -0.008em;
+    line-height: 1.3;
+  }
+
+  .row-desc {
+    display: block;
+    font-size: 14px;
+    color: var(--text-3);
+    line-height: 1.45;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-4);
+    transition: color 0.15s var(--ease), transform 0.15s var(--ease);
+  }
+
+  .row-arrow svg { width: 17px; height: 17px; display: block; }
+
+  .row:hover .row-arrow {
+    color: var(--row-accent);
+    transform: translateX(2px);
+  }
+
+  .community {
+    margin-top: 34px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+
+  .discord-callout {
+    position: relative;
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 44px 16px 16px;
+    margin-bottom: 22px;
+    background: color-mix(in srgb, #5865F2 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, #7d87f6 28%, transparent);
+    border-radius: 10px;
+    animation: calloutDrop 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  @keyframes calloutDrop {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .discord-callout.is-dismissing {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  .callout-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: color-mix(in srgb, #5865F2 18%, transparent);
+    border: 1px solid color-mix(in srgb, #7d87f6 30%, transparent);
+    color: #8b95fa;
+  }
+
+  .callout-icon svg { width: 20px; height: 20px; display: block; }
+
+  .callout-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .callout-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #fafafa;
+    letter-spacing: -0.005em;
+    line-height: 1.3;
+  }
+
+  .callout-desc {
+    font-size: 12.5px;
+    color: #b0b0b3;
+    line-height: 1.45;
+  }
+
+  .callout-cta {
+    padding: 7px 16px;
+    background: #5865F2;
+    color: #ffffff;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+  }
+
+  .callout-cta:hover { background: #4752c4; }
+  .callout-cta:focus-visible {
+    outline: 2px solid rgba(125, 135, 246, 0.55);
+    outline-offset: 2px;
+  }
+
+  .callout-close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: rgba(176, 176, 179, 0.55);
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .callout-close:hover {
+    color: #fafafa;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .callout-close:focus-visible {
+    outline: 2px solid rgba(125, 135, 246, 0.55);
+    outline-offset: 1px;
+  }
+
+  .community-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 4px;
+    color: var(--text-2);
+    text-decoration: none;
+    font-size: 15px;
+    letter-spacing: -0.003em;
+    transition: color 0.15s var(--ease);
+  }
+
+  .community-link:focus-visible {
+    outline: 2px solid rgba(125,135,246,0.5);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  .community-icon {
+    width: 18px;
+    height: 18px;
+    color: #7d87f6;
+    flex-shrink: 0;
+    transition: color 0.15s var(--ease);
+  }
+
+  .community-link:hover .community-icon { color: #8b95fa; }
+
+  .community-text {
+    flex: 1;
+    color: var(--text-2);
+    background-image: linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0) 40%,
+      rgba(255, 255, 255, 0.85) 50%,
+      rgba(255, 255, 255, 0) 60%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+            background-clip: text;
+    animation: communityShine 4s linear infinite;
+  }
+
+  @keyframes communityShine {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  .community-link:hover .community-text { animation-duration: 2s; }
+
+  .community-arrow {
+    width: 14px;
+    height: 14px;
+    color: var(--text-4);
+    flex-shrink: 0;
+    transition: color 0.15s var(--ease), transform 0.15s var(--ease);
+  }
+
+  .community-link:hover .community-arrow {
+    color: var(--text-2);
+    transform: translateX(2px);
+  }
+
+  .modal-close {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #d4d4d8;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .modal-close:hover {
+    background: rgba(255,255,255,0.13);
+    border-color: rgba(255,255,255,0.22);
+    color: #fafafa;
+  }
+  .modal-close:focus-visible {
+    outline: 2px solid rgba(255,255,255,0.4);
+    outline-offset: 2px;
+  }
+
+  /* Review terms button + modal */
+  .terms-btn {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    font: inherit;
+    font-size: 12px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 0 0 0 4px;
+    transition: color 0.15s var(--ease);
+  }
+  .terms-btn:hover { color: var(--text-1); }
+  .terms-btn:focus-visible {
+    outline: 2px solid rgba(139,92,246,0.5);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+  .terms-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0,0,0,0.66);
+    backdrop-filter: blur(6px);
+  }
+  .terms-overlay[hidden] { display: none; }
+  .terms-card {
+    width: min(520px, 100%);
+    max-height: 80vh;
+    overflow: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+  }
+  .terms-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .terms-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+  .terms-body p {
+    margin: 0 0 12px;
+    color: var(--text-2);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .terms-body b { color: var(--text-1); }
+
+  .link-option {
+    --accent: rgba(255,255,255,0.5);
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    background: #18181b;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    color: #e4e4e7;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .link-option:hover {
+    background: #1d1d1e;
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .link-option:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline-offset: 2px;
+  }
+  .link-option .label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fafafa;
+  }
+
+  footer {
+    margin-top: auto;
+    padding-top: 48px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-4);
+    letter-spacing: 0.01em;
+  }
+
+  @media (max-width: 560px) {
+    body { padding: 52px 20px 40px; }
+    header { margin-bottom: 40px; }
+    .brand-block .logo { max-width: 260px; }
+    .row { padding: 16px 18px; gap: 16px; grid-template-columns: 44px 1fr 18px; }
+    .row-icon { width: 44px; height: 44px; }
+    .row-icon svg { width: 20px; height: 20px; }
+    .row-name { font-size: 15.5px; }
+    .row-desc { font-size: 13.5px; }
+    .discord-callout {
+      grid-template-columns: 36px 1fr auto;
+      gap: 12px;
+      padding: 14px 38px 14px 14px;
+    }
+    .callout-icon { width: 36px; height: 36px; }
+    .callout-icon svg { width: 18px; height: 18px; }
+    .callout-title { font-size: 13px; }
+    .callout-desc { font-size: 12px; }
+    .callout-cta { padding: 6px 12px; font-size: 12px; }
+  }
+
+  /* boss fish */
+  .boss-wrap { position: relative; display: inline-block; max-width: 100%; }
+  .boss-wrap .logo { cursor: pointer; transition: transform 0.16s ease; }
+  .boss-wrap .logo:active { transform: scale(0.985); }
+  .boss-fish-mouth-mad { display: none; }
+  .boss-wrap .logo.boss-mad .boss-fish-mouth-mad { display: block; }
+  .boss-wrap .logo.boss-mad .boss-fish-mouth { display: none; }
+  .boss-fish-brow { transition: transform 0.18s ease; }
+  .boss-wrap .logo.boss-mad .boss-fish-brow-l { transform: rotate(14deg) translateY(4px); }
+  .boss-wrap .logo.boss-mad .boss-fish-brow-r { transform: rotate(-14deg) translateY(4px); }
+  .boss-bubble {
+    position: absolute;
+    top: -2px;
+    right: -14px;
+    z-index: 20;
+    background: #18181b;
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #fafafa;
+    font: 500 13.5px/1.45 -apple-system, Arial, sans-serif;
+    padding: 10px 14px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 240px;
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .boss-bubble::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 18px;
+    width: 10px;
+    height: 10px;
+    background: #18181b;
+    border-right: 1px solid rgba(255,255,255,0.14);
+    border-bottom: 1px solid rgba(255,255,255,0.14);
+    transform: rotate(45deg);
+  }
+  .boss-bubble.boss-bubble-show { opacity: 1; transform: translateY(0) scale(1); }
+
+  /* bouncer fish */
+  .bouncer {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 92px;
+    cursor: pointer;
+    animation: bouncerBob 3.2s ease-in-out infinite;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .bouncer-left { left: 14px; }
+  .bouncer-right { right: 14px; animation-delay: 1.6s; }
+  @keyframes bouncerBob {
+    0%, 100% { margin-top: -7px; }
+    50% { margin-top: 7px; }
+  }
+  .bouncer-bubble {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    background: #18181b;
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #fafafa;
+    font: 500 12.5px/1.4 -apple-system, Arial, sans-serif;
+    padding: 8px 12px;
+    border-radius: 9px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .bouncer-bubble::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    margin-left: -4.5px;
+    background: #18181b;
+    border-right: 1px solid rgba(255,255,255,0.14);
+    border-bottom: 1px solid rgba(255,255,255,0.14);
+    transform: rotate(45deg);
+  }
+  .bouncer-bubble.bouncer-bubble-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (max-width: 760px) { .bouncer { display: none; } }
+
+  /* sebass summoning */
+  body.sebass-summoning { animation: pageShake 0.3s linear infinite; }
+  @keyframes pageShake {
+    0%   { transform: translate(0, 0); }
+    20%  { transform: translate(-3px, 2px); }
+    40%  { transform: translate(3px, -2px); }
+    60%  { transform: translate(-2px, -3px); }
+    80%  { transform: translate(2px, 3px); }
+    100% { transform: translate(0, 0); }
+  }
+  body.sebass-trembling #bossFish { animation: donTremble 0.14s linear infinite; }
+  @keyframes donTremble {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(-1.5px, 1px); }
+    50%  { transform: translate(1.5px, -1px); }
+    75%  { transform: translate(-1px, -1.5px); }
+    100% { transform: translate(1px, 1.5px); }
+  }
+  #sebass-overlay {
+    position: fixed; inset: 0; z-index: 30000;
+    background: radial-gradient(circle at 50% 42%, rgba(34, 22, 6, 0.9) 0%, rgba(0, 0, 0, 0.98) 72%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; padding: 24px; opacity: 0; animation: sebassFade 1.2s ease 0.1s forwards;
+  }
+  @keyframes sebassFade { to { opacity: 1; } }
+  #sebass-overlay .sebass-rings { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  #sebass-overlay .sebass-ring {
+    position: absolute; left: 50%; top: 42%; width: 40px; height: 40px; margin: -20px 0 0 -20px;
+    border-radius: 50%; border: 1.5px solid rgba(245, 184, 61, 0.4);
+    animation: sebassRing 3.3s ease-out infinite;
+  }
+  @keyframes sebassRing {
+    0%   { transform: scale(0.2); opacity: 0; }
+    10%  { opacity: 1; }
+    100% { transform: scale(32); opacity: 0; }
+  }
+  .sebass-angel-wrap { animation: sebassArrive 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both; }
+  @keyframes sebassArrive { from { transform: scale(0.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .sebass-angel {
+    width: min(80vw, 430px); display: block;
+    filter: drop-shadow(0 0 70px rgba(245, 184, 61, 0.5));
+    animation: sebassFloat 3.4s ease-in-out infinite;
+  }
+  @keyframes sebassFloat { 0%, 100% { transform: translateY(-9px); } 50% { transform: translateY(9px); } }
+  .sebass-angel .wing { transform-box: fill-box; }
+  .sebass-angel .wing-l { transform-origin: right center; animation: sebassFlapL 3.4s ease-in-out infinite; }
+  .sebass-angel .wing-r { transform-origin: left center; animation: sebassFlapR 3.4s ease-in-out infinite; }
+  @keyframes sebassFlapL { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-7deg); } }
+  @keyframes sebassFlapR { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(7deg); } }
+  .sebass-angel .eye { transform-box: fill-box; transform-origin: center; animation: sebassBlink 4.4s infinite; }
+  @keyframes sebassBlink { 0%, 90%, 100% { transform: scaleY(1); } 93%, 96% { transform: scaleY(0.08); } }
+  .sebass-angel .halo { animation: sebassHalo 2.6s ease-in-out infinite; }
+  @keyframes sebassHalo { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+  .sebass-title {
+    font: 600 14px -apple-system, Arial, sans-serif; letter-spacing: 0.5em; text-transform: uppercase;
+    color: #ffe08a; text-shadow: 0 0 26px rgba(245, 184, 61, 0.7);
+    margin: 0 0 0 0.5em; opacity: 0; animation: sebassFade 1.3s ease 2s forwards;
+  }
+  .sebass-saying {
+    font: 400 16px/1.6 -apple-system, Arial, sans-serif; color: #ececef; text-align: center;
+    max-width: 44ch; min-height: 3.4em; margin: 0; opacity: 0; animation: sebassFade 1.3s ease 3.2s forwards;
+  }
+</style>
+</head>
+
+<body>
+  <div id="grid-pulse" aria-hidden="true"><canvas></canvas></div>
+
+  <script>
+    window.__mantleBooted = false;
+    setTimeout(function () {
+      if (window.__mantleBooted) return;
+      var b = document.createElement("div");
+      b.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:10001;background:#18181b;border:1px solid rgba(255,255,255,0.14);color:#fafafa;font:13px/1.5 -apple-system,Arial,sans-serif;padding:12px 18px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.5);text-align:center;max-width:88vw";
+      b.innerHTML = "<b>Fishes Arcade loaded an out-of-date copy.</b><br>Hold Ctrl and press R to refresh.";
+      (document.body || document.documentElement).appendChild(b);
+    }, 2500);
+  </script>
+
+  <main>
+    <header>
+      <div class="brand-block" data-grid-avoid data-grid-avoid-block>
+        <div class="boss-wrap">
+          <div class="boss-bubble" id="bossBubble" aria-hidden="true"></div>
+          <svg class="logo" id="bossFish" viewBox="0 0 380 240" width="320" height="202" role="img" aria-label="The Boss Fish" draggable="false">
+            <defs>
+              <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#ffe08a"/><stop offset="0.5" stop-color="#f5b83d"/><stop offset="1" stop-color="#b97e12"/>
+              </linearGradient>
+              <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#ff9a3d"/><stop offset="1" stop-color="#d95f18"/>
+              </linearGradient>
+            </defs>
+            <!-- bubbles -->
+            <circle cx="118" cy="52" r="6" fill="rgba(255,255,255,0.22)"/>
+            <circle cx="100" cy="34" r="3.5" fill="rgba(255,255,255,0.18)"/>
+            <circle cx="136" cy="26" r="2.5" fill="rgba(255,255,255,0.15)"/>
+            <!-- tail -->
+            <path d="M122 112 C92 88, 76 92, 60 72 C72 102, 58 122, 63 141 C58 160, 72 180, 60 208 C76 190, 92 192, 122 168 Z" fill="#e8721f"/>
+            <!-- body -->
+            <ellipse cx="205" cy="140" rx="92" ry="58" fill="url(#bodyGrad)"/>
+            <ellipse cx="205" cy="158" rx="70" ry="28" fill="#ffd9a8" opacity="0.5"/>
+            <!-- gill line -->
+            <path d="M158 122 C152 137, 152 152, 158 165" stroke="rgba(0,0,0,0.18)" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <!-- bottom fin -->
+            <path d="M195 197 C205 214, 225 214, 235 197 C222 202, 208 202, 195 197 Z" fill="#e8721f"/>
+            <!-- fedora -->
+            <g transform="rotate(-4 205 70)">
+              <path d="M165 88 C165 52, 175 34, 205 34 C235 34, 245 52, 245 88 Z" fill="#2b2f3a"/>
+              <rect x="164" y="73" width="82" height="13" rx="3" fill="#8e2430"/>
+              <ellipse cx="205" cy="88" rx="64" ry="13" fill="#23262e"/>
+            </g>
+            <!-- eyes -->
+            <circle cx="173" cy="122" r="13" fill="#fff"/>
+            <circle cx="173" cy="124" r="6" fill="#17181c"/>
+            <circle cx="237" cy="122" r="13" fill="#fff"/>
+            <circle cx="237" cy="124" r="6" fill="#17181c"/>
+            <!-- monocle -->
+            <circle cx="237" cy="122" r="20" stroke="url(#goldGrad)" stroke-width="4.5" fill="rgba(210,235,255,0.10)"/>
+            <path d="M237 142 C245 156, 254 163, 261 172" stroke="#f5b83d" stroke-width="2.5" fill="none"/>
+            <!-- brows -->
+            <g class="boss-fish-brow boss-fish-brow-l"><path d="M152 100 L190 108" stroke="#3a230c" stroke-width="7" stroke-linecap="round"/></g>
+            <g class="boss-fish-brow boss-fish-brow-r"><path d="M224 108 L262 100" stroke="#3a230c" stroke-width="7" stroke-linecap="round"/></g>
+            <!-- mouth (resting frown) -->
+            <path class="boss-fish-mouth" d="M185 170 Q208 158 231 170" stroke="#5c2604" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <path class="boss-fish-mouth-mad" d="M180 174 Q208 148 236 174" stroke="#5c2604" stroke-width="7" fill="none" stroke-linecap="round"/>
+            <!-- golden staff with fish -->
+            <rect x="312" y="52" width="11" height="152" rx="5.5" fill="url(#goldGrad)"/>
+            <ellipse cx="317" cy="38" rx="17" ry="9" fill="url(#goldGrad)"/>
+            <path d="M300 38 L288 30 L288 46 Z" fill="#c78f1c"/>
+            <circle cx="324" cy="36" r="2.2" fill="#17181c"/>
+            <!-- fin gripping the staff -->
+            <path d="M284 148 C300 140, 312 136, 320 132 L322 158 C310 160, 296 162, 286 164 Z" fill="#e8721f"/>
+          </svg>
+        </div>
+        <p class="tagline" id="tagline"><span id="tagText">An arcade that swims right past your school filter.</span><span class="caret" id="tagCaret" aria-hidden="true"></span></p>
+      </div>
+    </header>
+
+    <div class="apps" aria-label="Applications">
+      <button class="row" data-launch="spidercraft">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3 21 8 21 16 12 21 3 16 3 8 Z"/><path d="M3 8 12 13 21 8"/><path d="M12 13 12 21"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">sp1dercraft</span>
+          <span class="row-desc">A copy of Eaglercraft — Minecraft in your browser</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+      <button class="row" data-launch="polytrack">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 16v-4l2.5-4h8l4 4H21v4"/><circle cx="7" cy="16" r="1.75"/><circle cx="17" cy="16" r="1.75"/><path d="M8.75 16h6.5"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">PolyTrack</span>
+          <span class="row-desc">Low-poly racing with loops, jumps and a track editor</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+
+      <button class="row" data-launch="fluid">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3s6 6.5 6 11a6 6 0 1 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Fluid Sim</span>
+          <span class="row-desc">Play with colorful fluids right in your browser</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+
+      <button class="row" data-launch="tiers">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Server Tiers <span class="beta-chip">BETA</span></span>
+          <span class="row-desc">How much server data each account can use — Free, Pro and Ultra</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+
+      <button class="row" data-launch="sp1der">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13.5" r="4.5"/><circle cx="12" cy="6" r="1.75"/><path d="M12 7.75v1.5"/><path d="M8.25 11.25 4.5 8.5"/><path d="M15.75 11.25 19.5 8.5"/><path d="M8 14.5 3.5 15.5"/><path d="M16 14.5 20.5 15.5"/><path d="M9.25 16.75 6.5 20.5"/><path d="M14.75 16.75 17.5 20.5"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Project Sp1der</span>
+          <span class="row-desc">The Sp1der chat app — opens a Sp1der backup, cloaked like the other games</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+    </div>
+
+    <div class="community" data-grid-avoid>
+      <div class="bouncer bouncer-left" id="bouncerL" aria-hidden="false">
+        <div class="bouncer-bubble" id="bouncerLBubble"></div>
+        <svg viewBox="0 0 120 170" width="92" height="130" role="img" aria-label="Bouncer fish" draggable="false">
+          <!-- tail -->
+          <path d="M45 142 C38 160, 50 170, 60 166 C70 170, 82 160, 75 142 Z" fill="#3a76ad"/>
+          <!-- body -->
+          <ellipse cx="60" cy="95" rx="38" ry="52" fill="#4a8fd4"/>
+          <ellipse cx="60" cy="112" rx="27" ry="26" fill="#a8d4f0" opacity="0.45"/>
+          <!-- brows -->
+          <path d="M34 62 L52 57" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <path d="M68 57 L86 62" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <!-- sunglasses -->
+          <rect x="28" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <rect x="66" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <path d="M54 76 L66 76" stroke="#101318" stroke-width="3.5"/>
+          <path d="M28 74 L12 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M92 74 L108 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <!-- frown -->
+          <path d="M48 118 Q60 111 72 118" stroke="#14304d" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <!-- crossed fins -->
+          <path d="M25 106 L95 92" stroke="#2f6ea6" stroke-width="10" stroke-linecap="round"/>
+          <path d="M25 92 L95 106" stroke="#4a8fd4" stroke-width="10" stroke-linecap="round"/>
+          <!-- top fin -->
+          <path d="M45 48 C50 34, 70 34, 75 48" stroke="#3a76ad" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="bouncer bouncer-right" id="bouncerR" aria-hidden="false">
+        <div class="bouncer-bubble" id="bouncerRBubble"></div>
+        <svg viewBox="0 0 120 170" width="92" height="130" role="img" aria-label="Bouncer fish" draggable="false">
+          <path d="M45 142 C38 160, 50 170, 60 166 C70 170, 82 160, 75 142 Z" fill="#3a76ad"/>
+          <ellipse cx="60" cy="95" rx="38" ry="52" fill="#4a8fd4"/>
+          <ellipse cx="60" cy="112" rx="27" ry="26" fill="#a8d4f0" opacity="0.45"/>
+          <path d="M34 62 L52 57" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <path d="M68 57 L86 62" stroke="#14304d" stroke-width="4" stroke-linecap="round"/>
+          <rect x="28" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <rect x="66" y="70" width="26" height="16" rx="6" fill="#101318"/>
+          <path d="M54 76 L66 76" stroke="#101318" stroke-width="3.5"/>
+          <path d="M28 74 L12 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M92 74 L108 66" stroke="#101318" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M48 118 Q60 111 72 118" stroke="#14304d" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M25 106 L95 92" stroke="#2f6ea6" stroke-width="10" stroke-linecap="round"/>
+          <path d="M25 92 L95 106" stroke="#4a8fd4" stroke-width="10" stroke-linecap="round"/>
+          <path d="M45 48 C50 34, 70 34, 75 48" stroke="#3a76ad" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <footer data-grid-avoid>
+      © 2026 Fishes Arcade · run by the fish family · v1.0.2 ·
+      <button class="terms-btn" id="reviewTermsBtn" type="button">Review terms</button>
+    </footer>
+
+    <!-- Review terms modal: the fair-warning terms, readable any time after agreeing -->
+    <div class="terms-overlay" id="termsOverlay" hidden>
+      <div class="terms-card" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
+        <div class="terms-head">
+          <h2 id="termsTitle">Fishes Arcade — terms</h2>
+          <button class="modal-close" id="termsClose" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="terms-body">
+          <p><b>Fair warning:</b></p>
+          <p>The Fishes Arcade serves third-party games. We didn't make them, we can't control them, and we are NOT responsible for what they (or you) do. If a game eats your homework, leaks your password, gets your Chromebook confiscated, or deletes your save — that's on you, lol. Fish at your own risk.</p>
+          <p>You agreed to these terms (plus the Sp1der verification terms, if you used /verify) before entering the arcade. This button is here so you can re-read them any time.</p>
+          <p>Sp1der staff can revoke access at any time if the terms are broken. One person, one account — alt accounts used to dodge bans or mutes will be removed.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script>
+"use strict";
+
+(function initGridPulse() {
+  const el = document.getElementById("grid-pulse");
+  const canvas = el && el.querySelector("canvas");
+  const ctx = canvas && canvas.getContext("2d");
+  if (!el || !canvas || !ctx) return;
+
+  const CELL = 14, REACH = 2.6, MAX_LIT = 180, AVOID = "[data-grid-avoid]", AVOID_BLOCK = "data-grid-avoid-block";
+  const HUE_TOP = 30, HUE_MID = 220, HUE_BOT = 125;
+  const TINTS = [72, 65, 58, 51, 44], FAINT = 0.13, PAD = 14, FADE = 1.1, FADE_IN = 160, FADE_OUT = 750;
+  const easeOut = t => 1 - (1 - t) * (1 - t), easeIn = t => t * t;
+
+  let cols = 1, rows = 1, width = 0, height = 0, clear = [];
+  const cells = new Map();
+
+  function makeEllipse(r, bounds) {
+    return { cx: r.left - bounds.left + r.width / 2, cy: r.top - bounds.top + r.height / 2, rx: Math.max(1, r.width / 2 + PAD), ry: Math.max(1, r.height / 2 + PAD) };
+  }
+
+  function measureText() {
+    const bounds = el.getBoundingClientRect();
+    clear = [...document.querySelectorAll(AVOID)].flatMap(node => {
+      if (node.hasAttribute(AVOID_BLOCK)) return [makeEllipse(node.getBoundingClientRect(), bounds)];
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const lines = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 0);
+      const boxes = lines.length > 0 ? lines : [node.getBoundingClientRect()];
+      return boxes.map(r => makeEllipse(r, bounds));
+    });
+  }
+
+  function measure() {
+    width = el.clientWidth; height = el.clientHeight;
+    cols = Math.max(1, Math.ceil(width / CELL)); rows = Math.max(1, Math.ceil(height / CELL));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    measureText(); wake();
+  }
+
+  function brightness(col, row) {
+    const x = col * CELL + CELL / 2, y = row * CELL + CELL / 2;
+    let nearest = Infinity;
+    for (const e of clear) {
+      const dx = (x - e.cx) / e.rx, dy = (y - e.cy) / e.ry, d = Math.sqrt(dx * dx + dy * dy);
+      if (d < nearest) nearest = d;
+      if (nearest === 0) break;
+    }
+    if (nearest === Infinity) return 1;
+    if (nearest <= 1) return FAINT;
+    const t = Math.min(1, (nearest - 1) / FADE);
+    return FAINT + (1 - FAINT) * (t * t);
+  }
+
+  function hueFor(t) {
+    if (t < 0.5) return HUE_TOP + (HUE_MID - HUE_TOP) * (t / 0.5);
+    return HUE_MID + (HUE_BOT - HUE_MID) * ((t - 0.5) / 0.5);
+  }
+
+  function ink(row) {
+    const t = rows > 1 ? Math.min(1, row / (rows - 1)) : 0;
+    const hue = ((hueFor(t) % 360) + 360) % 360;
+    return "hsl(" + Math.round(hue) + " 94% " + TINTS[Math.floor(Math.random() * TINTS.length)] + "%)";
+  }
+
+  let frame = 0;
+  function draw(now) {
+    frame = 0; ctx.clearRect(0, 0, width, height);
+    for (const [key, c] of cells) {
+      let alpha;
+      if (now < c.until) alpha = easeOut(Math.min(1, (now - c.born) / FADE_IN));
+      else {
+        const t = (now - c.until) / FADE_OUT;
+        if (t >= 1) { cells.delete(key); continue; }
+        alpha = 1 - easeIn(t);
+      }
+      ctx.globalAlpha = alpha * c.dim; ctx.fillStyle = c.colour;
+      ctx.fillRect(c.col * CELL + 1, c.row * CELL + 1, CELL - 1, CELL - 1);
+    }
+    ctx.globalAlpha = 1;
+    if (cells.size > 0) frame = requestAnimationFrame(draw);
+  }
+  function wake() { if (!frame) frame = requestAnimationFrame(draw); }
+
+  function light(col, row, hold) {
+    if (col < 0 || row < 0 || col >= cols || row >= rows || cells.size >= MAX_LIT) return;
+    const key = col + "," + row, now = performance.now(), lit = cells.get(key);
+    if (lit && now < lit.until) return;
+    let born = now;
+    if (lit) {
+      const faded = 1 - easeIn(Math.min(1, (now - lit.until) / FADE_OUT));
+      born = now - (1 - Math.sqrt(1 - faded)) * FADE_IN;
+    }
+    cells.set(key, { col, row, colour: (lit && lit.colour) || ink(row), dim: brightness(col, row), born, until: now + hold });
+    wake();
+  }
+
+  let pending = 0, at = null;
+  function paint() {
+    pending = 0; if (!at) return;
+    const cx = Math.floor(at.x / CELL), cy = Math.floor(at.y / CELL), span = Math.ceil(REACH);
+    for (let dy = -span; dy <= span; dy++) {
+      for (let dx = -span; dx <= span; dx++) {
+        const away = Math.hypot(dx, dy);
+        if (away > REACH || Math.random() > 1 - away / (REACH + 0.6)) continue;
+        light(cx + dx, cy + dy, 260 + Math.random() * 900);
+      }
+    }
+  }
+  function onMove(event) {
+    const bounds = el.getBoundingClientRect();
+    at = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    if (!pending) pending = requestAnimationFrame(paint);
+  }
+
+  let visible = true, beat = 0;
+  function explode(cx, cy, rings) {
+    /* shockwave: light ring after ring, expanding outward like a burst */
+    for (let ring = 0; ring <= rings; ring++) {
+      window.setTimeout(() => {
+        if (!visible || document.hidden) return;
+        for (let dy = -ring; dy <= ring; dy++) {
+          for (let dx = -ring; dx <= ring; dx++) {
+            const away = Math.hypot(dx, dy);
+            if (away > ring || away < ring - 1) continue;
+            light(cx + dx, cy + dy, 380 + Math.random() * 520);
+          }
+        }
+      }, ring * 70);
+    }
+  }
+  function drift() {
+    beat = window.setTimeout(drift, 1600 + Math.random() * 2400);
+    if (!visible || document.hidden) return;
+    explode(Math.floor(Math.random() * cols), Math.floor(Math.random() * rows), 2 + Math.floor(Math.random() * 4));
+  }
+  beat = window.setTimeout(drift, 700);
+
+  const sight = new IntersectionObserver(entries => { visible = entries[0] ? entries[0].isIntersecting : true; });
+  sight.observe(el);
+  const resize = new ResizeObserver(measure);
+  resize.observe(el);
+  let recheck = 0;
+  const copy = new MutationObserver(() => {
+    if (!recheck) { recheck = requestAnimationFrame(() => { recheck = 0; measureText(); }); }
+  });
+  copy.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+  measure();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureText).catch(() => {});
+  window.addEventListener("pointermove", onMove, { passive: true });
+})();
+
+const TAGLINES = [
+  "Warning: side effects include homework loss and unlimited W rizz",
+  "The fishes are judging your aim right now",
+  "These background explosions are emotional support explosions",
+  "Every square you see is a lesson somebody skipped",
+  "Certified fish-approved since approximately five minutes ago",
+  "Do NOT click the boss fish. He remembers faces.",
+  "Fresh out of the fryer, straight into your browser tab",
+  "My grades called. I sent them straight to voicemail.",
+  "Powered by fish oil and pure spite",
+  "If the teacher asks, this is definitely Google Classroom",
+  "One does not simply swim past the Fishes Arcade",
+  "The squares tripled. We take no responsibility for the mess.",
+  "Somewhere a fish just watched you miss that jump",
+  "100% of doctors say you should probably be doing homework",
+  "This tab is now legally classified as a math lesson",
+  "The boss fish would like a word with your manager",
+  "Rumor has it there is a secret word hidden somewhere around here...",
+  "The explosions in the background are load-bearing, do not remove",
+  "Fish genuinely just be swimming, man",
+  "Every color of this text is a whole new personality",
+  "We put the pro in procrastination",
+  "Loading vibes... please stand by",
+  "The bouncer fish checked your ID. You are cool.",
+  "Do not study, play games. Said no teacher ever.",
+  "This is both my villain origin story and an arcade",
+  "Caution: contents may contain fish",
+  "You are not bored, you are just pre-entertained",
+  "In case of fire, keep gaming",
+  "Technically this counts as reading practice",
+  "The new background text is unhinged and we stand by it",
+  "No fish were consulted in the making of these taglines",
+  "Your school filter tried its best and honestly, valid",
+  "Reel in the fun. Get it? Reel? ...I will see myself out.",
+  "The arcade is open 24/7 because fish do not sleep",
+  "Tell your teacher the squares are part of the curriculum",
+  "lol Sebass waz here",
+  "crackers",
+  "cooooooner FoshBurnt",
+  "We all know you're using Gemini for your homework, if you even do it :P",
+  "CoNnEr BuRnTf1sH! FiX iT! (jk everything is running fine)",
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH",
+  "Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. “Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, can long endure. We are met on a great battlefield of that war. We have come to dedicate a portion of that field, as a final resting place for those who here gave their lives that that nation might live. It is altogether fitting and proper that we should do this. “But, in a larger sense, we can not dedicate, we can not consecrate, we can not hallow this ground. The brave men, living and dead, who struggled here, have consecrated it, far above our poor power to add or detract. The world will little note, nor long remember what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us, that from these honored dead we take increased devotion to that cause for which they gave the last full measure of devotion, that we here highly resolve that these dead shall not have died in vain, that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth.”",
+  "The fish council has approved this message",
+  "Warning: teachers can smell fun through the screen",
+  "This tab is protected by three fish and a monocle",
+  "Loading... just kidding, we were ready the whole time",
+  "Homework is just fanfiction for math",
+  "The boss fish counted your clicks. He is not impressed.",
+  "Fish fact: fish do not know what a deadline is. Lucky.",
+  "Somewhere, a teacher's spidey-sense just went off",
+  "We legally cannot stop you from clicking the boss fish",
+  "The squares are secretly cheering for you",
+  "Your GPA called. It wants a restraining order.",
+  "Class is in session and the lesson is vibes",
+  "Recess, but forever",
+  "The filter blocked everything except raw talent",
+  "Aquarium rules: no running, no homework, no snitching",
+  "Fish school has recess too. This is it.",
+  "This arcade is 100% fish-powered. Please do not ask how.",
+  "The bouncers said you're cool. That's legally binding now.",
+  "Every click here is a tiny act of rebellion",
+  "Do not feed the boss fish after midnight. Or ever.",
+  "You are now breathing manually. You're welcome.",
+  "Fish see in slow motion, which explains the loading screen",
+  "The grid is not lava, but it does feel warm",
+  "Straight A's? In this economy?",
+  "The squares are algebra homework in witness protection",
+  "One time a fish beat PolyTrack with no wheels. Ask around.",
+  "The filter tried to stop this. It is now in fish jail.",
+  "Alert: fun detected. Deploying more squares.",
+  "Statistically, 9 out of 10 fish recommend this arcade",
+  "The 10th fish was unavailable for comment",
+  "Your teacher was here. We sent them to the lobby.",
+  "Bring your umbrella, it's raining colors up in here",
+  "The boss fish wrote this tagline. He said it's fine. It's not.",
+  "Somewhere in the deep, a fish just got a high score",
+  "This is what peak performance looks like. Do not blink.",
+  "The explosion budget was unlimited and it shows",
+  "Click the boss fish one more time. He dares you.",
+  "Fluid Sim is just the ocean with extra steps",
+  "We asked the fish for a comment. They splashed us.",
+  "No fish were harmed in the making of this tagline. Your grades were not so lucky.",
+  "If you can read this, you are not doing homework. Correct.",
+  "The fish union demands more bubbles",
+  "Reading this counts as silent reading. Tell your teacher.",
+  "The arcade runs on spite, squares, and fish oil",
+  "High score or it didn't happen",
+  "The boss fish is watching. Always watching.",
+  "This message will self-destruct in 3... 2... just kidding, it's a tagline",
+  "Fresh water, fresh vibes, zero homework tolerance",
+  "i am the 4th fish. i live in the walls. -sebass",
+  "the squares speak to me at night. they know things. -sebass",
+  "i taught the boss fish everything he knows. mostly the frowning. -sebass",
+  "one time i outswam a wifi signal. still chasing that high. -sebass",
+  "the bouncer fish and i have history. do not ask. -sebass",
+  "i hid a fish in the track editor. he is cold but he is fine. -sebass",
+  "my fluids have achieved sentience. we coexist now. -sebass",
+  "i am legally a fish on tuesdays. today is tuesday. -sebass",
+  "the boss fish fears one thing. i carry it in my backpack. -sebass",
+  "listen. LISTEN. the squares. they're counting. -sebass",
+  "i have 40 fish in a trench coat and we are doing GREAT. -sebass",
+  "they said i couldn't put a fish in the taglines. i AM the fish. -sebass",
+  "the vending machine gives me free water because it respects me. -sebass",
+  "i taught a fish to do taxes. he fled the country. -sebass",
+  "the boss fish borrowed my monocle in 2019. we do not speak of it. -sebass",
+  "my shadow files its own paperwork. i am not involved. -sebass",
+  "every thursday i challenge the loading screen to a staring contest. i win. -sebass",
+  "there is a second arcade under this one. it is worse. -sebass",
+  "the squares sent me a friend request. i accepted. we golf now. -sebass",
+  "i do not trust the bouncer fish's left sunglasses lens. it knows. -sebass",
+  "the track editor blinked first. i always win. -sebass",
+  "a fish sold me this tagline for three buttons. i overpaid. -sebass",
+  "the fluid sim is just my bath. you are all in my bath. -sebass",
+  "i have been banned from four aquariums and one petting zoo. all misunderstandings. -sebass",
+  "the explosion sounds are my roommate. he is going through it. -sebass",
+  "do not ask the boss fish about the pelican incident. i was there. -sebass",
+  "my homework ate my fish. or my fish ate my homework. either way, no homework. -sebass",
+  "the wifi in the reef is terrible. i am the wifi in the reef. -sebass",
+  "i keep a spare fish in the event of fish. -sebass",
+  "the grid pulses because it has a heart. a small one. three chambers. -sebass",
+  "every 100 clicks a fish gets its wings. do not fact check this. -sebass",
+  "if you are reading this, the fish have already won. -sebass",
+  "who says I cant join into these taglines? too late, I'm contributing- p1xelf1n",
+  "ask me about the Great Aegis Mute, you will not be dissapointed unless you already know. -p1xelf1n",
+  "teacher, hunched over you: \"you done with your work?\" you: \"I'll work on it.\" you will possibly never turn in that assignment hehe -p1xelf1n",
+  "stick around on the community for freshly-engineered banter, featuring Aegis! In theaters always. -p1xelf1n",
+  "another tagline. insert glorious tagline here since I'm out of ideas -p1xelf1n",
+  "where is redFish's taglines? floating around in the ocean of Fishes Arcade, waiting to be found. do not fact check me on that tho -p1xelf1n",
+  "THESE TAGLINES SHALL NOT BE BORING AND US FISH ENFORCE THAT - p1xelf1n",
+  "who cares about grades? friends help build communication skills that are equally as valuable in the workforce. tell THAT to your teachers. -p1xelf1n",
+  "ask aegis how much sass it has made in the past 24 hours, it will most likely lie. -p1xelf1n"
+];
+
+(function runTaglines() {
+  const el = document.getElementById("tagText");
+  const p = document.getElementById("tagline");
+  if (!el || !p || !TAGLINES.length) return;
+
+  /* shuffled bag: every tagline gets said once before any repeats */
+  let lastIdx = -1, bag = [];
+  function pick() {
+    if (bag.length === 0) {
+      bag = TAGLINES.map(function (_, i) { return i; });
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = bag[i]; bag[i] = bag[j]; bag[j] = t;
+      }
+      /* don't start a fresh bag with the one just said */
+      if (bag.length > 1 && bag[0] === lastIdx) { const t = bag[0]; bag[0] = bag[1]; bag[1] = t; }
+    }
+    lastIdx = bag.shift();
+    return TAGLINES[lastIdx];
+  }
+
+  const randomColor = () => "hsl(" + Math.floor(Math.random() * 360) + " 85% 72%)";
+  const speedFor = s => Math.max(24, Math.min(62, Math.round(1700 / Math.max(1, s.length))));
+  const whenVisible = cb => {
+    if (!document.hidden) return cb();
+    const iv = setInterval(() => { if (!document.hidden) { clearInterval(iv); cb(); } }, 300);
+  };
+
+  function type(text, pos, delay) {
+    whenVisible(() => {
+      p.classList.add("typing");
+      el.textContent = text.slice(0, pos);
+      if (pos < text.length) setTimeout(() => type(text, pos + 1, delay), delay + Math.random() * delay * 0.6);
+      else {
+        p.classList.remove("typing");
+        setTimeout(() => whenVisible(() => del(text, text.length)), 2600);
+      }
+    });
+  }
+
+  function del(text, pos) {
+    whenVisible(() => {
+      el.textContent = text.slice(0, pos);
+      if (pos > 0) setTimeout(() => del(text, pos - 1), 11);
+      else {
+        const next = pick();
+        p.style.color = randomColor();
+        setTimeout(() => whenVisible(() => type(next, 0, speedFor(next))), 380);
+      }
+    });
+  }
+
+  setTimeout(() => { const first = pick(); p.style.color = randomColor(); type(first, 0, speedFor(first)); }, 900);
+})();
+
+const SPIDER_PARTS = [
+  "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/spidercraft.part1",
+  "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/spidercraft.part2",
+  "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/spidercraft.part3"
+];
+const SPIDER_BASE = "https://raw.githubusercontent.com/fish01-jpg/MineCraft/main/";
+const SPIDER_SPLASH_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}#sProg{color:#b0b0b3;font-size:12.5px;margin:0;min-height:1.4em;font-variant-numeric:tabular-nums}</style></head><body><div class="ring"></div><p>Loading sp1dercraft</p><p id="sProg"></p></body></html>`;
+
+function appSplashHtml(label) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0a0a0b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,Arial,sans-serif}.ring{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.10);border-top-color:rgba(255,255,255,0.55);animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#9a9a9d;font-size:13px;letter-spacing:0.02em;margin:0}#appNote{color:#6e6e71;font-size:12px;min-height:1.4em;font-variant-numeric:tabular-nums}</style></head><body><div class="ring"></div><p>Loading ${label}</p><p id="appNote"></p></body></html>`;
+}
+
+function appErrorHtml(title, reason) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0a0a0b;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Arial,sans-serif"><div style="text-align:center;color:#b0b0b3;max-width:440px;padding:20px"><h2 style="color:#fafafa;font-size:17px;font-weight:600;margin:0 0 10px">${title} couldn't load</h2><p style="font-size:14px;line-height:1.6;margin:0 0 8px">${reason}</p><p style="font-size:13px;color:#9a9a9d;margin:0">Close this window and relaunch from Fishes Arcade.</p></div></body></html>`;
+}
+
+function spiderErrorHtml(reason) {
+  return appErrorHtml("sp1dercraft", reason);
+}
+
+/* Inject a <base> tag so a fetched app's relative files (script.js, images,
+   models, workers...) resolve against its GitHub repo instead of this page. */
+function injectBase(html, base) {
+  if (/<base\s/i.test(html)) return html;
+  const baseTag = '<base href="' + base + '">';
+  return /<head[^>]*>/i.test(html)
+    ? html.replace(/<head[^>]*>/i, m => m + baseTag)
+    : baseTag + html;
+}
+
+function looksLikeBundle(text) {
+  if (/^version https:\/\/git-lfs/i.test(text.slice(0, 300))) return false;
+  if (text.length < 200) return false;
+  if (!/<!doctype html|<html|<body|<script/i.test(text)) return false;
+  if (/<title>[^<]*(blocked|restricted|denied|web filter|url filter|policy)[^<]*<\/title>/i.test(text)) return false;
+  return true;
+}
+
+async function fetchBytes(res, onProgress) {
+  if (!res.body || !res.body.getReader) {
+    const buf = await res.arrayBuffer();
+    onProgress(buf.byteLength, buf.byteLength);
+    return new Uint8Array(buf);
+  }
+  const reader = res.body.getReader(), chunks = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); received += value.length;
+    onProgress(received, 0);
+  }
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
+}
+const fmtMB = n => (n / (1024 * 1024)).toFixed(1);
+
+const FRAME_ALLOW = "fullscreen; pointer-lock; gamepad; keyboard-map; clipboard-read; clipboard-write; camera; microphone; autoplay";
+
+const SPOOF_OPTIONS = [{ title: "Google", icon: "https://www.google.com/favicon.ico" }, { title: "Google Classroom", icon: "https://www.gstatic.com/classroom/favicon.png" }, { title: "Google Drive", icon: "https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png" }, { title: "Google Docs", icon: "https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico" }];
+const WINDOW_FEATURES = "width=" + screen.width + ",height=" + screen.height + ",menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes,popup=yes";
+
+function applySpoof(targetDoc, spoof) {
+  targetDoc.title = spoof.title;
+  let link = targetDoc.querySelector("link[rel~='icon']");
+  if (!link) { link = targetDoc.createElement('link'); link.rel = 'icon'; targetDoc.head.appendChild(link); }
+  link.href = spoof.icon;
+}
+function pickSpoof() { return SPOOF_OPTIONS[Math.floor(Math.random() * SPOOF_OPTIONS.length)]; }
+function keepSpoofed(d, spoof) {
+  applySpoof(d, spoof);
+  let t = setInterval(function () { try { applySpoof(d, spoof); } catch (e) { clearInterval(t); } }, 500);
+}
+function armCloseGuard(win) {
+  const guard = function (e) { e.preventDefault(); e.returnValue = ""; };
+  win.addEventListener("beforeunload", guard);
+  win.onbeforeunload = guard;
+}
+/* ---- Sp1der arcade tracker (v4.6.4) ----
+   Reports to the Sp1der tab that opened this page (postMessage + a localStorage beacon
+   that survives Sp1der reloads): which game window is open, cumulative play time and
+   high scores per game (kept in localStorage here, synced to the profile by Sp1der).
+   Also receives staff popups (SP1DER_OWNER_POPUP) and game-close orders (SP1DER_ARCADE_END). */
+const SP1DER_GAME_LABELS = { spidercraft: "Sp1dercraft", polytrack: "PolyTrack", fluid: "Fluid Sim" };
+const ARCADE_STATS_KEY = "fishesArcadeStats";
+const trackedWins = new Map(); // game window -> { id, lastTick }
+let currentGameId = null;
+function loadArcadeStats() { try { return JSON.parse(localStorage.getItem(ARCADE_STATS_KEY)) || {}; } catch (e) { return {}; } }
+function saveArcadeStats(s) { try { localStorage.setItem(ARCADE_STATS_KEY, JSON.stringify(s)); } catch (e) {} }
+function addArcadeSeconds(id, sec) {
+  const s = loadArcadeStats(); const g = s[id] || (s[id] = {});
+  g.sec = Math.max(0, Math.floor((g.sec || 0) + sec));
+  saveArcadeStats(s);
+}
+function setArcadeHigh(id, value) {
+  const s = loadArcadeStats(); const g = s[id] || (s[id] = {});
+  g.high = Math.max(0, Math.floor(Math.max(+g.high || 0, value)));
+  saveArcadeStats(s);
+}
+function fmtPlay(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h) return h + "h " + (m ? m + "m" : "");
+  if (m) return m + "m" + (s ? " " + s + "s" : "");
+  return s + "s";
+}
+function reportToSp1der() {
+  const payload = { type: "FISHES_ARCADE_STATE", game: currentGameId, stats: loadArcadeStats() };
+  try { if (window.opener && window.opener !== window) window.opener.postMessage(payload, "*"); } catch (e) {}
+  try { localStorage.setItem("sp1derArcadeBeacon", JSON.stringify({ game: currentGameId, at: Date.now() })); } catch (e) {}
+}
+function refreshCurrentGame() {
+  const before = currentGameId;
+  currentGameId = null;
+  trackedWins.forEach(function (entry) { if (!currentGameId) currentGameId = entry.id; });
+  /* Fall back to heartbeat-registered game windows (covers hub reloads, where the
+     direct window references were lost but the games' bridge heartbeats keep coming). */
+  if (!currentGameId) aliveGameWins.forEach(function (entry) { if (!currentGameId && Date.now() - entry.lastSeen < 25000) currentGameId = entry.id; });
+  if (before !== currentGameId) updateArcadeBar();
+  reportToSp1der();
+}
+function trackGameWindow(win, id) {
+  trackedWins.set(win, { id: id, lastTick: Date.now() });
+  refreshCurrentGame(); updateArcadeBar();
+  const ticker = setInterval(function () {
+    let closed = false; try { closed = win.closed; } catch (e) { closed = true; }
+    const entry = trackedWins.get(win);
+    if (!entry) { clearInterval(ticker); return; }
+    const now = Date.now();
+    if (!closed) {
+      const dt = Math.min(60, Math.round((now - entry.lastTick) / 1000));
+      if (dt > 0) addArcadeSeconds(id, dt);
+    }
+    entry.lastTick = now;
+    if (closed) { clearInterval(ticker); trackedWins.delete(win); refreshCurrentGame(); updateArcadeBar(); }
+    else {
+      const t = document.getElementById("sp1derArcadeBarTime");
+      if (t && currentGameId) { const st = loadArcadeStats()[currentGameId] || {}; t.textContent = "\u00b7 " + fmtPlay(st.sec || 0) + " played"; }
+    }
+  }, 10000);
+}
+function updateArcadeBar() {
+  let bar = document.getElementById("sp1derArcadeBar");
+  if (!currentGameId) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "sp1derArcadeBar";
+    bar.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:2147483646;background:#101014;border-top:2px solid #8b5cf6;color:#eee;font:13px -apple-system,Arial,sans-serif;display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:wrap;";
+    (document.body || document.documentElement).appendChild(bar);
+  }
+  const label = SP1DER_GAME_LABELS[currentGameId] || currentGameId;
+  const g = (loadArcadeStats()[currentGameId]) || {};
+  bar.replaceChildren();
+  const txt = document.createElement("span"); txt.style.fontWeight = "700";
+  txt.textContent = "Now playing: " + label;
+  const time = document.createElement("span"); time.id = "sp1derArcadeBarTime"; time.style.color = "#9a9a9d";
+  time.textContent = "\u00b7 " + fmtPlay(g.sec || 0) + " played";
+  const hi = document.createElement("span"); hi.style.color = "#9a9a9d";
+  hi.textContent = g.high ? "\u00b7 high score " + g.high : "\u00b7 no high score yet";
+  const inp = document.createElement("input");
+  inp.type = "number"; inp.placeholder = "Log high score"; inp.min = "0";
+  inp.style.cssText = "background:#1b1b20;border:1px solid #8b5cf6;color:#eee;border-radius:6px;padding:4px 8px;width:130px;";
+  const btn = document.createElement("button");
+  btn.textContent = "Save score";
+  btn.style.cssText = "background:#8b5cf6;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:700;";
+  btn.onclick = function () {
+    const v = Math.floor(+inp.value);
+    if (!Number.isFinite(v) || v <= 0) { alert("Enter your high score as a number."); return; }
+    setArcadeHigh(currentGameId, v); reportToSp1der(); updateArcadeBar();
+  };
+  bar.append(txt, time, hi, inp, btn);
+}
+/* Staff popup overlay: shown on this page and injected into every open game window. */
+function showSp1derPopup(message, from) {
+  showPopupInDocument(document, message, from);
+  trackedWins.forEach(function (entry, win) {
+    try { if (!win.closed) win.postMessage({ type: "SP1DER_OWNER_POPUP", message: message, from: from }, "*"); } catch (e) {}
+    try { if (!win.closed) showPopupInDocument(win.document, message, from); } catch (e) {} // same-origin fallback
+  });
+  aliveGameWins.forEach(function (entry, win) {
+    try { if (!win.closed) win.postMessage({ type: "SP1DER_OWNER_POPUP", message: message, from: from }, "*"); } catch (e) {}
+  });
+  try {
+    if (arcadeBroadcast) arcadeBroadcast.postMessage({ type: "SP1DER_OWNER_POPUP", message: message, from: from });
+  } catch (e) {}
+}
+function showPopupInDocument(doc, message, from) {
+  const existing = doc.getElementById("sp1derOwnerPopup");
+  if (existing) existing.remove();
+  const ov = doc.createElement("div");
+  ov.id = "sp1derOwnerPopup";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(10,10,12,0.93);z-index:2147483647;display:flex;align-items:center;justify-content:center;";
+  const card = doc.createElement("div");
+  card.style.cssText = "max-width:440px;width:calc(100% - 40px);background:#17171c;border:2px solid #ff0055;border-radius:12px;padding:22px;text-align:center;font:14px -apple-system,Arial,sans-serif;color:#eee;";
+  const fromEl = doc.createElement("div");
+  fromEl.style.cssText = "font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#ff4d88;font-weight:800;";
+  fromEl.textContent = "Staff message from " + (from || "Staff");
+  const msg = doc.createElement("div");
+  msg.style.cssText = "font-size:15px;line-height:1.55;margin:12px 0 18px;white-space:pre-wrap;overflow-wrap:anywhere;";
+  msg.textContent = String(message || "");
+  const ok = doc.createElement("button");
+  ok.textContent = "OK";
+  ok.style.cssText = "background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:8px 22px;cursor:pointer;font-weight:700;";
+  ok.onclick = function () { ov.remove(); };
+  card.appendChild(fromEl); card.appendChild(msg); card.appendChild(ok);
+  ov.appendChild(card);
+  (doc.body || doc.documentElement).appendChild(ov);
+}
+/* ===== v4.6.5: GAME WINDOW BRIDGE =====
+   The games run in popup windows this page creates. A popup can only be reached through
+   this page (it holds the window references), so commands are relayed: Sp1der -> this page
+   -> each game window. For the game window to actually receive anything it needs a
+   listener of its own, so every game window we create gets this bridge script injected
+   into its document. The bridge listens for postMessage (always allowed, any origin),
+   shows the staff popup overlay ON TOP of the game itself, closes the window on
+   SP1DER_ARCADE_END, and reports its own state (beacon + heartbeat to this page), so
+   tracking keeps working even if this hub page reloads. */
+const aliveGameWins = new Map(); // game window -> { id, lastSeen } (registered by heartbeat)
+let arcadeBroadcast = null;
+try { arcadeBroadcast = new BroadcastChannel("sp1der-arcade"); } catch (e) {}
+function gameBridgeSrc(id) {
+  return [
+    "(function () {",
+    "  var GAME_ID = " + JSON.stringify(id) + ";",
+    "  function showPopup(message, from) {",
+    "    var ov = document.getElementById('sp1derOwnerPopup');",
+    "    if (ov) ov.remove();",
+    "    ov = document.createElement('div');",
+    "    ov.id = 'sp1derOwnerPopup';",
+    "    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,12,0.93);z-index:2147483647;display:flex;align-items:center;justify-content:center;';",
+    "    var card = document.createElement('div');",
+    "    card.style.cssText = 'max-width:440px;width:calc(100% - 40px);background:#17171c;border:2px solid #ff0055;border-radius:12px;padding:22px;text-align:center;font:14px -apple-system,Arial,sans-serif;color:#eee;';",
+    "    var fromEl = document.createElement('div');",
+    "    fromEl.style.cssText = 'font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#ff4d88;font-weight:800;';",
+    "    fromEl.textContent = 'Staff message from ' + (from || 'Staff');",
+    "    var msg = document.createElement('div');",
+    "    msg.style.cssText = 'font-size:15px;line-height:1.55;margin:12px 0 18px;white-space:pre-wrap;overflow-wrap:anywhere;';",
+    "    msg.textContent = String(message || '');",
+    "    var ok = document.createElement('button');",
+    "    ok.textContent = 'OK';",
+    "    ok.style.cssText = 'background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:8px 22px;cursor:pointer;font-weight:700;';",
+    "    ok.onclick = function () { ov.remove(); };",
+    "    card.appendChild(fromEl); card.appendChild(msg); card.appendChild(ok);",
+    "    ov.appendChild(card);",
+    "    (document.body || document.documentElement).appendChild(ov);",
+    "  }",
+    "  function onCmd(data) {",
+    "    if (!data || typeof data !== 'object') return;",
+    "    if (data.type === 'SP1DER_OWNER_POPUP') showPopup(data.message, data.from);",
+    "    else if (data.type === 'SP1DER_ARCADE_END') {",
+    "      showPopup('Your arcade games were closed by staff.', 'Staff');",
+    "      setTimeout(function () { try { window.close(); } catch (e) {} }, 1500);",
+    "    }",
+    "  }",
+    "  window.addEventListener('message', function (e) { onCmd(e && e.data); });",
+    "  var bc = null;",
+    "  try { bc = new BroadcastChannel('sp1der-arcade'); bc.onmessage = function (e) { onCmd(e.data); }; } catch (e) {}",
+    "  function beat() {",
+    "    try { localStorage.setItem('sp1derArcadeGameBeacon', JSON.stringify({ game: GAME_ID, at: Date.now() })); } catch (e) {}",
+    "    try { if (window.opener && window.opener !== window) window.opener.postMessage({ type: 'FISHES_GAME_ALIVE', game: GAME_ID, at: Date.now() }, '*'); } catch (e) {}",
+    "  }",
+    "  beat();",
+    "  setInterval(beat, 10000);",
+    "  window.addEventListener('pagehide', function () {",
+    "    try { localStorage.removeItem('sp1derArcadeGameBeacon'); } catch (e) {}",
+    "  });",
+    "})();"
+  ].join("\n");
+}
+function injectGameBridge(d, id) {
+  try {
+    const s = d.createElement("script");
+    s.textContent = gameBridgeSrc(id);
+    (d.body || d.documentElement).appendChild(s);
+  } catch (e) { /* cross-origin window: the postMessage relay from this page still reaches it via the opener chain */ }
+}
+window.addEventListener("message", function (e) {
+  const data = e && e.data; if (!data || typeof data !== "object") return;
+  if (data.type === "SP1DER_OWNER_POPUP") showSp1derPopup(data.message, data.from);
+  else if (data.type === "FISHES_GAME_ALIVE" && e.source && e.source !== window) {
+    /* A game window's bridge heartbeat: (re)register it, so tracking survives a hub reload. */
+    aliveGameWins.set(e.source, { id: data.game, lastSeen: Date.now() });
+    const now = Date.now();
+    aliveGameWins.forEach(function (entry, w) { if (now - entry.lastSeen > 25000) aliveGameWins.delete(w); });
+    refreshCurrentGame();
+  }
+  else if (data.type === "SP1DER_ARCADE_END") {
+    trackedWins.forEach(function (entry, win) { try { if (!win.closed) win.close(); } catch (err) {} });
+    trackedWins.clear(); refreshCurrentGame(); updateArcadeBar();
+    showSp1derPopup("Your arcade games were closed by staff.", "Staff");
+  }
+});
+/* Presence heartbeat + clean exit so Sp1der knows when the arcade closes. */
+reportToSp1der();
+setInterval(reportToSp1der, 15000);
+window.addEventListener("pagehide", function () {
+  try { localStorage.removeItem("sp1derArcadeBeacon"); } catch (e) {}
+  try { if (window.opener && window.opener !== window) window.opener.postMessage({ type: "FISHES_ARCADE_BYE" }, "*"); } catch (e) {}
+});
+async function launchSp1dercraft() {
+  const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
+  if (!win) { alert("Please allow popups."); return; }
+  trackGameWindow(win, "spidercraft");
+  const d = win.document, spoof = pickSpoof();
+  armCloseGuard(win); keepSpoofed(d, spoof);
+  d.open(); d.write(SPIDER_SPLASH_HTML); d.close();
+  const prog = () => { try { return d.getElementById("sProg"); } catch (_) { return null; } };
+  try {
+    const buffers = [];
+    let got = 0, expectedTotal = 0;
+    for (const url of SPIDER_PARTS) {
+      const res = await fetch(url, { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
+      const cl = parseInt(res.headers.get("content-length") || "0", 10);
+      if (cl > 0) expectedTotal += cl;
+      const bytes = await fetchBytes(res, (r) => {
+        const p = prog();
+        if (p) p.textContent = fmtMB(got + r) + (expectedTotal ? " / " + fmtMB(expectedTotal) : "") + " MB";
+      });
+      buffers.push(bytes);
+      got += bytes.length;
+    }
+    const combined = new Uint8Array(got);
+    let off = 0;
+    for (const b of buffers) { combined.set(b, off); off += b.length; }
+    const text = new TextDecoder("utf-8").decode(combined);
+    if (!looksLikeBundle(text)) throw new Error("The downloaded parts didn't look like the sp1dercraft bundle");
+    const frame = d.createElement("iframe");
+    frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
+    frame.setAttribute("allow", FRAME_ALLOW);
+    frame.srcdoc = injectBase(text, SPIDER_BASE);
+    d.body.appendChild(frame);
+    injectGameBridge(d, "spidercraft");
+    applySpoof(d, spoof);
+    console.info("[Fishes Arcade] sp1dercraft bundle (" + fmtMB(got) + " MB) served from raw.githubusercontent.com");
+  } catch (e) {
+    d.open(); d.write(spiderErrorHtml(e && e.message ? e.message : String(e))); d.close();
+  }
+}
+
+document.querySelectorAll("[data-launch]").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var id = btn.getAttribute("data-launch");
+    if (id === "spidercraft") launchSp1dercraft();
+    else if (REPO_APPS[id]) launchRepoApp(id);
+  });
+});
+
+/* ---- single-file apps served straight from a GitHub repo ----
+   Each app lists [htmlUrl, baseUrl, mode] sources tried in order. The fetched
+   HTML is injected with a <base> pointing at the repo, so relative assets load
+   too. Sources with a mode get their scripts inlined (see below). */
+const REPO_APPS = {
+  /* raw.githubusercontent.com is the only host the school filter lets through, but it
+     serves every file as text/plain with nosniff, so browsers refuse to run its
+     scripts. The "inline" / "inline-worker" modes fix that: every external
+     <script src> is fetched as text and embedded directly in the document (inline
+     scripts ignore MIME), and PolyTrack's physics-worker importScripts chain is
+     re-wired through Blob URLs (see patchWorkerChain). CDNs stay as fallbacks. */
+  polytrack: {
+    label: "PolyTrack",
+    sources: [
+      ["https://raw.githubusercontent.com/fish01-jpg/polytrack/main/index.html", "https://raw.githubusercontent.com/fish01-jpg/polytrack/main/", "inline-worker"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/polytrack@main/"],
+      ["https://fastly.jsdelivr.net/gh/fish01-jpg/polytrack@main/index.html", "https://fastly.jsdelivr.net/gh/fish01-jpg/polytrack@main/"],
+      ["https://gcore.jsdelivr.net/gh/fish01-jpg/polytrack@main/index.html", "https://gcore.jsdelivr.net/gh/fish01-jpg/polytrack@main/"],
+      ["https://rawcdn.githack.com/fish01-jpg/polytrack/50352596a2adc3593b7e9632c24477c2140353af/index.html", "https://rawcdn.githack.com/fish01-jpg/polytrack/50352596a2adc3593b7e9632c24477c2140353af/"],
+      ["https://cdn.statically.io/gh/fish01-jpg/polytrack@main/index.html", "https://cdn.statically.io/gh/fish01-jpg/polytrack@main/"]
+    ]
+  },
+  fluid: {
+    label: "Fluid Sim",
+    sources: [
+      ["https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/index.html", "https://raw.githubusercontent.com/fish01-jpg/WebGL-Fluid-Simulation/master/", "inline"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"],
+      ["https://fastly.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://fastly.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"],
+      ["https://gcore.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://gcore.jsdelivr.net/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"],
+      ["https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/index.html", "https://rawcdn.githack.com/fish01-jpg/WebGL-Fluid-Simulation/a2d292931f19d9b3b9f564e23e6c32729d2121c3/"],
+      ["https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/index.html", "https://cdn.statically.io/gh/fish01-jpg/WebGL-Fluid-Simulation@master/"]
+    ]
+  },
+  /* Cloaked Sp1der launcher: loads the Sp1der Runner (fishes.html) from this repo,
+     which in turn opens the sp1der backup (sp1der-backup.html). */
+  sp1der: {
+    label: "Project Sp1der",
+    sources: [
+      ["https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/fishes.html", "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://gcore.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://gcore.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/"]
+    ]
+  },
+  /* Server Tiers (BETA): how much server data each account can use. */
+  tiers: {
+    label: "Server Tiers",
+    sources: [
+      ["https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/tiers.html", "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/tiers.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/tiers.html", "https://fastly.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://gcore.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/tiers.html", "https://gcore.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"],
+      ["https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/tiers.html", "https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/"]
+    ]
+  }
+};
+
+/* ---- helpers for the raw.githubusercontent inline mode ---- */
+
+const SCRIPT_TAG_RE = /<script\b([^>]*?)\ssrc=(["'])([^"']+)\2([^>]*)>\s*<\/script>/gi;
+
+function absUrl(src, base) {
+  try { return new URL(src, base).href; } catch (e) { return null; }
+}
+
+async function fetchText(url) {
+  const res = await fetch(url, { cache: "no-cache" });
+  if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
+  return res.text();
+}
+
+/* Embed every external <script src> that points at the app's own repo, so the
+   browser never has to execute a text/plain script. Absolute URLs are left alone. */
+async function inlineScripts(html, base) {
+  const jobs = [];
+  html.replace(SCRIPT_TAG_RE, (m, pre, q, src, post) => {
+    if (!/^(https?:)?\/\//i.test(src)) jobs.push({ m, pre, post, src });
+    return m;
+  });
+  for (const j of jobs) {
+    const url = absUrl(j.src, base);
+    if (!url) continue;
+    const text = await fetchText(url);
+    html = html.replace(j.m, () => "<script" + j.pre + ">" + text + "<\/script>");
+  }
+  return html;
+}
+
+/* PolyTrack's physics worker is a Blob that importScripts()s
+   simulation_worker.bundle.js, which importScripts()s lib/ammo.wasm.js — both
+   would be refused as text/plain. Fetch them ourselves and hand the worker
+   Blob URLs instead (ammo's WASM itself is loaded via plain XHR, which is fine). */
+const SIM_IMPORT_FIND = '(self.__BASE||"")+"lib/ammo.wasm.js"';
+const WORKER_URL_FIND = 'new URL("simulation_worker.bundle.js",document.baseURI).href';
+
+async function patchWorkerChain(html, base) {
+  const [simText, ammoText] = await Promise.all([
+    fetchText(absUrl("simulation_worker.bundle.js", base)),
+    fetchText(absUrl("lib/ammo.wasm.js", base))
+  ]);
+  const ammoUrl = URL.createObjectURL(new Blob([ammoText], { type: "text/javascript" }));
+  const simPatched = simText.replace(SIM_IMPORT_FIND, JSON.stringify(ammoUrl));
+  if (simPatched === simText) throw new Error("couldn't patch ammo importScripts");
+  const simUrl = URL.createObjectURL(new Blob([simPatched], { type: "text/javascript" }));
+  const patched = html.replace(WORKER_URL_FIND, JSON.stringify(simUrl));
+  if (patched === html) throw new Error("couldn't patch worker importScripts");
+  return patched;
+}
+
+async function buildAppHtml(text, base, mode) {
+  let html = text;
+  if (mode === "inline" || mode === "inline-worker") html = await inlineScripts(html, base);
+  if (mode === "inline-worker") html = await patchWorkerChain(html, base);
+  return html;
+}
+
+async function launchRepoApp(appId) {
+  const app = REPO_APPS[appId];
+  const label = (app && app.label) || appId;
+  const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
+  if (!win) { alert("Please allow popups."); return; }
+  if (appId !== "sp1der" && appId !== "tiers") trackGameWindow(win, appId); // sp1der = chat app, tiers = info page
+  const d = win.document, spoof = pickSpoof();
+  armCloseGuard(win); keepSpoofed(d, spoof);
+  d.open(); d.write(appSplashHtml(label)); d.close();
+  const note = () => { try { return d.getElementById("appNote"); } catch (_) { return null; } };
+  try {
+    let html = null, base = null, inlined = false, lastErr = null;
+    for (const [url, b, mode] of app.sources) {
+      try {
+        const text = await fetchText(url);
+        if (!looksLikeBundle(text)) throw new Error("didn't look like the " + label + " app");
+        const p = note();
+        if (p) p.textContent = mode ? "unpacking from raw.githubusercontent..." : "loading from CDN...";
+        const built = mode ? await buildAppHtml(text, b, mode) : text;
+        html = built; base = b; inlined = !!mode;
+        break;
+      } catch (e) { lastErr = e; }
+    }
+    if (html === null) throw lastErr || new Error("all sources failed");
+    const frame = d.createElement("iframe");
+    frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
+    frame.setAttribute("allow", FRAME_ALLOW);
+    frame.srcdoc = injectBase(html, base);
+    d.body.innerHTML = ""; /* drop the splash */
+    d.body.appendChild(frame);
+    if (appId !== "sp1der" && appId !== "tiers") injectGameBridge(d, appId);
+    applySpoof(d, spoof);
+    console.info("[Fishes Arcade] " + label + " served from " + base + (inlined ? " (scripts inlined)" : ""));
+  } catch (e) {
+    d.open(); d.write(appErrorHtml(label, e && e.message ? e.message : String(e))); d.close();
+  }
+}
+
+(function initBossFish() {
+  const svg = document.getElementById("bossFish");
+  const bubble = document.getElementById("bossBubble");
+  if (!svg || !bubble) return;
+  const INSULTS = [
+    "You click like a fish out of water. Pathetic.",
+    "I've seen minnows with better aim.",
+    "Congratulations, you poked the Don. Real smart.",
+    "That was the weakest click I've ever seen.",
+    "Keep it up and you'll be sleeping with the humans.",
+    "My monocle costs more than your whole setup.",
+    "You're lucky you're not sushi yet.",
+    "The bouncers are watching you, pal."
+  ];
+  /* The Don tolerates insults, but every click brings sebass closer. */
+  const SEBASS_WARNINGS = [
+    "Enough. Every click echoes in the deep.",
+    "He hears you. He is waking up. Stop clicking.",
+    "You were warned. -sebass is coming.",
+    "IT IS TOO LATE. HE IS ALREADY SWIMMING."
+  ];
+  const WARN_AT = 8, SUMMON_AT = 12;
+  let donClicks = 0, last = -1, hideT = null;
+  svg.addEventListener("click", function () {
+    if (window.__sebassSummoned) return;
+    donClicks++;
+    if (donClicks >= SUMMON_AT) { summonSebass(); return; }
+    if (donClicks >= WARN_AT) {
+      document.body.classList.add("sebass-trembling");
+      svg.classList.add("boss-mad");
+      bubble.textContent = SEBASS_WARNINGS[Math.min(SEBASS_WARNINGS.length - 1, donClicks - WARN_AT)];
+      bubble.classList.add("boss-bubble-show");
+      clearTimeout(hideT);
+      hideT = setTimeout(function () {
+        bubble.classList.remove("boss-bubble-show");
+        svg.classList.remove("boss-mad");
+      }, 3400);
+      return;
+    }
+    svg.classList.add("boss-mad");
+    let i;
+    do { i = Math.floor(Math.random() * INSULTS.length); } while (i === last && INSULTS.length > 1);
+    last = i;
+    bubble.textContent = INSULTS[i];
+    bubble.classList.add("boss-bubble-show");
+    clearTimeout(hideT);
+    hideT = setTimeout(function () {
+      bubble.classList.remove("boss-bubble-show");
+      svg.classList.remove("boss-mad");
+    }, 3400);
+  });
+})();
+
+/* The true form of sebass, as captured on camera. Only the first 3.5 seconds
+   of the recording may be shown; the rest is classified. The school filter
+   only lets raw.githubusercontent.com through, and it serves webm as
+   audio/webm — so if a direct <source> won't play, the file is fetched as a
+   blob (CORS is open on raw) and played from an object URL, which always
+   works. */
+function makeSebassVideo() {
+  const v = document.createElement("video");
+  v.className = "sebass-angel";
+  v.autoplay = true;
+  v.playsInline = true;
+  v.preload = "auto";
+  v.setAttribute("role", "img");
+  v.setAttribute("aria-label", "sebass in his true form");
+  const RAW = "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sebass.webm";
+  [
+    "sebass.webm", /* same folder / base href (raw when loaded by the launcher) */
+    RAW
+  ].forEach(function (src) {
+    const s = document.createElement("source");
+    s.src = src;
+    s.type = "video/webm";
+    v.appendChild(s);
+  });
+  v.addEventListener("timeupdate", function () {
+    if (v.currentTime >= 3.5) {
+      v.pause();
+      try { v.currentTime = 3.5; } catch (e) {}
+    }
+  });
+  const start = function () { v.play().catch(function () { v.muted = true; v.play().catch(function () {}); }); };
+  start();
+  /* blob fallback: fires only after every <source> above has failed */
+  v.addEventListener("error", function onErr() {
+    v.removeEventListener("error", onErr);
+    fetch(RAW, { cache: "no-cache" })
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (b) { v.src = URL.createObjectURL(b); start(); })
+      .catch(function () { /* jsdelivr, for networks where raw is blocked */ v.src = "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sebass.webm"; start(); });
+  });
+  return v;
+}
+
+const SEBASS_FALLBACK_SVG =
+'<svg class="sebass-angel" viewBox="0 0 400 270" role="img" aria-label="A biblically accurate angel fish">' +
+'<defs>' +
+'<radialGradient id="sGlow"><stop offset="0" stop-color="#ffe08a" stop-opacity="0.5"/><stop offset="1" stop-color="#ffe08a" stop-opacity="0"/></radialGradient>' +
+'<linearGradient id="sBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7de"/><stop offset="1" stop-color="#e6bf63"/></linearGradient>' +
+'<g id="sEye"><circle r="7" fill="#fff"/><circle r="3" fill="#141416"/></g>' +
+'</defs>' +
+'<circle cx="200" cy="128" r="105" fill="url(#sGlow)"/>' +
+'<ellipse class="halo" cx="200" cy="44" rx="56" ry="12" fill="none" stroke="#f5b83d" stroke-width="5"/>' +
+'<g class="wing wing-l">' +
+'<path d="M138 96 C 92 44, 46 56, 18 22 C 62 18, 108 44, 140 72 Z" fill="#f8eed4" opacity="0.92"/>' +
+'<path d="M136 128 C 80 96, 36 104, 6 92 C 52 76, 104 92, 138 108 Z" fill="#f3e5c4" opacity="0.92"/>' +
+'<path d="M136 158 C 84 140, 44 150, 16 158 C 56 132, 106 136, 138 146 Z" fill="#ecdcb2" opacity="0.92"/>' +
+'<use href="#sEye" x="56" y="48" class="eye"/>' +
+'<use href="#sEye" x="98" y="58" class="eye"/>' +
+'<use href="#sEye" x="38" y="96" class="eye"/>' +
+'<use href="#sEye" x="92" y="100" class="eye"/>' +
+'<use href="#sEye" x="60" y="146" class="eye"/>' +
+'</g>' +
+'<g class="wing wing-r">' +
+'<path d="M262 96 C 308 44, 354 56, 382 22 C 338 18, 292 44, 260 72 Z" fill="#f8eed4" opacity="0.92"/>' +
+'<path d="M264 128 C 320 96, 364 104, 394 92 C 348 76, 296 92, 262 108 Z" fill="#f3e5c4" opacity="0.92"/>' +
+'<path d="M264 158 C 316 140, 356 150, 384 158 C 344 132, 294 136, 262 146 Z" fill="#ecdcb2" opacity="0.92"/>' +
+'<use href="#sEye" x="344" y="48" class="eye"/>' +
+'<use href="#sEye" x="302" y="58" class="eye"/>' +
+'<use href="#sEye" x="362" y="96" class="eye"/>' +
+'<use href="#sEye" x="308" y="100" class="eye"/>' +
+'<use href="#sEye" x="340" y="146" class="eye"/>' +
+'</g>' +
+'<path d="M186 172 C 176 200, 172 214, 158 232 C 178 224, 192 212, 200 196 C 208 212, 222 224, 242 232 C 228 214, 224 200, 214 172 Z" fill="#e6c877"/>' +
+'<ellipse cx="200" cy="140" rx="62" ry="42" fill="#f2dfa8"/>' +
+'<ellipse cx="200" cy="152" rx="46" ry="24" fill="#fff7de" opacity="0.75"/>' +
+'<path d="M186 158 Q200 166 214 158" stroke="#8a6a1e" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+'<use href="#sEye" x="176" y="126" class="eye"/>' +
+'<use href="#sEye" x="224" y="126" class="eye"/>' +
+'<use href="#sEye" x="200" y="152" class="eye"/>' +
+'</svg>';
+
+function summonSebass() {
+  if (window.__sebassSummoned) return;
+  window.__sebassSummoned = true;
+
+  /* ominous two-tone drone, no audio files needed */
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+      const ac = new AC();
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0, ac.currentTime);
+      g.gain.linearRampToValueAtTime(0.16, ac.currentTime + 1.4);
+      const o1 = ac.createOscillator(), o2 = ac.createOscillator();
+      o1.type = o2.type = "sine";
+      o1.frequency.value = 55; o2.frequency.value = 55.8;
+      o1.connect(g); o2.connect(g); g.connect(ac.destination);
+      o1.start(); o2.start();
+      setTimeout(function () {
+        try {
+          g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 1);
+          o1.stop(ac.currentTime + 1.2); o2.stop(ac.currentTime + 1.2);
+          setTimeout(function () { try { ac.close(); } catch (e) {} }, 1600);
+        } catch (e) {}
+      }, 8000);
+    }
+  } catch (e) {}
+
+  const lines = TAGLINES.filter(function (t) { return t.indexOf("-sebass") !== -1; });
+  const saying = lines.length
+    ? lines[Math.floor(Math.random() * lines.length)]
+    : "the fish have already won. -sebass";
+
+  document.body.classList.add("sebass-summoning");
+
+  const ov = document.createElement("div");
+  ov.id = "sebass-overlay";
+  ov.innerHTML =
+    '<div class="sebass-rings">' +
+    '<div class="sebass-ring"></div>' +
+    '<div class="sebass-ring" style="animation-delay:1.1s"></div>' +
+    '<div class="sebass-ring" style="animation-delay:2.2s"></div>' +
+    "</div>" +
+    '<div class="sebass-angel-wrap" id="sebassAngelWrap"></div>' +
+    '<p class="sebass-title">Be not afraid</p>' +
+    '<p class="sebass-saying">' + saying + "</p>";
+  document.body.appendChild(ov);
+
+  /* the recording if it can load, the angel fish if it can't */
+  const angelWrap = document.getElementById("sebassAngelWrap");
+  if (angelWrap) {
+    const v = makeSebassVideo();
+    /* only give up on the video once every fallback has had its chance */
+    v.addEventListener("error", function () {
+      setTimeout(function () {
+        if (v.error || v.readyState === 0) angelWrap.innerHTML = SEBASS_FALLBACK_SVG;
+      }, 3500);
+    });
+    angelWrap.appendChild(v);
+  }
+
+  /* let the angel deliver its message, then close the tab */
+  setTimeout(function () {
+    window.close();
+    /* browsers only let scripts close tabs they opened; if the close was
+       refused, fall back to somewhere teacher-proof */
+    setTimeout(function () {
+      try { window.location.replace("https://classroom.google.com/"); } catch (e) {}
+    }, 500);
+  }, 9500);
+}
+
+(function initBouncers() {
+  const LINES = [
+    "You're not on the list.",
+    "Move along, kid.",
+    "Boss said no touching.",
+    "Keep clicking, see what happens.",
+    "This is a private reef."
+  ];
+  ["L", "R"].forEach(function (side) {
+    const el = document.getElementById("bouncer" + side);
+    const bubble = document.getElementById("bouncer" + side + "Bubble");
+    if (!el || !bubble) return;
+    let hideT = null;
+    el.addEventListener("click", function () {
+      bubble.textContent = LINES[Math.floor(Math.random() * LINES.length)];
+      bubble.classList.add("bouncer-bubble-show");
+      clearTimeout(hideT);
+      hideT = setTimeout(function () { bubble.classList.remove("bouncer-bubble-show"); }, 2600);
+    });
+  });
+})();
+
+/* Review terms modal wiring — re-readable any time after agreeing */
+(function initReviewTerms() {
+  const overlay = document.getElementById("termsOverlay");
+  const openBtn = document.getElementById("reviewTermsBtn");
+  const closeBtn = document.getElementById("termsClose");
+  if (!overlay || !openBtn || !closeBtn) return;
+  openBtn.addEventListener("click", function () { overlay.hidden = false; });
+  closeBtn.addEventListener("click", function () { overlay.hidden = true; });
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.hidden = true; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !overlay.hidden) overlay.hidden = true; });
+})();
+
+window.__mantleBooted = true;
+console.info("[Fishes Arcade] hub ready · sp1dercraft edition");
+</script>
+</body>
+</html>
