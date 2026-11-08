@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#030916"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>Sp1der Mobile</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#01040a;color:#e3eefb}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}body{display:flex;flex-direction:column;height:100dvh}header{padding:calc(8px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:#030916;border-bottom:1px solid #20364c;flex:none}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}h1{font-size:17px;margin:0;flex:1}button,input{font:inherit;font-size:14px;border-radius:9px;border:1px solid #294766;background:#0b192b;color:#e3eefb;min-height:44px;padding:10px 12px}button{cursor:pointer;touch-action:manipulation}button:focus-visible,input:focus-visible{outline:2px solid #78b4e3;outline-offset:2px}button.primary{background:#245b91}button:disabled{opacity:.5}#status{margin:8px 0 0;font-size:12px;line-height:1.4;color:#a5bad1;overflow-wrap:anywhere}#tools{padding-top:10px}#tools[hidden],header[hidden]{display:none}label{font-size:13px;display:flex;align-items:center;gap:8px;margin:8px 0}input[type=checkbox]{min-height:24px;width:24px}input[type=text]{width:150px;min-width:0}main{position:relative;flex:1;min-height:0;margin-bottom:env(safe-area-inset-bottom)}iframe{display:block;width:100%;height:100%;border:0;background:#01040a}#cover{position:absolute;inset:0;display:grid;place-content:center;text-align:center;background:#01040a;padding:24px}#cover[hidden]{display:none}#restore{position:fixed;top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));z-index:20;background:#0b192be8}#restore[hidden]{display:none}.hint{font-size:12px;color:#a5bad1;line-height:1.5}a{color:#78b4e3}
+</style></head><body>
+<header id="bar"><div class="row"><h1>Sp1der Mobile</h1><button id="reload">Reload</button><button id="menu" aria-expanded="false" aria-controls="tools">Options</button><button id="hide">Hide</button></div>
+<p id="status" role="status" aria-live="polite">Starting…</p>
+<div id="tools" hidden><div class="row"><label>Branch <input id="branch" type="text" value="main" spellcheck="false" autocomplete="off" autocapitalize="none"></label><button id="run" class="primary">Fetch &amp; run</button></div>
+<label><input id="trusted" type="checkbox">Remember login — trusted app</label>
+<p class="hint">Trusted mode gives the loaded app access to this runner’s origin and storage. Enable only for code you trust. Changing this reloads the app.</p>
+<button id="fullscreen">Fullscreen</button><p class="hint">Updates are manual so the runner will not interrupt a chat. This runner loads sp1der-backup.html; publish your updated app there to use its theme and event changes. Device notifications are not provided by this mobile runner.</p></div></header>
+<button id="restore" hidden aria-label="Show runner controls">Controls</button>
+<main><iframe id="app" title="Project Sp1der" referrerpolicy="no-referrer" allow="fullscreen; autoplay; clipboard-read; clipboard-write; camera; microphone; gamepad" allowfullscreen></iframe><div id="cover"><div><h2>Sp1der</h2><p id="loading">Loading your app…</p></div></div></main>
+<script>
+'use strict';
+(()=>{
+const $=id=>document.getElementById(id),frame=$('app'),key='__sp1der_mobile_prefs_v1';
+let busy=false,current=null,prefs={branch:'main',trusted:false};
+try{Object.assign(prefs,JSON.parse(localStorage.getItem(key)||'{}'))}catch(e){}
+$('branch').value=prefs.branch||'main';$('trusted').checked=prefs.trusted===true;
+function save(){prefs={branch:$('branch').value.trim()||'main',trusted:$('trusted').checked};try{localStorage.setItem(key,JSON.stringify(prefs))}catch(e){}}
+function status(text){$('status').textContent=text}
+function install(html){frame.setAttribute('sandbox','allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads'+(prefs.trusted?' allow-same-origin':''));frame.srcdoc=html;current=html;$('cover').hidden=true;status('App loaded · '+prefs.branch+' · '+(prefs.trusted?'trusted mode':'isolated mode'))}
+async function run(){if(busy)return;save();const branch=prefs.branch.replace(/[^A-Za-z0-9._\/-]/g,'')||'main';prefs.branch=branch;$('branch').value=branch;busy=true;$('run').disabled=$('reload').disabled=true;if(!current)$('cover').hidden=false;status('Fetching '+branch+'…');
+const sources=['https://raw.githubusercontent.com/fish01-jpg/mantle-menu/'+branch+'/sp1der-backup.html','https://cdn.statically.io/gh/fish01-jpg/mantle-menu/'+branch+'/sp1der-backup.html'];
+let error='No sources available';try{for(const url of sources){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);try{const res=await fetch(url,{cache:'no-cache',signal:controller.signal});if(!res.ok)throw Error('HTTP '+res.status);const html=await res.text();if(html.length<2000||!/<html/i.test(html)||!/<script/i.test(html)||!html.includes('Project Sp1der'))throw Error('Source did not return the Sp1der app');install(html);return}catch(e){error=e.name==='AbortError'?'Request timed out':e.message}finally{clearTimeout(timer)}}status('Could not load: '+error+'. Tap Reload to try again.');$('loading').textContent='Could not fetch the app. Tap Reload above.'}finally{busy=false;$('run').disabled=$('reload').disabled=false}}
+$('reload').onclick=$('run').onclick=run;
+$('branch').onkeydown=e=>{if(e.key==='Enter')run()};
+$('menu').onclick=()=>{const open=$('tools').hidden;$('tools').hidden=!open;$('menu').setAttribute('aria-expanded',String(open))};
+$('hide').onclick=()=>{$('bar').hidden=true;$('restore').hidden=false};
+$('restore').onclick=()=>{$('bar').hidden=false;$('restore').hidden=true};
+$('trusted').onchange=()=>{save();if(current)install(current)};
+$('fullscreen').onclick=async()=>{try{if(!document.documentElement.requestFullscreen){status('Fullscreen is unavailable here. Use Hide for more space.');return}await document.documentElement.requestFullscreen()}catch(e){status('Fullscreen was not allowed. Use Hide for more space.')}};
+window.addEventListener('message',e=>{if(e.source!==frame.contentWindow||!e.data||typeof e.data!=='object')return;const d=e.data;if(d.type==='SP1DER_TAB_TITLE'&&typeof d.title==='string')document.title=d.title.slice(0,160);if(d.type==='SP1DER_NOTIF_HELLO'||d.type==='SP1DER_NOTIF_REQUEST')frame.contentWindow.postMessage({type:'SP1DER_NOTIF_RELAY',permission:'unsupported',problem:'Use in-app alerts on this mobile runner.'},'*');if(d.type==='SP1DER_NOTIFY')frame.contentWindow.postMessage({type:'SP1DER_NOTIF_RESULT',id:d.id,ok:false,error:'Device notifications are not enabled in this mobile runner.'},'*')});
+run();
+})();
+</script></body></html>
