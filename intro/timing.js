@@ -37,7 +37,17 @@
       const charge = next ? Math.pow(1 - (next.at - t) / .9, 2) * next.power : 0;
       return {pulse, kick, punch, charge, hits, locks, next};
     }
-    return Object.freeze({events, times, beat, effects});
+    function story(t, reduced = false) {
+      const stage = [...score.stages].reverse().find(s => t >= s.at) || score.stages[0];
+      let detail = stage.detail;
+      if (!reduced) for (const cue of stage.readouts || []) {
+        if (t >= stage.at + cue.after) detail = cue.text;
+      }
+      const wordIndex = reduced ? 2 : Math.max(0, Math.min(2, Math.floor(t - times.resolve)));
+      return {detail, word: stage.id === 'resolve' ? score.words[wordIndex] : null,
+        titleSettled: t >= times.identity + 5 * beat};
+    }
+    return Object.freeze({events, times, beat, effects, story});
   }
   return Object.freeze({create});
 }));

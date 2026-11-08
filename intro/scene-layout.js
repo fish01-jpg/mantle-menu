@@ -7,7 +7,7 @@
   const clamp = v => Math.max(0,Math.min(1,v));
   const ease = v => {v=clamp(v);return v*v*(3-2*v);};
   function layers(score,t,poster=false,reduced=false) {
-    const out={signal:0,assembly:0,core:0,orbital:0,network:0,warp:0,title:0};
+    const out={signal:0,assembly:0,core:0,orbital:0,network:0,warp:0,resolve:0,title:0};
     if(poster)return {...out,signal:1,assembly:1,core:1,scene:'poster'};
     let index=0;score.stages.forEach((s,i)=>{if(t>=s.at)index=i;});
     const stage=score.stages[index], end=score.stages[index+1]?.at??score.duration;

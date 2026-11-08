@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const layout=require('../intro/scene-layout.js');
 const score=JSON.parse(fs.readFileSync(path.join(__dirname,'../intro/sequence.json'),'utf8'));
-const keys=['signal','assembly','core','orbital','network','warp','title'];
+const keys=['signal','assembly','core','orbital','network','warp','resolve','title'];
 test('phase two has no opening background or ghost core, including its exact boundary',()=>{
   for(const t of [4,4.01,4.5,6,7.99]){
     const layers=layout.layers(score,t);
@@ -15,7 +15,7 @@ test('phase two has no opening background or ghost core, including its exact bou
   assert.ok(layout.layers(score,6).assembly>.99);
 });
 test('each phase exclusively owns its primary geometry; nothing lingers under the title',()=>{
-  const expected=['signal','assembly','core','orbital','network','warp','title','title'];
+  const expected=['signal','assembly','core','orbital','network','warp','resolve','title','title'];
   score.stages.forEach((stage,index)=>{
     for(const reduced of [false,true]){
       const layers=layout.layers(score,stage.at+1.5,false,reduced);
@@ -69,4 +69,11 @@ test('primary geometry is clipped to its artwork region, not the control/caption
   assert.match(source,/getBoundingClientRect/);
   assert.match(source,/const coreAlpha=.*layers\.core/);
   assert.match(source,/if\(layers\.signal>0\)for\(const s of stars/);
+});
+test('short phones keep at least one readable tunnel panel without shrinking its type',()=>{
+  const source=fs.readFileSync(path.join(__dirname,'../intro/sp1der-intro.js'),'utf8');
+  assert.match(source,/if\(!panels\.length&&box\.width>=112&&box\.height>=64\)/);
+  assert.match(source,/x:box\.left\+8,y:box\.bottom-44,w:96,h:36/);
+  assert.match(source,/ctx\.font="12px 'IBM Plex Mono',monospace"/);
+  assert.match(source,/labels\[state\.reduced\?0:/);
 });

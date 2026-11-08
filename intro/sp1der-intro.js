@@ -177,7 +177,7 @@
     }
   }
   function warpCorridor(t, motion, alpha){
-    const count=phone()?10:15;
+    const count=phone()?14:22;
     for(let j=0;j<count;j++){
       const z=state.reduced?j*1.7-2:((j*1.7+28-(t-T.warp)*8)%26+26)%26-4;
       const points=[];
@@ -186,16 +186,86 @@
         points.push([Math.cos(a)*2.8,Math.sin(a)*2.8,z]);
       }
       path(points,j%4===0?C.warm:C.cyan,alpha*(.13+Math.max(0,1-(z+4)/26)*.3),1.3);
+      // Alternating wall trusses make the passage a volume, not just nested rings.
+      for(let i=0;i<6;i++){
+        const a=i/6*TAU+motion*.075, b=a+TAU/6;
+        path([[Math.cos(a)*2.8,Math.sin(a)*2.8,z],
+          [Math.cos(b)*2.8,Math.sin(b)*2.8,z+1.05]],C.dim,alpha*.33,.7);
+      }
     }
     const countLines=phone()?18:32;
     for(let i=0;i<countLines;i++){
       const a=i/countLines*TAU+motion*.075, r=2.8+(i%3)*.35;
       path([[Math.cos(a)*r,Math.sin(a)*r,-3.7],[Math.cos(a)*r,Math.sin(a)*r,18]],i%7===0?C.warm:C.cyan,alpha*.25);
     }
+    const packets=phone()?10:18, objects=phone()?8:14;
+    for(let i=0;i<packets;i++){
+      const a=i/packets*TAU+motion*.075, r=2.55+(i%3)*.12;
+      const z=state.reduced?i*1.1:((i*1.9+26-(t-T.warp)*12)%22+22)%22-3.5;
+      const p=[Math.cos(a)*r,Math.sin(a)*r,z];
+      path([p,[p[0],p[1],z+1.1]],i%4===0?C.warm:C.cyan,alpha*.85,1.8);
+      dot(p,1.5,i%4===0?C.warm:C.pale,alpha);
+    }
+    for(let i=0;i<objects;i++){
+      const z=state.reduced?i*1.7:((i*2.7+30-(t-T.warp)*5)%20+20)%20-3;
+      const a=i/objects*TAU+motion*.1;
+      model(names[i%names.length],[Math.cos(a)*1.9,Math.sin(a)*1.9,z],.38,
+        [.2,motion*.3+i,a*.1],alpha*.85,i%3===0?C.warm:C.cyan);
+    }
+    // A central destination, with independent inner and outer depth scales.
+    ring(.85,9,[.1,-.1,0],-motion*.25,alpha*.7,true,C.warm);
+    ring(1.15,12,[0,0,0],motion*.18,alpha*.5,true);
+    const panels=[], box=composition.box, labels=['CONNECT','BUILD','EXPLORE','BELONG'];
+    function paintPanel(rect,label){
+      const {w:pw,h:ph}=rect;
+      ctx.fillStyle=rgba([6,12,18],alpha*.92);ctx.fillRect(rect.x,rect.y,pw,ph);
+      ctx.strokeStyle=rgba(C.cyan,alpha*.65);ctx.lineWidth=1;ctx.strokeRect(rect.x,rect.y,pw,ph);
+      ctx.font="12px 'IBM Plex Mono',monospace";ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillStyle=rgba(C.pale,alpha);ctx.fillText(label,rect.x+9,rect.y+6);
+      ctx.fillStyle=rgba(C.warm,alpha*.9);ctx.fillRect(rect.x+9,rect.y+25,pw*.26,2);
+      ctx.fillStyle=rgba(C.dim,alpha);ctx.fillRect(rect.x+12+pw*.26,rect.y+25,pw*.42,2);
+    }
+    for(let i=0;i<(phone()?4:7);i++){
+      const a=i/4*TAU+.65+motion*.09;
+      const z=state.reduced?i*2:((i*4+18-(t-T.warp)*3)%16+16)%16-2;
+      const q=project([Math.cos(a)*1.7,Math.sin(a)*1.7,z]);
+      if(!q||q[2]*2.1<60)continue;
+      const pw=Math.max(80,Math.min(124,q[2]*2.1)), ph=36;
+      const rect={x:q[0]-pw/2,y:q[1]-ph/2,w:pw,h:ph};
+      if(rect.x<box.left+4||rect.x+pw>box.right-4||rect.y<box.top+4||rect.y+ph>box.bottom-4)continue;
+      if(panels.some(p=>rect.x<p.x+p.w+8&&rect.x+pw+8>p.x&&rect.y<p.y+p.h+8&&rect.y+ph+8>p.y))continue;
+      panels.push(rect);
+      paintPanel(rect,labels[i%4]);
+    }
+    // Embedded/short phones must not lose every readable tunnel label to depth.
+    if(!panels.length&&box.width>=112&&box.height>=64)
+      paintPanel({x:box.left+8,y:box.bottom-44,w:96,h:36},
+        labels[state.reduced?0:Math.floor((t-T.warp)/1.5)%4]);
+  }
+  function resolveSequence(t,motion,alpha){
+    const elapsed=t-T.resolve, index=state.reduced?2:Math.min(2,Math.floor(elapsed));
+    const word=score.words[Math.max(0,index)], local=state.reduced?1:elapsed-index;
+    const settle=state.reduced?1:ease(local/.23);
+    const b=composition.box;
+    // Isolated chapter cards replace the tunnel completely at this boundary.
+    ring(2.25,1,[.3,motion*.09,0],motion*.16,alpha*.35,true,C.warm);
+    ring(1.75,.5,[-.4,0,.2],-motion*.12,alpha*.3,true);
     for(let i=0;i<6;i++){
-      const z=state.reduced?i*2:((i*3+30-(t-T.warp)*5)%20+20)%20-3;
-      const a=i/6*TAU+motion*.1;
-      model(names[i],[Math.cos(a)*2,Math.sin(a)*2,z],.32,[.2,motion*.3+i,a*.1],alpha*.65,i%3===0?C.warm:C.cyan);
+      const a=i/6*TAU+motion*.12, r=2.1+(1-settle)*.5;
+      model(names[i],[Math.cos(a)*r,Math.sin(a)*r,1],.22,[.2,a,motion*.1],alpha*.75,i%2?C.cyan:C.warm);
+    }
+    const size=Math.min(96,b.width/(word.length*.62),b.height*.30);
+    ctx.fillStyle=rgba([6,12,18],alpha*.86);
+    ctx.fillRect(b.left,b.top+b.height*.5-size*.7,b.width,size*1.55+32);
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font=`600 ${size}px 'Barlow Condensed',sans-serif`;
+    ctx.fillStyle=rgba(C.pale,alpha*settle);ctx.fillText(word,cx,cy+(1-settle)*12);
+    ctx.font="12px 'IBM Plex Mono',monospace";ctx.fillStyle=rgba(C.warm,alpha);
+    ctx.fillText(['YOUR PEOPLE','YOUR IDEAS','YOUR SPACE'][Math.max(0,index)],cx,cy+size*.72+12);
+    const length=Math.min(150,b.width*.5);
+    for(let i=0;i<3;i++){
+      ctx.fillStyle=rgba(i<=index?C.cyan:C.dim,alpha*.8);
+      ctx.fillRect(cx-length/2+i*length/3,b.bottom-12,length/3-6,2);
     }
   }
   function drawWorld(t, poster) {
@@ -301,6 +371,7 @@
       }
     }
     if(layers.warp>0)warpCorridor(t,motion,layers.warp);
+    if(layers.resolve>0)resolveSequence(t,motion,layers.resolve);
     if(!poster)drawImpact(fx,actual);
     // Six independently projected, extruded letters assemble from different axes.
     if(!poster&&t>=T.identity){
@@ -322,7 +393,7 @@
         if(lock&&lock.age<.45){ctx.shadowColor=rgba(C.warm,1);ctx.shadowBlur=22*Math.exp(-lock.age*7);}
         ctx.fillStyle=rgba(C.pale,u);ctx.fillText(title[i],0,0);ctx.restore();
       }
-      const a=ease((t-T.identity-2.5)/1.2);
+      const a=ease((t-T.identity-2.5)/.65);
       path([[-2.3*titleFit,.66*titleFit,-.6],[2.3*titleFit,.66*titleFit,-.6]],C.warm,.6*a);
       const q=project([0,.98*titleFit,-.6]);
       if(q){ctx.font="12px 'IBM Plex Mono',monospace";ctx.textAlign='center';ctx.fillStyle=rgba(C.cyan,.85*a);ctx.fillText('YOUR PEOPLE. YOUR SPACE.',q[0],q[1]);}
@@ -360,8 +431,10 @@
     let index=0;score.stages.forEach((s,i)=>{if(t>=s.at)index=i;});
     if(state.stage!==index){
       state.stage=index;const s=score.stages[index];
-      $('stageTag').textContent=s.tag;$('stageTitle').textContent=s.name;$('stageDetail').textContent=s.detail;
+      $('stageTag').textContent=s.tag;$('stageTitle').textContent=s.name;
     }
+    const detail=timeline.story(t,state.reduced).detail;
+    if($('stageDetail').textContent!==detail)$('stageDetail').textContent=detail;
     $('timecode').textContent=t.toFixed(1).padStart(4,'0')+' / '+score.duration.toFixed(1);
     $('timelineFill').style.width=t/score.duration*100+'%';
   }
@@ -381,6 +454,7 @@
     $('sound').hidden=true;status(message||'Silent playback.');
   }
   function syncControls(){
+    if(state.stage>=0)updateStage(state.time);
     $('motion').setAttribute('aria-pressed',String(state.reduced));
     $('motion').textContent=state.reduced?'Motion reduced':'Reduce motion';
     $('sound').setAttribute('aria-pressed',String(state.muted));
@@ -540,6 +614,7 @@
     getState:()=>({phase:state.phase,clock:state.mode,time:playbackTime(),stage:state.stage,reduced:state.reduced,appReady:state.ready,appFailed:state.appFailed}),
     duration:score.duration,
     getEffects:()=>timeline.effects(playbackTime(),state.reduced),
+    getStory:()=>timeline.story(playbackTime(),state.reduced),
     getComposition:()=>composition?JSON.parse(JSON.stringify(composition)):null
   });
   syncControls();resize();

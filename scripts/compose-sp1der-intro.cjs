@@ -74,7 +74,7 @@ for (const cue of timeline.events) {
 for (const stage of score.stages.slice(1,-1)) event(stage.at+1, 1.4, (t,u) =>
   .035*Math.sin(2*Math.PI*(340*t+1250*t*t))*Math.sin(Math.PI*u)*Math.pow(1-u,1.5), -.5);
 // A rising stereo transit layer leads into the title; final chord is allowed to breathe.
-for(const pan of [-.8,.8]) event(timeline.times.warp, 4, (t,u) =>
+for(const pan of [-.8,.8]) event(timeline.times.warp, timeline.times.resolve-timeline.times.warp, (t,u) =>
   .035*(tone(146.8324*(pan<0?1:1.002),t)+.4*tone(293.6648,t))*Math.sin(Math.PI*u),pan);
 // Short stereo diffusion, not an external impulse response.
 for (let i = length - 1; i >= 0; i--) for (const [delay,gain] of [[.173,.15],[.293,.11],[.439,.07]]) {

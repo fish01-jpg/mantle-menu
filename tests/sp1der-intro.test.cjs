@@ -63,17 +63,18 @@ test('raw GitHub launcher injects a real document base instead of matching a scr
   assert.ok(result.includes('<head><base href="'+base+'">'));
   assert.equal((result.match(/<base\s/g)||[]).length,1);
 });
-test('score has eight ordered stages and a real versioned 34-second MP3',()=>{
-  assert.deepEqual(score.stages.map(s=>s.at),[0,4,8,12,16,20,24,30]);
-  assert.equal(score.duration,34);assert.equal(score.version,2);
-  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v2.mp3');
+test('score has nine ordered stages and a real versioned 34-second MP3',()=>{
+  assert.deepEqual(score.stages.map(s=>s.at),[0,4,8,12,16,20,26,29,32]);
+  assert.equal(score.duration,34);assert.equal(score.version,3);
+  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v3.mp3');
   const data=fs.readFileSync(path.join(root,score.audio));
   assert.ok(data.length>500000&&data.length<650000);
   assert.equal(data.subarray(0,3).toString(),'ID3');
   // Older downloaded wrappers must still get their matching original audio.
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta.mp3')).size>300000);
+  assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v2.mp3')).size>500000);
   assert.match(read('sp1der-intro.html'),/34 seconds/);
-  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 02/);
+  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 03/);
   assert.match(read('index.html'),/34-second intro/);
 });
 test('audio synthesis and rendering import the identical timing implementation',()=>{
@@ -83,7 +84,7 @@ test('audio synthesis and rendering import the identical timing implementation',
   assert.match(read('scripts/compose-sp1der-intro.cjs'),/for \(const cue of timeline\.events\)/);
 });
 test('every major visual impact starts on its exact audio cue and decays',()=>{
-  assert.equal(timing.events.filter(e=>e.kind==='impact').length,10);
+  assert.equal(timing.events.filter(e=>e.kind==='impact').length,13);
   for(const hit of score.hits){
     assert.equal(timing.effects(hit.at-.001).hits.some(e=>e.id===hit.id),false);
     const onset=timing.effects(hit.at);
@@ -95,13 +96,51 @@ test('every major visual impact starts on its exact audio cue and decays',()=>{
 });
 test('musical grid, riser envelope and six individual title locks are deterministic',()=>{
   assert.equal(timing.beat,.5);
-  assert.equal(timing.events.filter(e=>e.kind==='pulse').length,52);
+  assert.equal(timing.events.filter(e=>e.kind==='pulse').length,55);
   assert.equal(timing.effects(5).kick,.8);
   assert.ok(timing.effects(7.95).charge>timing.effects(7.2).charge);
   assert.equal(timing.effects(8).next,null);
-  assert.deepEqual(timing.events.filter(e=>e.kind==='lock').map(e=>e.at),[24,24.5,25,25.5,26,26.5]);
+  assert.deepEqual(timing.events.filter(e=>e.kind==='lock').map(e=>e.at),[29,29.5,30,30.5,31,31.5]);
   assert.deepEqual(timing.effects(20.12),timing.effects(20.12));
   assert.ok(timing.events.every((e,i,a)=>e.at>=0&&e.at<score.duration&&(!i||e.at>=a[i-1].at)));
+});
+test('narrative captions advance within every main phase without crossing a boundary',()=>{
+  for(const [i,stage] of score.stages.entries()){
+    assert.equal(timing.story(stage.at).detail,stage.detail);
+    for(const cue of stage.readouts||[]){
+      assert.ok(cue.after>0&&stage.at+cue.after<score.stages[i+1].at);
+      assert.equal(timing.story(stage.at+cue.after).detail,cue.text);
+      assert.notEqual(timing.story(stage.at+cue.after-.001).detail,cue.text);
+    }
+    assert.equal(timing.story(stage.at+.1,true).detail,timing.story((score.stages[i+1]?.at??34)-.01,true).detail);
+  }
+});
+test('pre-title chapters hit on exact beats; final title gets a short non-rhythmic tail',()=>{
+  for(const [at,word] of [[26,'CONNECT.'],[27,'CREATE.'],[28,'BELONG.']]){
+    assert.equal(timing.story(at).word,word);
+    assert.ok(timing.events.some(e=>e.kind==='impact'&&e.at===at));
+  }
+  assert.equal(timing.story(29).word,null);
+  assert.equal(timing.story(26.1,true).word,'BELONG.');
+  assert.equal(timing.story(28.9,true).word,'BELONG.');
+  assert.equal(timing.story(31.499).titleSettled,false);
+  assert.equal(timing.story(31.5).titleSettled,true);
+  assert.equal(score.duration-31.5,2.5);
+  assert.ok(timing.events.filter(e=>['pulse','tick'].includes(e.kind)).every(e=>e.at<31.5));
+  assert.deepEqual(timing.events.filter(e=>e.at>31.5).map(e=>[e.kind,e.at]),[['impact',32]]);
+  assert.match(read('scripts/compose-sp1der-intro.cjs'),/timeline.times.resolve-timeline.times.warp/);
+  assert.match(source,/function resolveSequence/);
+  assert.match(source,/const packets=phone\(\)\?10:18, objects=phone\(\)\?8:14/);
+});
+test('changing motion while paused refreshes narrative without moving playback',()=>{
+  const r=runtime();r.click('startSilent');r.step(6000);r.click('pause');
+  assert.equal(r.elements.get('stageDetail').textContent,score.stages[1].readouts[0].text);
+  r.click('motion');
+  assert.equal(r.elements.get('stageDetail').textContent,score.stages[1].detail);
+  assert.equal(r.state.time,6);
+  r.click('motion');
+  assert.equal(r.elements.get('stageDetail').textContent,score.stages[1].readouts[0].text);
+  assert.equal(r.state.time,6);
 });
 test('reduced motion suppresses all impact, camera, percussion and charge envelopes',()=>{
   const still=timing.effects(0,true);
