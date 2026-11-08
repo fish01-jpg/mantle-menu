@@ -36,7 +36,7 @@ On normal HTTP hosting the wrapper fetch-verifies and opens the existing `sp1der
 
 ## Verification
 
-All 39 Node regression tests pass, including the original 23 checks and 16 intro checks covering generation, catalog separation, scored phases, clocks, pause/resume, buffering, mute, reduced motion, background pause, skip, failure/retry, timeout and keyboard viewport forwarding.
+All 40 Node regression tests pass, including the original 23 checks and 17 intro checks covering generation, catalog separation, scored phases, clocks, pause/resume, buffering, mute, reduced motion, background pause, skip, failure/retry, timeout, keyboard viewport forwarding and the raw-GitHub launcher's base injection.
 
 Interactive Chromium checks cover a complete sound-enabled run and app reveal; silent start; pause/resume and mute; portrait-to-landscape rotation without losing playback position; Skip and Escape; failed audio fallback; failed app load and successful retry; OS reduced-motion detection with identical canvas frames within a phase; and a simulated 280px keyboard viewport with restoration. Controls were checked at 320×568, 375×667, 390×844, 430×932, 667×375, 844×390 and 932×430, with no horizontal document overflow.
 

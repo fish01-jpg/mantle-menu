@@ -52,6 +52,14 @@ test('generated intro is current and all inline scripts parse',()=>{
   for(const match of read('sp1der-intro.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi))assert.doesNotThrow(()=>new vm.Script(match[1]));
   assert.doesNotMatch(read('sp1der-intro.html'),/__STYLE__|__SCORE__|__SCRIPT__|<script[^>]+src=/);
 });
+test('raw GitHub launcher injects a real document base instead of matching a script string',()=>{
+  const hub=read('index.html');
+  const inject=hub.match(/function injectBase\(html, base\) \{[\s\S]*?\n\}/)[0];
+  const base='https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/';
+  const result=vm.runInNewContext(inject+';injectBase(html,base)',{html:read('sp1der-intro.html'),base});
+  assert.ok(result.includes('<head><base href="'+base+'">'));
+  assert.equal((result.match(/<base\s/g)||[]).length,1);
+});
 test('score has ordered cue boundaries and a real 22-second MP3',()=>{
   assert.deepEqual(score.stages.map(s=>s.at),[0,3,7,11,15,19]);
   assert.equal(score.duration,22);

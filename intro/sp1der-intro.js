@@ -383,7 +383,10 @@
         else {
           // Preserve the existing Arcade raw/CDN launcher fallback without copying the app.
           const base=new URL('.',url).href.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-          app.srcdoc=html.replace(/<head([^>]*)>/i,`<head$1><base href="${base}">`);
+          // Keep this token split: the Arcade's legacy injectBase scans the entire
+          // fetched HTML, including script strings, for an existing base element.
+          const baseTag='<ba'+'se href="'+base+'">';
+          app.srcdoc=html.replace(/<head([^>]*)>/i,'<head$1>'+baseTag);
         }
         return;
       }catch(e){
