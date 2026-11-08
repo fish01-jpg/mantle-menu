@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake — Project Sp1der</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%2322c55e' d='M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4zm4-4h4v4H8v-4zm4 0h4v4h-4v-4zM8 8h4v4H8V8z'/></svg>">
+<style>
+  :root {
+    --bg: #0f0823; --bg-2: #1a1032; --text: #f2ecff; --text-dim: #a29ec5;
+    --primary: #a020f0; --accent: #7dd3fc; --glow: 0 0 14px rgba(160,32,240,.4);
+    --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(ellipse at top, #1a1032 0%, #0f0823 60%);
+    color: var(--text); min-height: 100vh; display:flex; flex-direction:column;
+    touch-action: none;
+  }
+  header {
+    padding: 14px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background: rgba(26,16,50,0.9); border-bottom:1px solid rgba(160,32,240,.35);
+  }
+  header .game-icon { width:36px; height:36px; border-radius:8px; background:var(--bg-2);
+    display:grid; place-items:center; box-shadow: var(--glow); flex-shrink:0; }
+  header .game-icon svg { width:20px; height:20px; fill: var(--text); }
+  header h1 { font-size:1.05rem; font-weight:700; letter-spacing:.3px; }
+  header .desc { font-size:.72rem; color:var(--text-dim); }
+  header .actions { margin-left:auto; display:flex; gap:8px; }
+  .btn {
+    font-family: var(--font-mono); font-size:.72rem; background:var(--bg-2);
+    color: var(--text); border:1px solid rgba(160,32,240,.5); border-radius:30px;
+    padding:8px 14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center;
+  }
+  .btn:hover { border-color: var(--accent); box-shadow: var(--glow); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color:#fff; }
+  main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; gap:12px; }
+  .hud { display:flex; gap:18px; font-family:var(--font-mono); font-size:.85rem; }
+  .hud span b { color: var(--accent); }
+  canvas {
+    background: var(--bg-2); border:1px solid rgba(160,32,240,.35); border-radius: var(--radius);
+    box-shadow: 0 4px 24px rgba(0,0,0,.5); max-width: 100%; touch-action: none;
+  }
+  .overlay {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; background:rgba(15,8,35,.82); border-radius:var(--radius); text-align:center; padding:20px;
+  }
+  .overlay h2 { font-size:1.3rem; }
+  .overlay p { color: var(--text-dim); font-size:.8rem; max-width:260px; }
+  .hidden { display:none; }
+  .board-wrap { position:relative; }
+  .hint { font-size:.7rem; color:var(--text-dim); text-align:center; }
+  @media (max-width: 600px) { header { padding: 12px; } header .actions { margin-left:0; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="game-icon"><svg viewBox="0 0 24 24"><path d="M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4zm4-4h4v4H8v-4zm4 0h4v4h-4v-4zM8 8h4v4H8V8z"/></svg></div>
+    <div>
+      <h1>Snake</h1>
+      <span class="desc">Classic snake — don't bite your tail!</span>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="mainBtn">main</button>
+      <button class="btn" id="restartBtn">Restart</button>
+    </div>
+  </header>
+  <main>
+    <div class="hud">
+      <span>Score: <b id="score">0</b></span>
+      <span>Best: <b id="best">0</b></span>
+    </div>
+    <div class="board-wrap">
+      <canvas id="game" width="400" height="400"></canvas>
+      <div class="overlay" id="startOverlay">
+        <h2>Snake</h2>
+        <p>Use arrow keys or WASD to steer. On mobile, swipe anywhere. Eat the glowing orbs, avoid your tail.</p>
+        <button class="btn primary" id="startBtn">Start game</button>
+      </div>
+      <div class="overlay hidden" id="overOverlay">
+        <h2 id="overTitle">Game over</h2>
+        <p id="overMsg"></p>
+        <button class="btn primary" id="againBtn">Play again</button>
+      </div>
+    </div>
+    <p class="hint">Arrow keys / WASD / swipe to move</p>
+  </main>
+  <script>
+  (function () {
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const GRID = 20;               // 20x20 cells
+    const CELL = canvas.width / GRID;
+    let snake, dir, nextDir, food, score, best = 0, alive, started, tickAcc, speed;
+
+    const $score = document.getElementById('score');
+    const $best = document.getElementById('best');
+    const $start = document.getElementById('startOverlay');
+    const $over = document.getElementById('overOverlay');
+    const $overTitle = document.getElementById('overTitle');
+    const $overMsg = document.getElementById('overMsg');
+
+    function reset() {
+      snake = [{x:9,y:10},{x:8,y:10},{x:7,y:10}];
+      dir = {x:1,y:0}; nextDir = {x:1,y:0};
+      score = 0; alive = true; tickAcc = 0; speed = 120; // ms per step
+      placeFood();
+      $score.textContent = '0';
+    }
+    function placeFood() {
+      do {
+        food = { x: Math.floor(Math.random()*GRID), y: Math.floor(Math.random()*GRID) };
+      } while (snake.some(s => s.x===food.x && s.y===food.y));
+    }
+    function step() {
+      dir = nextDir;
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      // wall collision
+      if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) return die();
+      // self collision
+      if (snake.some(s => s.x===head.x && s.y===head.y)) return die();
+      snake.unshift(head);
+      if (head.x===food.x && head.y===food.y) {
+        score += 10;
+        $score.textContent = score;
+        if (score > best) { best = score; $best.textContent = best; }
+        placeFood();
+        if (speed > 60) speed -= 2;  // speed up slightly
+      } else {
+        snake.pop();
+      }
+    }
+    function die() {
+      alive = false;
+      $overTitle.textContent = 'Game over';
+      $overMsg.textContent = 'You scored ' + score + '. ' + (score >= best && score>0 ? 'New personal best!' : 'Try again.');
+      $over.classList.remove('hidden');
+    }
+    function draw() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // subtle grid
+      ctx.fillStyle = 'rgba(160,32,240,0.06)';
+      for (let i=0;i<GRID;i++) for (let j=0;j<GRID;j++)
+        if ((i+j)%2===0) ctx.fillRect(i*CELL, j*CELL, CELL, CELL);
+      // food
+      ctx.save();
+      ctx.shadowColor = '#7dd3fc'; ctx.shadowBlur = 12;
+      ctx.fillStyle = '#7dd3fc';
+      ctx.beginPath();
+      ctx.arc(food.x*CELL+CELL/2, food.y*CELL+CELL/2, CELL*0.32, 0, Math.PI*2);
+      ctx.fill(); ctx.restore();
+      // snake
+      for (let i=snake.length-1;i>=0;i--) {
+        const s = snake[i];
+        const t = i/Math.max(1,snake.length-1);
+        ctx.fillStyle = i===0 ? '#4ade80' : `rgba(74,222,128,${0.95 - t*0.55})`;
+        const pad = i===0 ? 1 : 2;
+        ctx.beginPath();
+        ctx.roundRect(s.x*CELL+pad, s.y*CELL+pad, CELL-pad*2, CELL-pad*2, 4);
+        ctx.fill();
+      }
+      // eyes on head
+      const h = snake[0];
+      ctx.fillStyle = '#0f0823';
+      const ex = CELL*0.18, ey = CELL*0.18;
+      ctx.beginPath();
+      ctx.arc(h.x*CELL+CELL/2+dir.x*ex, h.y*CELL+CELL/2+dir.y*ey, 2.2, 0, Math.PI*2);
+      ctx.fill();
+    }
+    let last = 0;
+    function loop(ts) {
+      requestAnimationFrame(loop);
+      if (!started || !alive) { draw(); return; }
+      tickAcc += ts - (last||ts); last = ts;
+      while (tickAcc >= speed) { tickAcc -= speed; if (alive) step(); }
+      draw();
+    }
+    function start() {
+      reset(); started = true; last = 0; tickAcc = 0;
+      $start.classList.add('hidden');
+      $over.classList.add('hidden');
+    }
+    document.getElementById('startBtn').onclick = start;
+    document.getElementById('againBtn').onclick = start;
+    document.getElementById('restartBtn').onclick = start;
+
+    function setDir(x,y) {
+      // prevent 180 turn
+      if (dir.x === -x && dir.y === -y) return;
+      nextDir = {x,y};
+    }
+    const keyMap = {
+      ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+      KeyW:[0,-1], KeyS:[0,1], KeyA:[-1,0], KeyD:[1,0]
+    };
+    document.addEventListener('keydown', e => {
+      if (keyMap[e.code]) {
+        e.preventDefault();
+        if (!started) { start(); return; }
+        setDir(keyMap[e.code][0], keyMap[e.code][1]);
+      }
+    });
+    // swipe controls
+    let tsx=0, tsy=0;
+    canvas.addEventListener('touchstart', e => { const t=e.touches[0]; tsx=t.clientX; tsy=t.clientY; }, {passive:true});
+    canvas.addEventListener('touchend', e => {
+      const t = e.changedTouches[0];
+      const dx = t.clientX - tsx, dy = t.clientY - tsy;
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return; // too small = tap
+      if (Math.abs(dx) > Math.abs(dy)) setDir(dx>0?1:-1, 0); else setDir(0, dy>0?1:-1);
+      if (!started) start();
+    }, {passive:true});
+    // also allow swipe on whole main area
+    document.querySelector('main').addEventListener('touchstart', e => { if (e.target === canvas) return; const t=e.touches[0]; tsx=t.clientX; tsy=t.clientY; }, {passive:true});
+    document.querySelector('main').addEventListener('touchend', e => {
+      if (e.target === canvas) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - tsx, dy = t.clientY - tsy;
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+      if (!started) { start(); return; }
+      if (Math.abs(dx) > Math.abs(dy)) setDir(dx>0?1:-1, 0); else setDir(0, dy>0?1:-1);
+    }, {passive:true});
+
+    reset(); started = false;
+    requestAnimationFrame(loop);
+  })();
+  </script>
+<div id="runnerPopup" style="position:fixed;inset:0;background:rgba(15,8,35,.82);z-index:100;display:none;align-items:center;justify-content:center;">
+  <div style="background:#1a1032;border:1px solid rgba(160,32,240,.5);border-radius:10px;padding:26px 32px;max-width:340px;width:88%;text-align:center;box-shadow:0 0 14px rgba(160,32,240,.4);">
+    <h2 style="font-size:1.05rem;margin-bottom:8px;">How to get back</h2>
+    <p style="color:#a29ec5;font-size:.82rem;line-height:1.55;margin-bottom:14px;">To return to the Sp1der hub, type <b style="color:#f2ecff;font-family:monospace;user-select:all;">main</b> into the little box at the top of the screen next to where it says <b style="color:#f2ecff;">Runner</b>.</p>
+    <button class="btn primary" id="runnerPopupClose">Got it</button>
+  </div>
+</div>
+<script>
+(function(){
+  var p = document.getElementById('runnerPopup');
+  document.getElementById('mainBtn').addEventListener('click', function(){ p.style.display='flex'; });
+  document.getElementById('runnerPopupClose').addEventListener('click', function(){ p.style.display='none'; });
+  p.addEventListener('click', function(e){ if (e.target === p) p.style.display='none'; });
+})();
+</script>
+</body>
+</html>

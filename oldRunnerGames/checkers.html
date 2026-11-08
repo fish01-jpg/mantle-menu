@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkers — Project Sp1der</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%238b5cf6' d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z'/></svg>">
+<style>
+  :root {
+    --bg: #0f0823; --bg-2: #1a1032; --text: #f2ecff; --text-dim: #a29ec5;
+    --primary: #a020f0; --accent: #7dd3fc; --glow: 0 0 14px rgba(160,32,240,.4);
+    --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(ellipse at top, #1a1032 0%, #0f0823 60%);
+    color: var(--text); min-height: 100vh; display:flex; flex-direction:column;
+  }
+  header {
+    padding: 14px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background: rgba(26,16,50,0.9); border-bottom:1px solid rgba(160,32,240,.35);
+  }
+  header .game-icon { width:36px; height:36px; border-radius:8px; background:var(--bg-2);
+    display:grid; place-items:center; box-shadow: var(--glow); flex-shrink:0; }
+  header .game-icon svg { width:20px; height:20px; fill: var(--text); }
+  header h1 { font-size:1.05rem; font-weight:700; letter-spacing:.3px; }
+  header .desc { font-size:.72rem; color:var(--text-dim); }
+  header .actions { margin-left:auto; display:flex; gap:8px; }
+  .btn {
+    font-family: var(--font-mono); font-size:.72rem; background:var(--bg-2);
+    color: var(--text); border:1px solid rgba(160,32,240,.5); border-radius:30px;
+    padding:8px 14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center;
+  }
+  .btn:hover { border-color: var(--accent); box-shadow: var(--glow); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color:#fff; }
+  main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; gap:12px; }
+  .hud { font-family:var(--font-mono); font-size:.85rem; display:flex; gap:16px; align-items:center; }
+  .hud b { color: var(--accent); }
+  .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
+  .dot.red { background:#f87171; box-shadow:0 0 8px #f8717188; }
+  .dot.black { background:#a78bfa; box-shadow:0 0 8px #a78bfa88; }
+  #board {
+    display:grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8,1fr);
+    width: min(92vw, 440px); aspect-ratio: 1;
+    border:2px solid rgba(160,32,240,.5); border-radius:6px; overflow:hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,.5);
+  }
+  .sq { position:relative; display:grid; place-items:center; }
+  .sq.dark { background: #241647; }
+  .sq.light { background: #140c2b; }
+  .sq.sel { background: #3b256e; box-shadow: inset 0 0 0 3px var(--accent); }
+  .sq.dest::after {
+    content:''; width:26%; height:26%; border-radius:50%;
+    background: rgba(125,211,252,.8); box-shadow:0 0 10px #7dd3fc;
+  }
+  .sq.capdest::after {
+    content:''; width:70%; height:70%; border-radius:50%;
+    border:3px dashed rgba(248,113,113,.9); background:none; box-shadow:none;
+  }
+  .piece {
+    width: 72%; height: 72%; border-radius:50%; display:grid; place-items:center;
+    font-size:.6rem; font-weight:800; letter-spacing:1px; cursor:pointer;
+  }
+  .piece.red { background: radial-gradient(circle at 35% 30%, #fca5a5, #dc2626); color:#7f1d1d; }
+  .piece.black { background: radial-gradient(circle at 35% 30%, #c4b5fd, #7c3aed); color:#3b0764; }
+  .piece.king::before { content:'★'; font-size:1rem; color:#fff; text-shadow:0 0 6px rgba(255,255,255,.8); }
+  .piece.red.king::before { color:#fee2e2; }
+  .piece.black.king::before { color:#ede9fe; }
+  .overlay {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(15,8,35,.75); z-index:50;
+  }
+  .overlay .card {
+    background: var(--bg-2); border:1px solid rgba(160,32,240,.5); border-radius:var(--radius);
+    padding:26px 34px; text-align:center; box-shadow: var(--glow);
+  }
+  .overlay h2 { margin-bottom:6px; }
+  .overlay p { color: var(--text-dim); font-size:.8rem; margin-bottom:14px; }
+  .hidden { display:none; }
+  .hint { font-size:.7rem; color:var(--text-dim); text-align:center; }
+  @media (max-width: 600px) { header { padding: 12px; } header .actions { margin-left:0; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="game-icon"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg></div>
+    <div>
+      <h1>Checkers</h1>
+      <span class="desc">Classic checkers board game</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="Project-Sp1der-v4.5.4-fixed.html">← Sp1der hub</a>
+      <button class="btn" id="newBtn">New game</button>
+    </div>
+  </header>
+  <main>
+    <div class="hud">
+      <span><span class="dot red"></span>Red: <b id="redCount">12</b></span>
+      <span id="turnLbl"><span class="dot red"></span><b>Red's turn</b></span>
+      <span><span class="dot black"></span>Black: <b id="blackCount">12</b></span>
+    </div>
+    <div id="board"></div>
+    <p class="hint">Click a piece, then a highlighted square. Captures are mandatory. Reach the far row to king.</p>
+  </main>
+  <div class="overlay hidden" id="winOverlay">
+    <div class="card">
+      <h2 id="winTitle">Red wins!</h2>
+      <p id="winMsg"></p>
+      <button class="btn primary" id="winBtn">Play again</button>
+    </div>
+  </div>
+  <script>
+  (function () {
+    const boardEl = document.getElementById('board');
+    const $win = document.getElementById('winOverlay');
+    const $winTitle = document.getElementById('winTitle');
+    const $winMsg = document.getElementById('winMsg');
+    // board[r][c]: null or {color:'red'|'black', king:bool}
+    // red moves up (r decreasing), black moves down
+    let board, turn, sel, chainFrom, over;
+
+    function reset() {
+      board = Array.from({length:8}, () => Array(8).fill(null));
+      for (let r=0;r<3;r++) for (let c=0;c<8;c++) if ((r+c)%2===1) board[r][c] = {color:'black', king:false};
+      for (let r=5;r<8;r++) for (let c=0;c<8;c++) if ((r+c)%2===1) board[r][c] = {color:'red', king:false};
+      turn = 'red'; sel = null; chainFrom = null; over = false;
+      render();
+      $win.classList.add('hidden');
+    }
+    function inside(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+    function forwardDirs(p) {
+      const d = p.color==='red' ? -1 : 1;
+      return p.king ? [[d,1],[d,-1],[-d,1],[-d,-1]] : [[d,1],[d,-1]];
+    }
+    // all capture moves for a color
+    function capturesFor(color) {
+      const out = [];
+      for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+        const p = board[r][c];
+        if (p && p.color===color) {
+          for (const m of pieceMoves(r,c,true)) out.push({fr:r,fc:c,...m});
+        }
+      }
+      return out;
+    }
+    function pieceMoves(r,c,capsOnly=false) {
+      const p = board[r][c];
+      const moves = [];
+      // captures (any direction allowed for kings, forward only for men — standard rule)
+      const capDirs = p.king ? [[1,1],[1,-1],[-1,1],[-1,-1]] : forwardDirs(p);
+      for (const [dr,dc] of capDirs) {
+        const mr=r+dr, mc=c+dc, lr=r+2*dr, lc=c+2*dc;
+        if (inside(lr,lc) && board[mr][mc] && board[mr][mc].color!==p.color && !board[lr][lc])
+          moves.push({r:lr,c:lc,cap:{r:mr,c:mc}});
+      }
+      if (capsOnly) return moves;
+      // plain moves
+      for (const [dr,dc] of forwardDirs(p)) {
+        const mr=r+dr, mc=c+dc;
+        if (inside(mr,mc) && !board[mr][mc]) moves.push({r:mr,c:mc,cap:null});
+      }
+      return moves;
+    }
+    function legalMovesFor(r,c) {
+      const p = board[r][c];
+      if (!p || p.color!==turn) return [];
+      // mandatory capture: if any capture exists for this color, only captures allowed
+      const caps = capturesFor(turn);
+      if (caps.length) return pieceMoves(r,c,true);
+      return pieceMoves(r,c,false);
+    }
+    function counts() {
+      let red=0, black=0;
+      for (const row of board) for (const p of row) { if(p){ p.color==='red'?red++:black++; } }
+      return {red, black};
+    }
+    function render() {
+      boardEl.innerHTML = '';
+      for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+        const sq = document.createElement('div');
+        sq.className = 'sq ' + ((r+c)%2===0 ? 'light' : 'dark');
+        sq.dataset.r = r; sq.dataset.c = c;
+        const p = board[r][c];
+        const moves = sel ? legalMovesFor(sel.r, sel.c) : [];
+        if (sel && sel.r===r && sel.c===c) sq.classList.add('sel');
+        const mv = moves.find(m => m.r===r && m.c===c);
+        if (mv) sq.classList.add(mv.cap ? 'capdest' : 'dest');
+        if (p) {
+          const el = document.createElement('div');
+          el.className = 'piece ' + p.color + (p.king ? ' king' : '');
+          sq.appendChild(el);
+        }
+        boardEl.appendChild(sq);
+      }
+      const cnt = counts();
+      document.getElementById('redCount').textContent = cnt.red;
+      document.getElementById('blackCount').textContent = cnt.black;
+      const turnEl = document.getElementById('turnLbl');
+      const name = turn === 'red' ? 'Red' : 'Black';
+      turnEl.innerHTML = '<span class="dot ' + turn + '"></span><b>' + name + (chainFrom ? ' — keep capturing!' : "'s turn") + '</b>';
+    }
+    function checkEnd() {
+      const cnt = counts();
+      if (cnt.red===0 || cnt.black===0) {
+        over = true;
+        const winner = cnt.red ? 'Red' : 'Black';
+        $winTitle.textContent = winner + ' wins!';
+        $winMsg.textContent = winner + ' captured every opposing piece.';
+        $win.classList.remove('hidden');
+        return true;
+      }
+      // no moves = loss for side to move
+      if (!capturesFor(turn).length) {
+        let any = false;
+        for (let r=0;r<8&&!any;r++) for (let c=0;c<8&&!any;c++) {
+          const p = board[r][c];
+          if (p && p.color===turn && pieceMoves(r,c,false).length) any = true;
+        }
+        if (!any) {
+          over = true;
+          const winner = turn==='red' ? 'Black' : 'Red';
+          $winTitle.textContent = winner + ' wins!';
+          $winMsg.textContent = (turn==='red'?'Red':'Black') + ' has no legal moves left.';
+          $win.classList.remove('hidden');
+          return true;
+        }
+      }
+      return false;
+    }
+    boardEl.addEventListener('click', e => {
+      if (over) return;
+      const sq = e.target.closest('.sq');
+      if (!sq) return;
+      const r = +sq.dataset.r, c = +sq.dataset.c;
+      const p = board[r][c];
+
+      // if mid-chain, must continue from chainFrom
+      if (chainFrom) {
+        if (r===chainFrom.r && c===chainFrom.c) return; // stay
+        tryMove(chainFrom.r, chainFrom.c, r, c);
+        return;
+      }
+      // clicking own piece selects
+      if (p && p.color===turn) { sel = {r,c}; render(); return; }
+      // clicking a destination
+      if (sel) { tryMove(sel.r, sel.c, r, c); }
+    });
+    function tryMove(fr,fc,tr,tc) {
+      const moves = legalMovesFor(fr,fc);
+      const mv = moves.find(m => m.r===tr && m.c===tc);
+      if (!mv) { sel = null; render(); return; }
+      const p = board[fr][fc];
+      board[tr][tc] = p; board[fr][fc] = null;
+      if (mv.cap) board[mv.cap.r][mv.cap.c] = null;
+      // kinging
+      if (!p.king && ((p.color==='red'&&tr===0) || (p.color==='black'&&tr===7))) p.king = true;
+      sel = null;
+      // multi-jump: if we just captured and can capture again from the new square
+      if (mv.cap) {
+        const more = pieceMoves(tr,tc,true);
+        if (more.length) {
+          chainFrom = {r:tr,c:tc};
+          sel = chainFrom;
+          render();
+          return;
+        }
+      }
+      chainFrom = null;
+      turn = turn==='red' ? 'black' : 'red';
+      render();
+      checkEnd();
+    }
+    document.getElementById('newBtn').onclick = reset;
+    document.getElementById('winBtn').onclick = reset;
+    reset();
+  })();
+  </script>
+</body>
+</html>

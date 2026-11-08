@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku — Project Sp1der</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%233b82f6' d='M4 4h16v16H4V4zm3 3v3h3V7H7zm7 0v3h3V7h-3zM7 14v3h3v-3H7zm7 0v3h3v-3h-3z'/></svg>">
+<style>
+  :root {
+    --bg: #0f0823; --bg-2: #1a1032; --text: #f2ecff; --text-dim: #a29ec5;
+    --primary: #a020f0; --accent: #7dd3fc; --glow: 0 0 14px rgba(160,32,240,.4);
+    --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(ellipse at top, #1a1032 0%, #0f0823 60%);
+    color: var(--text); min-height: 100vh; display:flex; flex-direction:column;
+  }
+  header {
+    padding: 14px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background: rgba(26,16,50,0.9); border-bottom:1px solid rgba(160,32,240,.35);
+  }
+  header .game-icon { width:36px; height:36px; border-radius:8px; background:var(--bg-2);
+    display:grid; place-items:center; box-shadow: var(--glow); flex-shrink:0; }
+  header .game-icon svg { width:20px; height:20px; fill: var(--text); }
+  header h1 { font-size:1.05rem; font-weight:700; letter-spacing:.3px; }
+  header .desc { font-size:.72rem; color:var(--text-dim); }
+  header .actions { margin-left:auto; display:flex; gap:8px; }
+  .btn {
+    font-family: var(--font-mono); font-size:.72rem; background:var(--bg-2);
+    color: var(--text); border:1px solid rgba(160,32,240,.5); border-radius:30px;
+    padding:8px 14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center;
+  }
+  .btn:hover { border-color: var(--accent); box-shadow: var(--glow); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color:#fff; }
+  main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; gap:14px; }
+  #grid {
+    display:grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
+    width: min(92vw, 420px); aspect-ratio: 1;
+    background: var(--bg-2); border:2px solid rgba(160,32,240,.6); border-radius:4px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.5); overflow:hidden;
+  }
+  .cell {
+    display:grid; place-items:center; font-family:var(--font-mono); font-weight:700; font-size:1.25rem;
+    background: rgba(160,32,240,0.05); cursor:pointer; position:relative;
+    border-right:1px solid rgba(160,32,240,.15); border-bottom:1px solid rgba(160,32,240,.15);
+  }
+  .cell.br3 { border-right:2px solid rgba(160,32,240,.6); }
+  .cell.bb3 { border-bottom:2px solid rgba(160,32,240,.6); }
+  .cell.fixed { color: var(--text); cursor: default; }
+  .cell:not(.fixed) { color: var(--accent); }
+  .cell.sel { background: rgba(160,32,240,0.3); }
+  .cell.err { color: #f87171; }
+  .cell.peer { background: rgba(160,32,240,0.14); }
+  .cell.same { background: rgba(125,211,252,0.16); }
+  .pad { display:grid; grid-template-columns: repeat(9, 1fr); gap:6px; width: min(92vw, 420px); }
+  .pad button {
+    font-family:var(--font-mono); font-weight:700; font-size:1.1rem; padding:10px 0;
+    background:var(--bg-2); color:var(--text); border:1px solid rgba(160,32,240,.5);
+    border-radius:8px; cursor:pointer;
+  }
+  .pad button:hover { border-color: var(--accent); box-shadow: var(--glow); }
+  .pad button.erase { font-size:.8rem; color: var(--text-dim); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .hint { font-size:.7rem; color:var(--text-dim); text-align:center; }
+  .overlay {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(15,8,35,.75); z-index:50;
+  }
+  .overlay .card {
+    background: var(--bg-2); border:1px solid rgba(160,32,240,.5); border-radius:var(--radius);
+    padding:26px 34px; text-align:center; box-shadow: var(--glow);
+  }
+  .overlay h2 { margin-bottom:6px; }
+  .overlay p { color: var(--text-dim); font-size:.8rem; margin-bottom:14px; }
+  .hidden { display:none; }
+  @media (max-width: 600px) { header { padding: 12px; } header .actions { margin-left:0; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="game-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4V4zm3 3v3h3V7H7zm7 0v3h3V7h-3zM7 14v3h3v-3H7zm7 0v3h3v-3h-3z"/></svg></div>
+    <div>
+      <h1>Sudoku</h1>
+      <span class="desc">Fill the grid, one to nine</span>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="mainBtn">main</button>
+      <button class="btn" id="newBtn">New puzzle</button>
+      <button class="btn" id="checkBtn">Check</button>
+    </div>
+  </header>
+  <main>
+    <div class="row">
+      <span class="hint">Difficulty:</span>
+      <button class="btn" data-diff="easy" id="dEasy">Easy</button>
+      <button class="btn" data-diff="medium" id="dMed">Medium</button>
+      <button class="btn" data-diff="hard" id="dHard">Hard</button>
+    </div>
+    <div id="grid"></div>
+    <div class="pad" id="pad"></div>
+    <p class="hint">Tap a cell, then a number. Red cells conflict with row/column/box.</p>
+  </main>
+  <div class="overlay hidden" id="winOverlay">
+    <div class="card">
+      <h2>Solved!</h2>
+      <p id="winMsg">You completed the puzzle.</p>
+      <button class="btn primary" id="winBtn">New puzzle</button>
+    </div>
+  </div>
+  <script>
+  (function () {
+    const gridEl = document.getElementById('grid');
+    const $win = document.getElementById('winOverlay');
+    const $winMsg = document.getElementById('winMsg');
+    let puzzle = [], sol = [], cur = [], sel = -1;
+
+    // ---- generator ----
+    function makeSolution() {
+      const g = Array.from({length:9}, () => Array(9).fill(0));
+      function ok(r,c,v) {
+        for (let i=0;i<9;i++) { if (g[r][i]===v || g[i][c]===v) return false; }
+        const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
+        for (let i=0;i<3;i++) for (let j=0;j<3;j++) if (g[br+i][bc+j]===v) return false;
+        return true;
+      }
+      function fill(pos) {
+        if (pos === 81) return true;
+        const r = Math.floor(pos/9), c = pos%9;
+        const nums = [1,2,3,4,5,6,7,8,9];
+        for (let i=nums.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [nums[i],nums[j]]=[nums[j],nums[i]]; }
+        for (const v of nums) {
+          if (ok(r,c,v)) { g[r][c]=v; if (fill(pos+1)) return true; g[r][c]=0; }
+        }
+        return false;
+      }
+      fill(0);
+      return g;
+    }
+    function dig(solution, holes) {
+      const p = solution.map(r => [...r]);
+      let dug = 0, tries = 0;
+      while (dug < holes && tries < 500) {
+        tries++;
+        const r = Math.floor(Math.random()*9), c = Math.floor(Math.random()*9);
+        if (p[r][c] === 0) continue;
+        p[r][c] = 0; dug++;
+      }
+      return p;
+    }
+    function conflictsAt(r,c,v,arr) {
+      for (let i=0;i<9;i++) {
+        if (i!==c && arr[r][i]===v) return true;
+        if (i!==r && arr[i][c]===v) return true;
+      }
+      const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
+      for (let i=0;i<3;i++) for (let j=0;j<3;j++) {
+        const rr=br+i, cc=bc+j;
+        if ((rr!==r||cc!==c) && arr[rr][cc]===v) return true;
+      }
+      return false;
+    }
+
+    function build() {
+      gridEl.innerHTML = '';
+      for (let i=0;i<81;i++) {
+        const r = Math.floor(i/9), c = i%9;
+        const el = document.createElement('div');
+        el.className = 'cell';
+        if (c%3===2 && c!==8) el.classList.add('br3');
+        if (r%3===2 && r!==8) el.classList.add('bb3');
+        el.dataset.i = i;
+        gridEl.appendChild(el);
+      }
+    }
+    function render() {
+      const els = gridEl.children;
+      for (let i=0;i<81;i++) {
+        const r = Math.floor(i/9), c = i%9;
+        const el = els[i];
+        el.textContent = cur[r][c] || '';
+        el.classList.toggle('fixed', puzzle[r][c] !== 0);
+        el.classList.toggle('err', cur[r][c]!==0 && conflictsAt(r,c,cur[r][c],cur));
+        el.classList.toggle('sel', i === sel);
+        // highlight peers of selection
+        const sr = sel>=0 ? Math.floor(sel/9) : -1, sc = sel>=0 ? sel%9 : -1;
+        const isPeer = sel>=0 && (r===sr || c===sc || (Math.floor(r/3)===Math.floor(sr/3) && Math.floor(c/3)===Math.floor(sc/3)));
+        el.classList.toggle('peer', isPeer && i!==sel);
+        const sv = sel>=0 ? cur[sr][sc] : 0;
+        el.classList.toggle('same', sv>0 && cur[r][c]===sv && i!==sel);
+      }
+    }
+    function newGame(diff) {
+      sol = makeSolution();
+      const holes = diff==='easy' ? 36 : diff==='medium' ? 46 : 54;
+      puzzle = dig(sol, holes);
+      cur = puzzle.map(r => [...r]);
+      sel = -1;
+      render();
+      $win.classList.add('hidden');
+    }
+    function isSolved() {
+      for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (cur[r][c]!==sol[r][c]) return false;
+      return true;
+    }
+    gridEl.addEventListener('click', e => {
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      const i = +cell.dataset.i;
+      if (puzzle[Math.floor(i/9)][i%9] !== 0) return; // fixed cell
+      sel = (sel === i) ? -1 : i;
+      render();
+    });
+    // number pad
+    const pad = document.getElementById('pad');
+    for (let n=1;n<=9;n++) {
+      const b = document.createElement('button');
+      b.textContent = n;
+      b.onclick = () => input(n);
+      pad.appendChild(b);
+    }
+    const eb = document.createElement('button');
+    eb.textContent = '⌫'; eb.className = 'erase';
+    eb.style.gridColumn = 'span 3';
+    eb.onclick = () => input(0);
+    pad.appendChild(eb);
+    function input(v) {
+      if (sel < 0) return;
+      const r = Math.floor(sel/9), c = sel%9;
+      if (puzzle[r][c] !== 0) return;
+      cur[r][c] = v;
+      render();
+      if (isSolved()) {
+        $winMsg.textContent = 'You completed the ' + curDiff + ' puzzle. Nice work.';
+        $win.classList.remove('hidden');
+      }
+    }
+    document.addEventListener('keydown', e => {
+      if (e.key >= '1' && e.key <= '9') input(+e.key);
+      else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') input(0);
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (sel < 0) { sel = 0; } else {
+          let r = Math.floor(sel/9), c = sel%9;
+          if (e.key==='ArrowUp') r = (r+8)%9;
+          if (e.key==='ArrowDown') r = (r+1)%9;
+          if (e.key==='ArrowLeft') c = (c+8)%9;
+          if (e.key==='ArrowRight') c = (c+1)%9;
+          sel = r*9+c;
+        }
+        render();
+      }
+    });
+
+    let curDiff = 'medium';
+    document.getElementById('dEasy').onclick = () => { curDiff='easy'; newGame('easy'); };
+    document.getElementById('dMed').onclick = () => { curDiff='medium'; newGame('medium'); };
+    document.getElementById('dHard').onclick = () => { curDiff='hard'; newGame('hard'); };
+    document.getElementById('newBtn').onclick = () => newGame(curDiff);
+    document.getElementById('winBtn').onclick = () => newGame(curDiff);
+    document.getElementById('checkBtn').onclick = () => {
+      let errs = 0, empt = 0;
+      for (let r=0;r<9;r++) for (let c=0;c<9;c++) {
+        if (cur[r][c]===0) empt++;
+        else if (cur[r][c]!==sol[r][c]) errs++;
+      }
+      if (errs===0 && empt===0) { $winMsg.textContent='All correct — solved!'; $win.classList.remove('hidden'); }
+      else if (errs===0) alertFree('On track: no mistakes, ' + empt + ' cells to go.');
+      else alertFree(errs + ' cell(s) disagree with the solution.');
+    };
+    // tiny inline notice (no alert allowed in some sandboxes)
+    function alertFree(msg) {
+      let n = document.getElementById('notice');
+      if (!n) { n = document.createElement('div'); n.id='notice';
+        n.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bg-2);border:1px solid rgba(160,32,240,.5);border-radius:30px;padding:10px 20px;font-size:.8rem;z-index:60;';
+        document.body.appendChild(n); }
+      n.textContent = msg; n.style.opacity = 1;
+      clearTimeout(n._t);
+      n._t = setTimeout(()=>{ n.style.transition='opacity .5s'; n.style.opacity=0; }, 2200);
+    }
+
+    build();
+    newGame('medium');
+  })();
+  </script>
+<div id="runnerPopup" style="position:fixed;inset:0;background:rgba(15,8,35,.82);z-index:100;display:none;align-items:center;justify-content:center;">
+  <div style="background:#1a1032;border:1px solid rgba(160,32,240,.5);border-radius:10px;padding:26px 32px;max-width:340px;width:88%;text-align:center;box-shadow:0 0 14px rgba(160,32,240,.4);">
+    <h2 style="font-size:1.05rem;margin-bottom:8px;">How to get back</h2>
+    <p style="color:#a29ec5;font-size:.82rem;line-height:1.55;margin-bottom:14px;">To return to the Sp1der hub, type <b style="color:#f2ecff;font-family:monospace;user-select:all;">main</b> into the little box at the top of the screen next to where it says <b style="color:#f2ecff;">Runner</b>.</p>
+    <button class="btn primary" id="runnerPopupClose">Got it</button>
+  </div>
+</div>
+<script>
+(function(){
+  var p = document.getElementById('runnerPopup');
+  document.getElementById('mainBtn').addEventListener('click', function(){ p.style.display='flex'; });
+  document.getElementById('runnerPopupClose').addEventListener('click', function(){ p.style.display='none'; });
+  p.addEventListener('click', function(e){ if (e.target === p) p.style.display='none'; });
+})();
+</script>
+</body>
+</html>

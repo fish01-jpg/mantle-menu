@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minesweeper — Project Sp1der</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%2394a3b8' d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 3l7 7H5l7-7zm-3 8h6v6H9v-6z'/></svg>">
+<style>
+  :root {
+    --bg: #0f0823; --bg-2: #1a1032; --text: #f2ecff; --text-dim: #a29ec5;
+    --primary: #a020f0; --accent: #7dd3fc; --glow: 0 0 14px rgba(160,32,240,.4);
+    --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(ellipse at top, #1a1032 0%, #0f0823 60%);
+    color: var(--text); min-height: 100vh; display:flex; flex-direction:column;
+  }
+  header {
+    padding: 14px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background: rgba(26,16,50,0.9); border-bottom:1px solid rgba(160,32,240,.35);
+  }
+  header .game-icon { width:36px; height:36px; border-radius:8px; background:var(--bg-2);
+    display:grid; place-items:center; box-shadow: var(--glow); flex-shrink:0; }
+  header .game-icon svg { width:20px; height:20px; fill: var(--text); }
+  header h1 { font-size:1.05rem; font-weight:700; letter-spacing:.3px; }
+  header .desc { font-size:.72rem; color:var(--text-dim); }
+  header .actions { margin-left:auto; display:flex; gap:8px; }
+  .btn {
+    font-family: var(--font-mono); font-size:.72rem; background:var(--bg-2);
+    color: var(--text); border:1px solid rgba(160,32,240,.5); border-radius:30px;
+    padding:8px 14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center;
+  }
+  .btn:hover { border-color: var(--accent); box-shadow: var(--glow); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color:#fff; }
+  main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; gap:12px; }
+  .hud { display:flex; gap:18px; font-family:var(--font-mono); font-size:.9rem; align-items:center; }
+  .hud b { color: var(--accent); }
+  #grid {
+    display:grid; grid-template-columns: repeat(10, 1fr); gap:4px;
+    width: min(92vw, 420px); aspect-ratio: 1;
+    background: var(--bg-2); border:1px solid rgba(160,32,240,.35); border-radius: var(--radius);
+    padding: 8px; box-shadow: 0 4px 24px rgba(0,0,0,.5);
+    user-select: none; touch-action: manipulation;
+  }
+  .cell {
+    border-radius:5px; display:grid; place-items:center;
+    font-family: var(--font-mono); font-weight:700; font-size:1rem;
+    background: rgba(160,32,240,0.16); cursor:pointer; position:relative;
+  }
+  .cell:hover { background: rgba(160,32,240,0.28); }
+  .cell.revealed { background: rgba(160,32,240,0.05); cursor:default; }
+  .cell.revealed.mine { background:#dc2626; }
+  .cell.flagged::after {
+    content:'⚑'; position:absolute; color:#fbbf24; font-size:.9rem;
+    text-shadow:0 0 6px rgba(251,191,36,.7);
+  }
+  .n1{color:#7dd3fc}.n2{color:#4ade80}.n3{color:#f87171}.n4{color:#c084fc}
+  .n5{color:#fbbf24}.n6{color:#22d3ee}.n7{color:#f472b6}.n8{color:#e8e8ec}
+  .overlay {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(15,8,35,.75); z-index:50;
+  }
+  .overlay .card {
+    background: var(--bg-2); border:1px solid rgba(160,32,240,.5); border-radius:var(--radius);
+    padding:26px 34px; text-align:center; box-shadow: var(--glow);
+  }
+  .overlay h2 { margin-bottom:6px; }
+  .overlay p { color: var(--text-dim); font-size:.8rem; margin-bottom:14px; }
+  .hidden { display:none; }
+  .hint { font-size:.7rem; color:var(--text-dim); text-align:center; }
+  @media (max-width: 600px) { header { padding: 12px; } header .actions { margin-left:0; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="game-icon"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 3l7 7H5l7-7zm-3 8h6v6H9v-6z"/></svg></div>
+    <div>
+      <h1>Minesweeper</h1>
+      <span class="desc">Sweep the minefield, flag the bombs</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="Project-Sp1der-v4.5.4-fixed.html">← Sp1der hub</a>
+      <button class="btn" id="newBtn">New game</button>
+    </div>
+  </header>
+  <main>
+    <div class="hud">
+      <span>💣 <b id="minesLeft">12</b></span>
+      <span>⏱ <b id="timer">0</b>s</span>
+    </div>
+    <div id="grid"></div>
+    <p class="hint">Click to reveal · Right-click (or long-press) to flag</p>
+  </main>
+  <div class="overlay hidden" id="overOverlay">
+    <div class="card">
+      <h2 id="overTitle">Game over</h2>
+      <p id="overMsg"></p>
+      <button class="btn primary" id="againBtn">Play again</button>
+    </div>
+  </div>
+  <script>
+  (function () {
+    const SIZE = 10, MINES = 12;
+    const gridEl = document.getElementById('grid');
+    const $mines = document.getElementById('minesLeft');
+    const $timer = document.getElementById('timer');
+    const $over = document.getElementById('overOverlay');
+    const $overTitle = document.getElementById('overTitle');
+    const $overMsg = document.getElementById('overMsg');
+    let cells, started, over, flags, revealedCount, timerInt, seconds, firstClick;
+
+    function build() {
+      gridEl.innerHTML = '';
+      cells = [];
+      for (let i=0;i<SIZE*SIZE;i++) {
+        const c = document.createElement('div');
+        c.className = 'cell';
+        c.dataset.i = i;
+        gridEl.appendChild(c);
+        cells.push({ el:c, mine:false, adj:0, revealed:false, flagged:false });
+      }
+    }
+    function neighbors(i) {
+      const r = Math.floor(i/SIZE), c = i%SIZE, out = [];
+      for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) {
+        if (!dr && !dc) continue;
+        const nr=r+dr, nc=c+dc;
+        if (nr>=0 && nr<SIZE && nc>=0 && nc<SIZE) out.push(nr*SIZE+nc);
+      }
+      return out;
+    }
+    function placeMines(safeIdx) {
+      const safe = new Set([safeIdx, ...neighbors(safeIdx)]);
+      let placed = 0;
+      while (placed < MINES) {
+        const i = Math.floor(Math.random()*SIZE*SIZE);
+        if (cells[i].mine || safe.has(i)) continue;
+        cells[i].mine = true; placed++;
+      }
+      for (let i=0;i<cells.length;i++)
+        cells[i].adj = neighbors(i).filter(n => cells[n].mine).length;
+    }
+    function reset() {
+      clearInterval(timerInt);
+      seconds = 0; $timer.textContent = '0';
+      started = false; over = false; flags = 0; revealedCount = 0; firstClick = true;
+      build();
+      updateMines();
+      $over.classList.add('hidden');
+    }
+    function updateMines() { $mines.textContent = MINES - flags; }
+    function reveal(i) {
+      const c = cells[i];
+      if (c.revealed || c.flagged) return;
+      c.revealed = true; revealedCount++;
+      c.el.classList.add('revealed');
+      if (c.mine) { c.el.classList.add('mine'); c.el.textContent='💣'; return; }
+      if (c.adj > 0) {
+        c.el.textContent = c.adj;
+        c.el.classList.add('n'+c.adj);
+      } else {
+        // flood fill
+        for (const n of neighbors(i)) if (!cells[n].revealed && !cells[n].flagged) reveal(n);
+      }
+    }
+    function checkWin() {
+      const nonMines = SIZE*SIZE - MINES;
+      if (revealedCount >= nonMines && !over) {
+        over = true; clearInterval(timerInt);
+        $overTitle.textContent = 'You win!';
+        $overMsg.textContent = 'Cleared the field in ' + seconds + 's.';
+        $over.classList.remove('hidden');
+      }
+    }
+    function clickCell(i) {
+      if (over) return;
+      if (firstClick) { firstClick = false; placeMines(i); started = true;
+        timerInt = setInterval(()=>{ seconds++; $timer.textContent = seconds; }, 1000); }
+      if (!started) return;
+      const c = cells[i];
+      if (c.flagged) return;
+      if (c.mine) {
+        over = true; clearInterval(timerInt);
+        reveal(i);
+        // show all mines
+        cells.forEach((cc,j) => { if (cc.mine && j!==i && !cc.revealed) { cc.el.classList.add('revealed','mine'); cc.el.textContent='💣'; } });
+        $overTitle.textContent = 'Boom!';
+        $overMsg.textContent = 'You hit a mine after ' + seconds + 's.';
+        $over.classList.remove('hidden');
+        return;
+      }
+      reveal(i);
+      checkWin();
+    }
+    function toggleFlag(i) {
+      if (over) return;
+      const c = cells[i];
+      if (c.revealed) return;
+      c.flagged = !c.flagged;
+      c.el.classList.toggle('flagged', c.flagged);
+      flags += c.flagged ? 1 : -1;
+      updateMines();
+    }
+    gridEl.addEventListener('click', e => {
+      const cell = e.target.closest('.cell');
+      if (cell) clickCell(+cell.dataset.i);
+    });
+    gridEl.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const cell = e.target.closest('.cell');
+      if (cell) toggleFlag(+cell.dataset.i);
+    });
+    // long-press to flag on touch
+    let lpTimer = null, lpIdx = null;
+    gridEl.addEventListener('touchstart', e => {
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      lpIdx = +cell.dataset.i;
+      lpTimer = setTimeout(() => { toggleFlag(lpIdx); lpIdx = null; }, 450);
+    }, {passive:true});
+    gridEl.addEventListener('touchend', e => {
+      clearTimeout(lpTimer);
+      if (lpIdx != null) { /* treat as normal click via click event */ }
+      lpIdx = null;
+    }, {passive:true});
+    gridEl.addEventListener('touchmove', () => { clearTimeout(lpTimer); lpIdx = null; }, {passive:true});
+
+    document.getElementById('newBtn').onclick = reset;
+    document.getElementById('againBtn').onclick = reset;
+    reset();
+  })();
+  </script>
+</body>
+</html>
