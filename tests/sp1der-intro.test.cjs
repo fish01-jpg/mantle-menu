@@ -9,6 +9,7 @@ const root = path.resolve(__dirname,'..');
 const read = p => fs.readFileSync(path.join(root,p),'utf8');
 const source = read('intro/sp1der-intro.js');
 const score = JSON.parse(read('intro/sequence.json'));
+const timing = require('../intro/timing.js').create(score);
 function runtime({reduced=false,failApp=false,failAudio=false}={}) {
   const elements=new Map(), frames=new Map(), timers=new Map(), documentEvents={};
   let now=0, serial=0, fetches=0;
@@ -37,6 +38,7 @@ function runtime({reduced=false,failApp=false,failAudio=false}={}) {
     SP1DER_INTRO_SCORE:score
   };
   sandbox.window=sandbox;
+  vm.runInNewContext(read('intro/timing.js'),sandbox);
   vm.runInNewContext(source,sandbox);
   return {
     sandbox, elements, frames, timers, documentEvents,
@@ -50,7 +52,7 @@ function runtime({reduced=false,failApp=false,failAudio=false}={}) {
 test('generated intro is current and all inline scripts parse',()=>{
   cp.execFileSync(process.execPath,['scripts/build-sp1der-intro.cjs','--check'],{cwd:root});
   for(const match of read('sp1der-intro.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi))assert.doesNotThrow(()=>new vm.Script(match[1]));
-  assert.doesNotMatch(read('sp1der-intro.html'),/__STYLE__|__SCORE__|__SCRIPT__|<script[^>]+src=/);
+  assert.doesNotMatch(read('sp1der-intro.html'),/__(?:STYLE|SCORE|SCRIPT|TIMING|DURATION|VERSION|AUDIO)__|<script[^>]+src=/);
 });
 test('raw GitHub launcher injects a real document base instead of matching a script string',()=>{
   const hub=read('index.html');
@@ -60,12 +62,49 @@ test('raw GitHub launcher injects a real document base instead of matching a scr
   assert.ok(result.includes('<head><base href="'+base+'">'));
   assert.equal((result.match(/<base\s/g)||[]).length,1);
 });
-test('score has ordered cue boundaries and a real 22-second MP3',()=>{
-  assert.deepEqual(score.stages.map(s=>s.at),[0,3,7,11,15,19]);
-  assert.equal(score.duration,22);
-  const data=fs.readFileSync(path.join(root,'assets/intro/sp1der-intro-beta.mp3'));
-  assert.ok(data.length>300000&&data.length<500000);
+test('score has eight ordered stages and a real versioned 34-second MP3',()=>{
+  assert.deepEqual(score.stages.map(s=>s.at),[0,4,8,12,16,20,24,30]);
+  assert.equal(score.duration,34);assert.equal(score.version,2);
+  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v2.mp3');
+  const data=fs.readFileSync(path.join(root,score.audio));
+  assert.ok(data.length>500000&&data.length<650000);
   assert.equal(data.subarray(0,3).toString(),'ID3');
+  // Older downloaded wrappers must still get their matching original audio.
+  assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta.mp3')).size>300000);
+  assert.match(read('sp1der-intro.html'),/34 seconds/);
+  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 02/);
+  assert.match(read('index.html'),/34-second intro/);
+});
+test('audio synthesis and rendering import the identical timing implementation',()=>{
+  assert.match(read('scripts/compose-sp1der-intro.cjs'),/require\('\.\.\/intro\/timing\.js'\)\.create\(score\)/);
+  assert.match(source,/window\.Sp1derTiming\.create\(score\)/);
+  assert.match(read('scripts/build-sp1der-intro.cjs'),/read\('intro\/timing\.js'\)/);
+  assert.match(read('scripts/compose-sp1der-intro.cjs'),/for \(const cue of timeline\.events\)/);
+});
+test('every major visual impact starts on its exact audio cue and decays',()=>{
+  assert.equal(timing.events.filter(e=>e.kind==='impact').length,10);
+  for(const hit of score.hits){
+    assert.equal(timing.effects(hit.at-.001).hits.some(e=>e.id===hit.id),false);
+    const onset=timing.effects(hit.at);
+    assert.equal(onset.hits.find(e=>e.id===hit.id).age,0);
+    assert.equal(onset.punch,hit.power);
+    assert.ok(timing.effects(hit.at+.3).punch<onset.punch*.1);
+    assert.equal(timing.effects(hit.at+2.01).hits.some(e=>e.id===hit.id),false);
+  }
+});
+test('musical grid, riser envelope and six individual title locks are deterministic',()=>{
+  assert.equal(timing.beat,.5);
+  assert.equal(timing.events.filter(e=>e.kind==='pulse').length,52);
+  assert.equal(timing.effects(5).kick,.8);
+  assert.ok(timing.effects(7.95).charge>timing.effects(7.2).charge);
+  assert.equal(timing.effects(8).next,null);
+  assert.deepEqual(timing.events.filter(e=>e.kind==='lock').map(e=>e.at),[24,24.5,25,25.5,26,26.5]);
+  assert.deepEqual(timing.effects(20.12),timing.effects(20.12));
+  assert.ok(timing.events.every((e,i,a)=>e.at>=0&&e.at<score.duration&&(!i||e.at>=a[i-1].at)));
+});
+test('reduced motion suppresses all impact, camera, percussion and charge envelopes',()=>{
+  const still=timing.effects(0,true);
+  for(const at of [7.95,8,12,20.1,24.5,28,33.5])assert.deepEqual(timing.effects(at,true),still);
 });
 test('Arcade has separate normal and beta entries with phone metadata',()=>{
   const hub=read('index.html');
@@ -115,9 +154,24 @@ test('skip before play waits for the original app, then reveals it',async()=>{
   assert.equal(r.elements.get('sp1derApp').src,'https://example.test/sp1der.html');
 });
 test('completion never substitutes a cinematic for app readiness',async()=>{
-  const r=runtime();r.click('startSilent');await r.settle();r.step(22000);
+  const r=runtime();r.click('startSilent');await r.settle();r.step(score.duration*1000);
   assert.equal(r.state.phase,'finished');assert.equal(r.elements.get('recovery').hidden,false);
   assert.equal(r.elements.get('sp1derApp').style.visibility,'hidden');
+});
+test('the extended sequence does not hand off at the old 22-second endpoint',async()=>{
+  const r=runtime();r.click('startSilent');await r.settle();r.loaded();r.step(22000);
+  assert.equal(r.state.phase,'playing');assert.equal(r.state.stage,5);
+  assert.equal(r.elements.get('sp1derApp').style.visibility,'hidden');
+  r.step(12000);assert.equal(r.state.phase,'finished');
+  assert.equal(r.elements.get('sp1derApp').style.visibility,'visible');
+});
+test('paused or buffering media also freezes hit effects, mute preserves them',async()=>{
+  const r=runtime();r.click('startSound');await r.settle();
+  r.elements.get('score').currentTime=20.03;r.step(40);
+  const fx=r.sandbox.Sp1derIntroBeta.getEffects();
+  r.step(500);assert.deepEqual(r.sandbox.Sp1derIntroBeta.getEffects(),fx);
+  r.click('sound');assert.deepEqual(r.sandbox.Sp1derIntroBeta.getEffects(),fx);
+  r.click('pause');r.step(2000);assert.deepEqual(r.sandbox.Sp1derIntroBeta.getEffects(),fx);
 });
 test('HTTP failure exposes retry and a successful retry can hand off',async()=>{
   const r=runtime({failApp:true});r.click('skip');await r.settle();

@@ -1,21 +1,27 @@
 # Sp1der Intro beta
 
-Fishes Arcade's separate **Intro beta** entry opens the same current `sp1der.html` after an optional 22-second cinematic. Normal Project Sp1der and its runners are unchanged. The beta is not an authentication or security check.
+Fishes Arcade's separate **Intro beta** entry opens the same current `sp1der.html` after an optional 34-second cinematic. Normal Project Sp1der and its runners are unchanged. The beta is not an authentication or security check.
 
 ## Sequence
 
-- **First signal, 0–3s:** signal sweep, depth grid and orbital construction lines.
-- **Assembly, 3–7s:** extruded message, window, folder, cursor, person and envelope models fly into an orbital arrangement.
-- **Ignition, 7–11s:** separated geodesic vertices converge, with layered counter-rotating rings and expanding wavefronts.
-- **Connections, 11–15s:** a triangulated 110-node sphere and depth corridor unfold as the interface models pass the camera.
-- **Identity, 15–19s:** six individually projected, extruded letters assemble into SP1DER.
-- **Handoff, 19–22s:** the title holds, the camera advances, and the already-loading original app is revealed.
+- **First signal, 0–4s:** signal sweep, depth grid and orbital construction lines.
+- **Assembly, 4–8s:** extruded message, window, folder, cursor, person and envelope models fly into an orbital arrangement.
+- **Ignition, 8–12s:** separated geodesic vertices converge, with a deep impact, wide shockwaves and flying fragments.
+- **Orbital machinery, 12–16s:** three counter-rotating decks, mechanical vanes, circuit supports and scanning planes align around the core.
+- **Connections, 16–20s:** a triangulated 110-node sphere and depth corridor unfold as the interface models pass the camera.
+- **Transit, 20–24s:** a hexagonal warp corridor, long perspective rails and interface models rush past.
+- **Identity, 24–30s:** six independently projected, extruded letters land on half-second musical cues; the full title receives its strongest impact at 28s.
+- **Handoff, 30–34s:** two final signals, a sustained title, camera advance and fade reveal the already-loading original app.
+
+Ten major impact cues drive expanding triple wavefronts, flying polygon shards and trails, a localized glow, horizontal lens beams and a short camera punch. Pre-hit contraction follows the soundtrack's 900ms risers. Bass kicks and plucks have separate, smaller pulse envelopes; they are no longer approximated by a continuous cosine. Controls and text remain steady. There are no full-screen white impact flashes.
 
 Perspective projection, face fills, front/back edges, independent rotations and depth positioning are calculated locally with Canvas 2D. No Three.js/CDN runtime, video download, Marvel assets or third-party music is required. The restrained cyan/amber spatial artwork is original.
 
 ## Sound and controls
 
-`assets/intro/sp1der-intro-beta.mp3` is the real 22-second stereo soundtrack (128 kb/s MP3, approximately 353 KB). `scripts/compose-sp1der-intro.cjs` deterministically synthesizes it from oscillators, noise, envelopes and stereo diffusion using the shared `intro/sequence.json` score, then encodes with ffmpeg. No recorded samples are used. The cue boundaries and musical impacts share the same timing data.
+`assets/intro/sp1der-intro-beta-v2.mp3` is the real 34-second stereo soundtrack (44.1kHz, 128 kb/s MP3, 545,206 bytes). `scripts/compose-sp1der-intro.cjs` deterministically synthesizes it from oscillators, noise, envelopes and stereo diffusion, then encodes with ffmpeg. No recorded samples are used. The expanded arrangement adds deeper cinematic impacts, metallic tails, bass percussion, snare accents, alternating high-frequency details, transit layers and individually panned title-lock tones.
+
+`intro/sequence.json` supplies stage boundaries, 120 BPM, impact strengths and the versioned audio path. `intro/timing.js` is imported unchanged by both the composer and the embedded browser renderer: its exact event list schedules sound transients and visual envelopes, including the individual title locks. The versioned filename prevents cached original audio from ending the expanded timeline early. The original `assets/intro/sp1der-intro-beta.mp3` remains available for older downloaded 22-second wrappers.
 
 The visuals use `HTMLAudioElement.currentTime` as their master clock. Pausing or buffering audio holds the visual clock; mute does not desynchronize it. Silent mode uses a monotonic performance clock. A deliberate Initialize with sound gesture meets browser autoplay restrictions; nothing plays on ordinary Arcade or Sp1der launch. Missing/blocked audio falls back to silent playback. App loading begins only after Play or Skip.
 
@@ -25,7 +31,7 @@ The hidden app stays inert during the cinematic. Successful page loading, not a 
 
 ## Sources and builds
 
-- Edit `intro/shell.html`, `intro/sp1der-intro.css`, `intro/sp1der-intro.js` and `intro/sequence.json`.
+- Edit `intro/shell.html`, `intro/sp1der-intro.css`, `intro/sp1der-intro.js`, `intro/timing.js` and `intro/sequence.json`.
 - Run `node scripts/build-sp1der-intro.cjs` to regenerate the standalone `sp1der-intro.html`.
 - Run `node scripts/compose-sp1der-intro.cjs` after musical/timing changes. Requires Node.js and ffmpeg with libmp3lame.
 - Run `node scripts/build-sp1der-intro.cjs --check` and `node --test tests/*.test.cjs` before committing.
@@ -36,10 +42,12 @@ On normal HTTP hosting the wrapper fetch-verifies and opens the existing `sp1der
 
 ## Verification
 
-All 40 Node regression tests pass, including the original 23 checks and 17 intro checks covering generation, catalog separation, scored phases, clocks, pause/resume, buffering, mute, reduced motion, background pause, skip, failure/retry, timeout, keyboard viewport forwarding and the raw-GitHub launcher's base injection.
+All 63 Node regression tests pass, covering the existing phone and repaired Arcade loaders plus generation, catalog separation, eight scored phases, exact hit onset/decay, the shared musical grid, risers, six title locks, motion suppression, media clocks, pause/resume, buffering, mute, background pause, skip, failure/retry, timeout and keyboard viewport forwarding. A regression explicitly prevents the new intro from handing off at the old 22-second endpoint.
 
-Interactive Chromium checks cover a complete sound-enabled run and app reveal; silent start; pause/resume and mute; portrait-to-landscape rotation without losing playback position; Skip and Escape; failed audio fallback; failed app load and successful retry; OS reduced-motion detection with identical canvas frames within a phase; and a simulated 280px keyboard viewport with restoration. Controls were checked at 320×568, 375×667, 390×844, 430×932, 667×375, 844×390 and 932×430, with no horizontal document overflow.
+The expanded version was replayed naturally with real sound at 1440×900 and 390×844 through all eight stages to original-app reveal and focus handoff. A complete reduced-motion run at 320px, rotated during its paused title, also reaches the app at 34 seconds. Identical canvas frames were checked within both assembly and final handoff phases, including the last second. Screenshots cover impact wavefronts, machinery, network, warp and title, with the title fitting 320px portrait and 667px landscape.
 
-Both the desktop popup and phone Arcade viewer reach the existing Sp1der app. The regular phone Sp1der and desktop runner remain separate. Search, Apps filtering, empty/reset, Back, terms, keyboard warnings, Tetris, Pixel Canvas controls, Geometry Dash and Server Tiers were replayed. No new page errors were observed in the instrumented intro and regression pages.
+Additional interactive Chromium checks cover pause/resume, mute, live rotation without a playback-time jump, Skip/Escape, failed audio fallback, failed app load and successful retry, simulated background pause, and a simulated 280px keyboard viewport with restoration. Visible controls remain at least 44px high and within the viewport at 320×568, 375×667, 390×844, 430×932, 667×375, 844×390 and 932×430, with no horizontal document overflow. ffprobe reports exactly 34 seconds; decoded MP3 peak is -1.5 dBFS and mean is -18.9 dBFS. Listening reviews found clear transients, no harsh clipping, a clean ending without abrupt cutoff, and no severe balance problem; mild low-mid density was noted near the final impacts.
+
+The earlier loading-repair QA covers both desktop popups and phone Arcade viewers, normal Sp1der launch separation, catalog search/filter/reset, Back, terms, keyboard warnings and game launches. The extended-intro release must additionally pass the complete Mantle/raw-source beta chain and fresh hosted preview before signoff; these results are recorded in the task's external QA log. No new page errors occurred in the instrumented HTTP extended-intro runs.
 
 Firestore/Auth requests were blocked during browser QA. No accounts were created, no messages were sent and no production data/settings were changed. Physical iPhone/Safari behavior, live authentication and a production hosting redeployment are not verified by these tests.

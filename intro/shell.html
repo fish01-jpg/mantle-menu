@@ -13,7 +13,7 @@
     <canvas id="world" aria-hidden="true"></canvas>
     <div class="vignette" aria-hidden="true"></div>
     <header class="masthead">
-      <div class="wordmark">SP1DER<span>INTRO BETA / 01</span></div>
+      <div class="wordmark">SP1DER<span>INTRO BETA / __VERSION__</span></div>
       <nav aria-label="Intro controls">
         <button id="motion" type="button" aria-pressed="false">Reduce motion</button>
         <button id="sound" type="button" aria-pressed="false" hidden>Sound on</button>
@@ -25,7 +25,7 @@
       <div class="gate-copy">
         <p class="eyebrow">FISHES ARCADE PRESENTS</p>
         <h1 id="introHeading">Before the<br> first byte.</h1>
-        <p class="lede">A cinematic entrance to your Sp1der.<br> 22 seconds. Best with headphones.</p>
+        <p class="lede">A cinematic entrance to your Sp1der.<br> __DURATION__ seconds. Best with headphones.</p>
         <div class="launch-actions">
           <button id="startSound" class="primary" type="button">Initialize with sound <span aria-hidden="true">→</span></button>
           <button id="startSilent" type="button">Play silent</button>
@@ -51,12 +51,13 @@
     <footer class="telemetry">
       <div><span id="playbackStatus" role="status" aria-live="polite">Ready when you are.</span><span id="appStatus">APP / NOT REQUESTED</span></div>
       <div class="timeline" aria-label="Intro timeline"><div id="timelineFill"></div></div>
-      <div class="readout"><span id="timecode">00.0 / 22.0</span><span class="credit">Made with Perplexity</span></div>
+      <div class="readout"><span id="timecode">00.0 / __DURATION__.0</span><span class="credit">Made with Perplexity</span></div>
     </footer>
   </main>
-  <audio id="score" preload="none" src="assets/intro/sp1der-intro-beta.mp3"></audio>
+  <audio id="score" preload="none" src="__AUDIO__"></audio>
   <noscript><p>This optional intro needs JavaScript. <a href="sp1der.html">Open regular Sp1der</a>.</p></noscript>
   <script>/*__SCORE__*/</script>
+  <script>/*__TIMING__*/</script>
   <script>/*__SCRIPT__*/</script>
 </body>
 </html>

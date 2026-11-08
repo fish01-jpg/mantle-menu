@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const score = window.SP1DER_INTRO_SCORE;
+  const timeline = window.Sp1derTiming.create(score), T = timeline.times;
   const $ = id => document.getElementById(id);
   const canvas = $('world'), ctx = canvas.getContext('2d'), audio = $('score'), app = $('sp1derApp');
   const state = {
@@ -107,6 +108,91 @@
   });
   const links=[];
   for(let a=0;a<nodes.length;a++)for(let b=a+1;b<nodes.length;b++)if(Math.hypot(...nodes[a].map((v,i)=>v-nodes[b][i]))<.92)links.push([a,b]);
+  function drawImpact(fx, t) {
+    if(state.reduced)return;
+    // The controls never shake. Only the projected world receives the camera punch.
+    if(fx.charge>.005){
+      const r=3.7-fx.charge*.85;
+      for(let i=0;i<12;i++){
+        const a=i/12*TAU+t*.15;
+        path([[Math.cos(a)*r,Math.sin(a)*r,.4],[Math.cos(a)*(r-.35),Math.sin(a)*(r-.35),.4]],C.warm,fx.charge*.45,1.5);
+      }
+      ring(.4+fx.charge*.4,-.1,[.2,.4,0],-t,.25*fx.charge,true,C.warm);
+    }
+    for(const hit of fx.hits){
+      const age=hit.age, energy=hit.power*Math.exp(-age*4), color=hit.warm?C.warm:C.cyan;
+      // Wide wavefronts, rather than full-screen white flashes.
+      for(let j=0;j<3;j++){
+        const delay=j*.085, u=age-delay;if(u<0)continue;
+        ring(.5+Math.pow(u,.72)*(4+j*.7),-.5+j*.16,[.08+j*.23,.12,j*.2],j*.2,
+          hit.power*.75*Math.exp(-u*3.3),j===1,color);
+      }
+      const count=phone()?22:42;
+      for(let i=0;i<count;i++){
+        const a=i/count*TAU+Math.sin(i*7.1)*.18, speed=2.5+(i%7)*.45;
+        const r=.4+age*speed, z=Math.sin(i*12.3)*(.8+age*2), size=.025+(i%3)*.018;
+        const p=[Math.cos(a)*r,Math.sin(a)*r*.8,z];
+        const shard=[[-size,-size,0],[size*2,0,size],[0,size,0]].map(v=>
+          rotate(v,age*3+i,age*2,i).map((n,k)=>n+p[k]));
+        path(shard,color,energy*.7,1,true,true);
+        path([p,[p[0]-Math.cos(a)*age*.65,p[1]-Math.sin(a)*age*.5,z+.2]],color,energy*.3);
+      }
+      if(energy>.015){
+        const radius=Math.min(w,h)*(.23+age*.3);
+        const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,radius);
+        glow.addColorStop(0,rgba(color,.16*energy));glow.addColorStop(.4,rgba(color,.045*energy));glow.addColorStop(1,rgba(color,0));
+        ctx.fillStyle=glow;ctx.fillRect(cx-radius,cy-radius,radius*2,radius*2);
+        const beam=ctx.createLinearGradient(0,cy,w,cy);
+        beam.addColorStop(0,rgba(color,0));beam.addColorStop(.5,rgba(C.pale,.65*energy));beam.addColorStop(1,rgba(color,0));
+        ctx.fillStyle=beam;ctx.fillRect(0,cy-1,w,1+energy*2);
+        ctx.fillStyle=rgba(color,energy*.13);ctx.fillRect(w*.12,cy-4,w*.76,8);
+      }
+    }
+    // Low-level scored percussion remains distinct from the big cinematic hits.
+    if(fx.kick>.02)ring(1.0+(1-fx.kick)*.7,-.15,[.1,.2,0],0,fx.kick*.22);
+  }
+  function orbitalMachine(t, motion, alpha, beat){
+    for(let deck=0;deck<3;deck++){
+      const z=(deck-1)*.65, r=1.1+deck*.35;
+      ring(r,z,[.18,.15,.05],motion*(deck%2?.22:-.18),alpha*.5,true,deck===1?C.warm:C.cyan);
+      const count=phone()?10:16;
+      for(let i=0;i<count;i++){
+        const a=i/count*TAU+motion*(deck%2?.22:-.18), turn=state.reduced?1:ease((t-T.orbital)/1.1);
+        const p=[Math.cos(a)*r,Math.sin(a)*r,z];
+        const shape=[[-.14,-.055,0],[.14,-.055,0],[.20,.055,.08],[-.14,.055,.08]].map(v=>
+          rotate(v,turn*.4,0,a+Math.PI/2).map((n,k)=>n+p[k]));
+        path(shape,deck===1?C.warm:C.cyan,alpha*(.4+beat*.3),1,true,true);
+        if(i%2===0)path([p,[p[0]*.72,p[1]*.72,z+.4]],C.dim,alpha*.5);
+      }
+    }
+    // Rotating scanning planes visibly cut through the layered mechanism.
+    for(let i=0;i<2;i++){
+      const a=motion*.55+i*Math.PI/2;
+      path([[-2.6,0,0],[2.6,0,0],[2.6,0,.04],[-2.6,0,.04]].map(p=>rotate(p,.4,a,.3)),C.pale,alpha*.5,1,true);
+    }
+  }
+  function warpCorridor(t, motion, alpha){
+    const count=phone()?10:15;
+    for(let j=0;j<count;j++){
+      const z=state.reduced?j*1.7-2:((j*1.7+28-(t-T.warp)*8)%26+26)%26-4;
+      const points=[];
+      for(let i=0;i<=6;i++){
+        const a=i/6*TAU+motion*.075;
+        points.push([Math.cos(a)*2.8,Math.sin(a)*2.8,z]);
+      }
+      path(points,j%4===0?C.warm:C.cyan,alpha*(.13+Math.max(0,1-(z+4)/26)*.3),1.3);
+    }
+    const countLines=phone()?18:32;
+    for(let i=0;i<countLines;i++){
+      const a=i/countLines*TAU+motion*.075, r=2.8+(i%3)*.35;
+      path([[Math.cos(a)*r,Math.sin(a)*r,-3.7],[Math.cos(a)*r,Math.sin(a)*r,18]],i%7===0?C.warm:C.cyan,alpha*.25);
+    }
+    for(let i=0;i<6;i++){
+      const z=state.reduced?i*2:((i*3+30-(t-T.warp)*5)%20+20)%20-3;
+      const a=i/6*TAU+motion*.1;
+      model(names[i],[Math.cos(a)*2,Math.sin(a)*2,z],.32,[.2,motion*.3+i,a*.1],alpha*.65,i%3===0?C.warm:C.cyan);
+    }
+  }
   function drawWorld(t, poster) {
     if(!ctx)return;
     ctx.clearRect(0,0,w,h);ctx.fillStyle='#060c12';ctx.fillRect(0,0,w,h);
@@ -120,52 +206,54 @@
     unit=Math.min(w,h)*(portrait?.255:short?.30:.275);
     if(poster&&portrait&&h<720){cy=h*.77;unit=w*.22;}
     camera=poster?-.25:reduced?-.15:Math.sin(t*.22)*.23;
-    zoom=!reduced&&!poster?1+ease((t-20)/2)*1.5:1;
-    const fade=!poster&&actual>21?1-ease((actual-21)/1):1;
+    const fx=timeline.effects(actual,reduced||poster);
+    zoom=!reduced&&!poster?1+fx.punch*.075+fx.kick*.012+ease((t-T.handoff)/4)*.6:1;
+    if(!reduced&&!poster){cx+=Math.sin(actual*31)*fx.punch*3;cy+=Math.cos(actual*27)*fx.punch*2;}
+    const fade=!reduced&&!poster&&actual>score.duration-1?1-ease(actual-(score.duration-1)):1;
     ctx.globalAlpha=fade;
     const active=poster?1:ease(t/1.5);
     // Dust, a receding construction grid, and depth slices establish real space.
     for(const s of stars.slice(0,phone()?85:160)){
-      const z=(s[2]+18-motion*(t>=11&&t<15?2.2:.16))%18;
+      const z=((s[2]+18-motion*(t>=T.network&&t<T.identity?2.2:.16))%18+18)%18;
       dot([s[0]*9,s[1]*6,z-2],z<2?1.1:.6,C.pale,.15+active*.12);
     }
     for(let i=-8;i<=8;i++){
       path([[i*.7,2.15,-1],[i*.7,2.15,18]],C.dim,.15*active);
       path([[-7,2.15,i+8],[7,2.15,i+8]],C.dim,.11*active);
     }
-    const beat=poster?0:Math.pow(Math.max(0,Math.cos((t-3)*TAU*2)),14)*clamp((t-3)/2)*clamp((19-t)/2);
+    const beat=fx.pulse;
     // The initial signal resolves into stacked orbital schematics.
     const ringIn=poster?1:ease((t-.3)/2);
-    const ringOut=t>=15&&!poster?1-ease((t-15)/4)*.65:1;
+    const ringOut=t>=T.identity&&!poster?1-ease((t-T.identity)/4)*.65:1;
     const alpha=ringIn*ringOut;
     ring(1.58,0,[.88,.15,.15],motion*.18,.45*alpha,true);
     ring(1.83,.08,[-.78,.4,-.5],-motion*.12,.35*alpha,true,C.warm);
     ring(2.06,.1,[.12,.7,.2],motion*.09,.26*alpha);
     ring(1.22,-.02,[.25,1.02,0],-motion*.22,(.42+beat*.15)*alpha,true);
     ring(2.19,.15,[1.24,.1,0],motion*.1,.16*alpha);
-    if(!poster&&t<3){
-      const sweep=t/3*TAU;
+    if(!poster&&t<T.assembly){
+      const sweep=t/T.assembly*TAU;
       path([[0,0,0],[Math.cos(sweep)*1.8,Math.sin(sweep)*1.8,0]],C.pale,.6*ringIn);
       for(let k=0;k<8;k++)dot([Math.cos(k/8*TAU)*1.58,Math.sin(k/8*TAU)*1.58,0],2,C.warm,ease((t-k*.15)/.3));
     }
     // Cards enter from far outside the frustum, settle, then pass the camera.
-    const assembly=poster?1:ease((t-3)/2);
+    const assembly=poster?1:ease((t-T.assembly)/2);
     const modelCount=phone()?6:8;
     for(let i=0;i<modelCount;i++){
-      const arrival=poster?1:reduced?1:ease((t-3-i*.13)/1.6);
-      if(!poster&&(t<3||t>16))continue;
+      const arrival=poster?1:reduced?1:ease((t-T.assembly-i*.13)/1.6);
+      if(!poster&&(t<T.assembly||t>T.network+4))continue;
       const a=i/modelCount*TAU-.3+motion*.075;
-      const orbit=poster?2.02:t>11?2.5+ease((t-11)/4)*4.8:2.1;
+      const orbit=poster?2.02:t>T.network?2.5+ease((t-T.network)/4)*4.8:2.1;
       const fly=1-arrival;
       const p=[Math.cos(a)*(orbit+fly*5),Math.sin(a)*(orbit*.75+fly*4),Math.sin(a*2)*.6+fly*12];
-      if(t>11&&!poster&&!reduced)p[2]-=ease((t-11)/4)*6;
-      model(names[i%names.length],p,.30+beat*.014,[Math.sin(motion*.3+i)*.3,a*.3+motion*.09,Math.sin(i+motion*.1)*.12],arrival*.8*(poster?1:1-ease((t-14)/2)),i%3===0?C.warm:C.cyan);
-      if(i<(phone()?2:4)&&arrival>.95&&t<11)annotation(p,names[i%names.length],Math.cos(a)<0?-1:1,.48);
+      if(t>T.network&&!poster&&!reduced)p[2]-=ease((t-T.network)/4)*6;
+      model(names[i%names.length],p,.30+beat*.025,[Math.sin(motion*.3+i)*.3,a*.3+motion*.09,Math.sin(i+motion*.1)*.12],arrival*.8*(poster?1:1-ease((t-T.network-2)/2)),i%3===0?C.warm:C.cyan);
+      if(i<(phone()?2:4)&&arrival>.95&&t<T.orbital)annotation(p,names[i%names.length],Math.cos(a)<0?-1:1,.48);
     }
     // Exploded geodesic core: separated vertices gather into one faceted object.
-    const ignition=poster?1:ease((t-7)/2.1);
-    const coreAlpha=poster?.9:t<7?assembly*.34:1-ease((t-15)/3)*.88;
-    const coreScale=poster?.68:.52+ignition*.22+beat*.035;
+    const ignition=poster?1:ease((t-T.ignition)/2.1);
+    const coreAlpha=poster?.9:t<T.ignition?assembly*.34:1-ease((t-T.identity)/3)*.88;
+    const coreScale=poster?.68:.52+ignition*.22+beat*.055+fx.punch*.09;
     const pts=ico.map((p,i)=>{
       const spread=poster?0:(1-ignition)*(.6+Math.sin(i*8)*.2);
       return rotate(p.map((v,j)=>v*(coreScale+spread)+(j===1?Math.sin(i*7)*spread*.25:0)),motion*.19,motion*.24,.1);
@@ -175,35 +263,35 @@
     ring(.91,0,[motion*.15,motion*.12,0],motion*.2,.26*coreAlpha,true,C.warm);
     // Inner stacked rotors and orbiting circuit fragments add a second depth scale.
     for(let layer=0;layer<3;layer++)ring(.26+layer*.12,(layer-1)*.22,[.7,motion*.08,layer*.5],-motion*.3,.25*coreAlpha,true,layer===1?C.warm:C.cyan);
-    if(poster||(t>5&&t<15)){
+    if(poster||(t>T.assembly+2&&t<T.identity)){
       for(let i=0;i<(phone()?24:48);i++){
         const a=i/48*TAU+motion*.13, r=1.05+(i%4)*.055, z=(i%3-1)*.17;
         path([[Math.cos(a)*r,Math.sin(a)*r,z],[Math.cos(a+.025)*r,Math.sin(a+.025)*r,z]],i%4===0?C.warm:C.cyan,.6*coreAlpha,1.4);
       }
     }
-    if(!poster&&t>=7&&t<11){
-      for(let j=0;j<3;j++){
-        const age=(t-7+j*.7)%2.2;
-        ring(.8+age*1.2,0,[.35,.2,0],0,(1-age/2.2)*.18);
-      }
-    }
+    if(!poster&&t>=T.orbital&&t<T.network+1)
+      orbitalMachine(t,motion,(reduced?1:ease((t-T.orbital)/.8))*(1-ease((t-T.network)/1)),beat);
     // A triangulated spherical network turns into a corridor of depth planes.
-    if(!poster&&t>=11&&t<16){
-      const enter=reduced?1:ease((t-11)/1.3), exit=1-ease((t-14.5)/1.5);
+    if(!poster&&t>=T.network&&t<T.warp+1){
+      const enter=reduced?1:ease((t-T.network)/1.3), exit=1-ease((t-T.warp+.5)/1.5);
       const p=nodes.map(v=>rotate(v,motion*.09,motion*.13,0).map(n=>n*enter));
       links.forEach(([a,b],i)=>path([p[a],p[b]],i%11===0?C.warm:C.cyan,(.12+beat*.08)*enter*exit));
       p.forEach((v,i)=>dot(v,i%9===0?2:1,C.cyan,(.45+beat*.25)*enter*exit));
       for(let j=0;j<9;j++){
-        const z=reduced?j*2:(j*2+18-(t-11)*3.5)%18;
+        const z=reduced?j*2:((j*2+18-(t-T.network)*3.5)%18+18)%18;
         ring(3.3,z-3,[0,0,.3],j*.07,.10*enter*exit,true);
       }
     }
+    if(!poster&&t>=T.warp&&t<T.identity+1)
+      warpCorridor(t,motion,(reduced?1:ease((t-T.warp)/.6))*(1-ease((t-T.identity)/1)));
+    if(!poster)drawImpact(fx,actual);
     // Six independently projected, extruded letters assemble from different axes.
-    if(!poster&&t>=15){
+    if(!poster&&t>=T.identity){
       const title='SP1DER';
       const titleFit=Math.min(1,(w-40)/(unit*5.3*zoom));
       for(let i=0;i<title.length;i++){
-        const u=reduced?1:ease((t-15-i*.14)/2.05);
+        const lockAt=T.identity+i*timeline.beat;
+        const u=reduced?1:ease((t-(lockAt-.6))/.6);
         const p=[(i-2.5)*.73*titleFit+(1-u)*Math.sin(i*3)*5,(1-u)*Math.cos(i*2.5)*4,(1-u)*9-.75];
         const q=project(p);if(!q)continue;
         const rx=reduced?0:(1-u)*.5, ry=reduced?0:(1-u)*1.6;
@@ -213,16 +301,18 @@
         ctx.save();ctx.transform((basisX[0]-q[0])/q[2],(basisX[1]-q[1])/q[2],(basisY[0]-q[0])/q[2],(basisY[1]-q[1])/q[2],q[0],q[1]);
         ctx.font=`600 ${q[2]*1.08*titleFit}px 'Barlow Condensed',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
         for(let d=6;d>=1;d--){ctx.fillStyle=rgba(C.dim,.3*u);ctx.fillText(title[i],d*.85,-d*.55);}
+        const lock=fx.locks.find(cue=>cue.index===i);
+        if(lock&&lock.age<.45){ctx.shadowColor=rgba(C.warm,1);ctx.shadowBlur=22*Math.exp(-lock.age*7);}
         ctx.fillStyle=rgba(C.pale,u);ctx.fillText(title[i],0,0);ctx.restore();
       }
-      const a=ease((t-17)/1.5);
+      const a=ease((t-T.identity-2.5)/1.2);
       path([[-2.3*titleFit,.66*titleFit,-.6],[2.3*titleFit,.66*titleFit,-.6]],C.warm,.6*a);
       const q=project([0,.98*titleFit,-.6]);
       if(q){ctx.font="11px 'IBM Plex Mono',monospace";ctx.textAlign='center';ctx.fillStyle=rgba(C.cyan,.85*a);ctx.fillText('YOUR PEOPLE. YOUR SPACE.',q[0],q[1]);}
     }
     // Small engineering readouts belong to the spatial artwork, not app diagnostics.
     if(!phone()&&ringIn>.8){
-      annotation([-1.2,-1.15,0],t>=11&&t<15?'NETWORK / 110 NODES':'GEODESIC / 30 EDGES',-1,.55*ringOut);
+      annotation([-1.2,-1.15,0],t>=T.network&&t<T.warp?'NETWORK / 110 NODES':'GEODESIC / 30 EDGES',-1,.55*ringOut);
       annotation([1.1,.95,0],'FIRST SIGNAL / 120 BPM',1,.4*ringOut);
     }
     ctx.globalAlpha=1;
@@ -299,8 +389,8 @@
     };
     let source=0;
     const mirrors=[
-      'https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/assets/intro/sp1der-intro-beta.mp3',
-      'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/assets/intro/sp1der-intro-beta.mp3'
+      'https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/'+score.audio,
+      'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/'+score.audio
     ];
     audio.onerror=()=>{
       if(state.mode==='pending'&&source<mirrors.length){audio.src=mirrors[source++];attempt();}
@@ -430,7 +520,8 @@
   // Read-only observability for beta QA. Playback is driven by the real controls.
   window.Sp1derIntroBeta=Object.freeze({
     getState:()=>({phase:state.phase,clock:state.mode,time:playbackTime(),stage:state.stage,reduced:state.reduced,appReady:state.ready,appFailed:state.appFailed}),
-    duration:score.duration
+    duration:score.duration,
+    getEffects:()=>timeline.effects(playbackTime(),state.reduced)
   });
   syncControls();resize();
   if(document.fonts)document.fonts.ready.then(()=>{if(state.phase==='ready')drawWorld(8.5,true);});

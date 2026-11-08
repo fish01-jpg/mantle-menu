@@ -1,16 +1,31 @@
 {
   "title": "Sp1der / First Signal",
-  "version": 1,
-  "duration": 22,
+  "version": 2,
+  "duration": 34,
+  "audio": "assets/intro/sp1der-intro-beta-v2.mp3",
   "bpm": 120,
   "stages": [
-    {"at": 0, "name": "First signal", "detail": "Out of the silence, a single connection.", "tag": "01 / ACQUIRE"},
-    {"at": 3, "name": "Ideas take shape.", "detail": "Messages. People. Windows into other worlds.", "tag": "02 / ASSEMBLE"},
-    {"at": 7, "name": "At the center of it all.", "detail": "Separate pieces. One shared space.", "tag": "03 / IGNITE"},
-    {"at": 11, "name": "Every connection matters.", "detail": "A world built around the people in it.", "tag": "04 / CONNECT"},
-    {"at": 15, "name": "This is Sp1der.", "detail": "Your community, coming into focus.", "tag": "05 / SYNTHESIZE"},
-    {"at": 19, "name": "You're in.", "detail": "The introduction ends. Your space begins.", "tag": "06 / ENTER"}
+    {"id": "signal", "at": 0, "name": "First signal", "detail": "Out of the silence, a single connection.", "tag": "01 / ACQUIRE"},
+    {"id": "assembly", "at": 4, "name": "Ideas take shape.", "detail": "Messages. People. Windows into other worlds.", "tag": "02 / ASSEMBLE"},
+    {"id": "ignition", "at": 8, "name": "At the center of it all.", "detail": "Separate pieces. One shared space.", "tag": "03 / IGNITE"},
+    {"id": "orbital", "at": 12, "name": "Everything in motion.", "detail": "A thousand moving parts. One shared rhythm.", "tag": "04 / ALIGN"},
+    {"id": "network", "at": 16, "name": "Every connection matters.", "detail": "A world built around the people in it.", "tag": "05 / CONNECT"},
+    {"id": "warp", "at": 20, "name": "Beyond the ordinary.", "detail": "A new perspective, just ahead.", "tag": "06 / TRANSIT"},
+    {"id": "identity", "at": 24, "name": "This is Sp1der.", "detail": "Your community, coming into focus.", "tag": "07 / SYNTHESIZE"},
+    {"id": "handoff", "at": 30, "name": "You're in.", "detail": "The introduction ends. Your space begins.", "tag": "08 / ENTER"}
   ],
-  "impacts": [0.15, 3, 7, 11, 15, 19],
+  "hits": [
+    {"id": "acquire", "at": 0.25, "power": 0.65, "warm": false},
+    {"id": "assembly", "at": 4, "power": 1.0, "warm": false},
+    {"id": "ignition", "at": 8, "power": 1.4, "warm": true},
+    {"id": "orbital", "at": 12, "power": 1.15, "warm": true},
+    {"id": "network", "at": 16, "power": 1.2, "warm": false},
+    {"id": "warp", "at": 20, "power": 1.4, "warm": false},
+    {"id": "identity", "at": 24, "power": 1.3, "warm": true},
+    {"id": "title-lock", "at": 28, "power": 1.5, "warm": true},
+    {"id": "handoff", "at": 30, "power": 1.15, "warm": false},
+    {"id": "final-signal", "at": 32, "power": 0.8, "warm": false}
+  ],
+  "rhythm": {"from": 4, "until": 30},
   "notes": [146.8324, 174.6141, 220, 261.6256, 293.6648, 349.2282, 440, 523.2511]
 }
