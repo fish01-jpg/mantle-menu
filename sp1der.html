@@ -3368,10 +3368,21 @@ input,textarea,select{font-size:16px!important;max-width:100%;box-sizing:border-
         const isOwner = () => !!currentAdminUser || ['owner','developer','founder','aegis'].includes(getRole());
         /* v4.6.1: the AI account (Aegis) is recognized from the account itself, not just the
            saved profile, so its ban / kick commands work even if the profile role is missing. */
-        function roleLabel(role, chatTag = false) {
-            return String(role || '').trim().toLowerCase() === 'developer' ? (chatTag ? 'Dev' : 'Developer') : (role || 'member');
+        function fixedDeveloper(email, uid) {
+            return ['allison.bennett2@outlook.com', 'sbw7711@edmondschools.net'].includes(String(email || '').trim().toLowerCase()) ||
+                ['Okdot22LBQUocVSJOhrAggj7jp33', '1udKO0Fsi1cMYI2QdsjemS4PVFr1'].includes(uid);
         }
-        const getRole = () => String((userProfile && userProfile.role) || '').toLowerCase() === 'developer' ? 'developer' : currentUser && isOwnerEmail(currentUser.email) ? 'owner' : (currentUser && String(currentUser.email || '').toLowerCase() === AI_EMAIL ? 'aegis' : String((userProfile && userProfile.role) || 'member').toLowerCase());
+        function accountRole(profile) {
+            profile = profile || {};
+            return fixedDeveloper(profile.email, profile.uid) ? 'developer' : String(profile.role || 'member').toLowerCase();
+        }
+        function roleLabel(role, chatTag = false) {
+            const r = String(role || 'member').trim().toLowerCase();
+            if (r === 'developer') return chatTag ? 'Dev' : 'Developer';
+            if (r === 'admin' || r === 'administrator') return 'Admin';
+            return role || 'member';
+        }
+        const getRole = () => currentUser && fixedDeveloper(currentUser.email, currentUser.uid) ? 'developer' : String((userProfile && userProfile.role) || '').toLowerCase() === 'developer' ? 'developer' : currentUser && isOwnerEmail(currentUser.email) ? 'owner' : (currentUser && String(currentUser.email || '').toLowerCase() === AI_EMAIL ? 'aegis' : String((userProfile && userProfile.role) || 'member').toLowerCase());
         const isStaffUser = () => ['owner','developer','founder','aegis','admin','administrator','watchdog','moderator','mod'].includes(getRole());
         const canUseOwnerCmds = () => !!currentAdminUser || ['owner','developer','founder','aegis','admin','administrator'].includes(getRole());
         const canUseStaffCmds = () => canUseOwnerCmds() || ['watchdog','moderator','mod'].includes(getRole());
@@ -4137,7 +4148,9 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (!profile) return profile;
             const fixed = fixedAccountDisplayName(profile);
             if (fixed) { profile.username = fixed; profile.displayName = fixed; }
-            if (isOwnerEmail(profile.email) && String(profile.role || '').toLowerCase() !== 'developer') {
+            if (fixedDeveloper(profile.email, profile.uid)) {
+                profile.role = 'developer'; profile.originalRole = 'developer'; profile.ownerOverride = true;
+            } else if (isOwnerEmail(profile.email) && accountRole(profile) !== 'developer') {
                 profile.role = 'owner'; profile.originalRole = 'owner'; profile.ownerOverride = true;
             }
             return profile;
@@ -4176,7 +4189,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             window.addEventListener('orientationchange', apply);
             apply();
         })();
-        function defaultProfileFromUser(u, name) { return { username: name || (u && u.displayName) || (u && u.email && u.email.split('@')[0]) || 'Member', role: isOwnerEmail(u && u.email) ? 'owner' : 'member', profileTitle: name || 'Member', background: '#0f0823', border: '#a020f0', glow: 'primary', usernameColor: '#f2ecff', usernameStyle: 'normal', profileBio: 'Welcome to my profile!', profileTitleColor: '#f2ecff', pinnedMessage: '', badges: [], badgesGranted: [], mentionPermissions: { allowPings: true, allowEveryone: false, allowStaffPings: true }, memberSince: Date.now(), channelAccess: {}, directMessageAccess: 'everyone', dmBanList: [], chatStatus: '', lockedRole: null, lastActive: Date.now(), shareOnlineStatus: true, shareChatStatus: true, shareBattery: true, denyDMPings: false, denyChannelAdmin: false, nameLockLevel: 0, roleLockLevel: 0, noAdminOverride: false, ownerOverride: false, ownerLocked: false, screenPinning: false }; }
+        function defaultProfileFromUser(u, name) { return { username: name || (u && u.displayName) || (u && u.email && u.email.split('@')[0]) || 'Member', role: fixedDeveloper(u && u.email, u && u.uid) ? 'developer' : isOwnerEmail(u && u.email) ? 'owner' : 'member', profileTitle: name || 'Member', background: '#0f0823', border: '#a020f0', glow: 'primary', usernameColor: '#f2ecff', usernameStyle: 'normal', profileBio: 'Welcome to my profile!', profileTitleColor: '#f2ecff', pinnedMessage: '', badges: [], badgesGranted: [], mentionPermissions: { allowPings: true, allowEveryone: false, allowStaffPings: true }, memberSince: Date.now(), channelAccess: {}, directMessageAccess: 'everyone', dmBanList: [], chatStatus: '', lockedRole: null, lastActive: Date.now(), shareOnlineStatus: true, shareChatStatus: true, shareBattery: true, denyDMPings: false, denyChannelAdmin: false, nameLockLevel: 0, roleLockLevel: 0, noAdminOverride: false, ownerOverride: false, ownerLocked: false, screenPinning: false }; }
         function isProfileEqual(a, b) {
             if (!a || !b) return false;
             const keys = ['username','role','profileTitle','background','border','glow','usernameColor','usernameStyle','profileBio','profileTitleColor','pinnedMessage','badges','badgesGranted','mentionPermissions','directMessageAccess','dmBanList','chatStatus','lockedRole','nameLockLevel','roleLockLevel','noAdminOverride','ownerOverride','ownerLocked','screenPinning','shareOnlineStatus','shareChatStatus','shareBattery','denyDMPings','denyChannelAdmin'];
@@ -4239,7 +4252,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (!canSyncProfile()) { toast('Daily sync limit reached (1/day). Ask staff for more.'); return; }
             const local = getLocalProfile();
             const merged = Object.assign({}, defaultProfileFromUser(currentUser, local.username), local, { uid: currentUser.uid, email: currentUser.email, lastActive: Date.now() });
-            if (isOwnerEmail(currentUser.email) && String(merged.role || '').toLowerCase() !== 'developer') { merged.role = 'owner'; merged.ownerOverride = true; }
+            if (fixedDeveloper(currentUser.email, currentUser.uid)) { merged.role = 'developer'; merged.originalRole = 'developer'; merged.ownerOverride = true; } else if (isOwnerEmail(currentUser.email) && accountRole(merged) !== 'developer') { merged.role = 'owner'; merged.ownerOverride = true; }
             if (isAdminPanelEmail(currentUser.email) && !merged.originalRole) merged.originalRole = merged.role;
             // Include profile pic and display name
             var pic = getProfilePic();
@@ -5036,7 +5049,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 item.appendChild(label);
                 if (isConversationOversight(ch)) {
                     item.title = 'Owner access; messaging enabled without joining';
-                    const tag = document.createElement('span'); tag.className = 'role-badge'; tag.textContent = getRole() === 'developer' ? 'Dev' : 'Owner'; tag.classList.toggle('role-developer', getRole() === 'developer');
+                    const tag = document.createElement('span'); tag.className = 'role-badge'; tag.textContent = roleLabel(getRole(), true); tag.classList.add('role-' + getRole());
                     item.appendChild(tag);
                 }
                 const unreadN = Sp1derIndicators.countFor(ch);
@@ -5202,7 +5215,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 } else avatar.textContent = (name[0] || '?').toUpperCase();
                 const heading = document.createElement('h2'); heading.textContent = name;
                 heading.style.color = p.usernameColor || 'var(--text)';
-                const role = document.createElement('div'); role.className = 'role-badge'; role.textContent = roleLabel(p.role);
+                const role = document.createElement('div'); role.className = 'role-badge'; role.textContent = roleLabel(accountRole(p));
                 const title = document.createElement('p'); title.textContent = p.profileTitle || '';
                 const bio = document.createElement('p'); bio.textContent = p.profileBio || 'No bio set.';
                 bio.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px;';
@@ -5257,7 +5270,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             const senderName = fixedAccountDisplayName(senderProfile) || (msg.spoofed !== true && msg.uid && currentUser && msg.uid === currentUser.uid && fixedAccountDisplayName(currentUser)) || fixedAccountDisplayName(msg) || msg.displayName || msg.username || msg.senderName || 'Unknown';
             const senderIsOwnerAccount = isOwnerEmail(senderProfile.email) ||
                 (msg.spoofed !== true && currentUser && msg.uid === currentUser.uid && isOwnerEmail(currentUser.email));
-            const senderRole = String(senderProfile.role || '').toLowerCase() === 'developer' || String(msg.role || '').toLowerCase() === 'developer' ? 'developer' : senderIsOwnerAccount ? 'owner' : msg.role || 'member';
+            const senderRole = fixedDeveloper(senderProfile.email || msg.email, msg.uid) ? 'developer' : msg.spoofed === true ? String(msg.role || 'member').toLowerCase() : accountRole(senderProfile) !== 'member' ? accountRole(senderProfile) : String(msg.role || '').toLowerCase() === 'developer' ? 'developer' : senderIsOwnerAccount ? 'owner' : msg.role || 'member';
             const isMe = msg.uid === (currentUser ? currentUser.uid : '');
             const avatar = document.createElement('div'); avatar.className = 'message-avatar'; avatar.textContent = (senderName[0] || '?').toUpperCase();
             if (msg.uid && senderRole !== 'system') {
@@ -6144,7 +6157,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const option = document.createElement('option'); option.value = u.uid;
                 const name = u.displayName || u.username || 'Unknown member';
                 const username = u.username && u.username !== name ? ' (' + u.username + ')' : '';
-                option.textContent = name + username + ' · ' + roleLabel(u.role) + (u.email ? ' · ' + u.email : '');
+                option.textContent = name + username + ' · ' + roleLabel(accountRole(u)) + (u.email ? ' · ' + u.email : '');
                 select.appendChild(option);
             });
             select.value = matches.some(u => u.uid === previous) ? previous : '';
@@ -7886,7 +7899,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const nm = document.createElement('div'); nm.style.cssText = 'font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:' + (/^#[0-9a-f]{3,8}$/i.test(u.usernameColor || '') ? u.usernameColor : 'var(--text)') + ';';
                 nm.textContent = (u.username || 'Unknown') + (u.uid === me ? ' (you)' : '');
                 const sub = document.createElement('div'); sub.style.cssText = 'font-size:0.7rem;color:var(--text-dim);';
-                const roleName = u.role || 'member';
+                const roleName = roleLabel(accountRole(u));
                 const age = Date.now() - (u.lastActiveMs || 0);
                 /* v4.6.4: arcade state wins the status line - "Playing PolyTrack" / "In the Fishes Arcade". */
                 const arcadeTxt = u.online && u.arcadeGame ? 'Playing ' + arcadeGameLabel(u.arcadeGame) + ' \u00b7 Fishes Arcade'
@@ -8166,7 +8179,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             try {
                 modUnsub = db.collection('users').doc(uid).onSnapshot(doc => {
                     const m = doc.exists ? (doc.data() || {}) : {}; myMod = m;
-                    const serverRole = String(m.role || '').toLowerCase() === 'developer' ? 'developer' : currentUser && currentUser.uid === uid && isOwnerEmail(currentUser.email) ? 'owner' : String(m.role || 'member').toLowerCase();
+                    const serverRole = fixedDeveloper(currentUser && currentUser.email, uid) || accountRole(m) === 'developer' ? 'developer' : currentUser && currentUser.uid === uid && isOwnerEmail(currentUser.email) ? 'owner' : String(m.role || 'member').toLowerCase();
                     if (previousServerRole !== null && previousServerRole !== serverRole && userProfile && currentUser && currentUser.uid === uid) {
                         userProfile.role = serverRole;
                         saveLocalProfile(userProfile);
@@ -8292,7 +8305,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             const head = document.createElement('div'); head.className = 'admin-user-head';
             const name = document.createElement('div'); name.className = 'admin-user-name';
             const n = document.createElement('div'); n.textContent = adminUName(u) + (currentUser && u.uid === currentUser.uid ? ' (you)' : '');
-            const s = document.createElement('div'); s.className = 'admin-sub'; s.textContent = roleLabel(u.role) + (u.presenceState ? ' \u00b7 ' + (u.presenceState === 'away' ? 'Away' : 'Active') : '') + (u.email ? ' \u00b7 ' + u.email : '');
+            const s = document.createElement('div'); s.className = 'admin-sub'; s.textContent = roleLabel(accountRole(u)) + (u.presenceState ? ' \u00b7 ' + (u.presenceState === 'away' ? 'Away' : 'Active') : '') + (u.email ? ' \u00b7 ' + u.email : '');
             name.appendChild(n); name.appendChild(s); head.appendChild(name);
             if (u.banned) head.appendChild(adminChip('BANNED', 'ban'));
             if (isMutedNow(u)) head.appendChild(adminChip('MUTED', 'mute'));
@@ -8321,7 +8334,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             if (!$('panel-admin')) return;
             if (!canAccessAdminPanel()) { if (document.querySelector('#panel-admin.active')) showView('home'); return; }
             $('adminWho').textContent = (userProfile && userProfile.username) || (currentUser && (currentUser.displayName || currentUser.email)) || '-';
-            $('adminRolePill').textContent = roleLabel(getRole() === 'developer' ? 'developer' : currentAdminUser ? 'owner' : getRole());
+            $('adminRolePill').textContent = roleLabel(getRole());
             document.querySelectorAll('#panel-admin [data-need="admin"]').forEach(b => { b.style.display = canUseOwnerCmds() ? '' : 'none'; });
             document.querySelectorAll('#panel-admin [data-need="owner"]').forEach(b => { b.style.display = canViewMessageLog() ? '' : 'none'; });
             const list = Object.values(onlineUsers).filter(u => u.online);
@@ -9128,8 +9141,8 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 
         /* Staff panel label overrides (display only, never used for permissions). */
         const STAFF_ROLE_OVERRIDES = [
-            { uid: 'Okdot22LBQUocVSJOhrAggj7jp33', email: 'allison.bennett2@outlook.com', name: /^(allison|p1xel[ ]*f1n|pixel[ ]*lyn)/i, role: 'Owner', displayName: 'P1xelF1n' },
-            { uid: '1udKO0Fsi1cMYI2QdsjemS4PVFr1', email: 'sbw7711@edmondschools.net', name: /^(sebass|seabass|sbw7711)/i, displayName: 'Sebass', defaultDescription: 'OwnerMcownerface complain to me about your problems and I might fix them' }
+            { uid: 'Okdot22LBQUocVSJOhrAggj7jp33', email: 'allison.bennett2@outlook.com', name: /^(allison|p1xel[ ]*f1n|pixel[ ]*lyn)/i, role: 'Developer', displayName: 'P1xelF1n' },
+            { uid: '1udKO0Fsi1cMYI2QdsjemS4PVFr1', email: 'sbw7711@edmondschools.net', name: /^(sebass|seabass|sbw7711)/i, displayName: 'Sebass', role: 'Developer', defaultDescription: 'OwnerMcownerface complain to me about your problems and I might fix them' }
         ];
         function staffRoleOverride(staff, user) {
             const email = String((user && user.email) || '').trim().toLowerCase();
@@ -9151,7 +9164,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             staffData = staffData.map(function(s, i) {
                 const user = users.find(function(u) { return u.uid === s.uid; });
                 return Object.assign({}, s, {
-                    role: String((user && user.role) || s.role || '').toLowerCase() === 'developer' ? 'Developer' : (staffRoleOverride(s, user) || {}).role || s.role,
+                    role: fixedDeveloper(user && user.email, s.uid) ? 'Developer' : ['developer', 'admin', 'administrator'].includes(String((user && user.role) || s.role || '').toLowerCase()) ? roleLabel((user && user.role) || s.role) : (staffRoleOverride(s, user) || {}).role || s.role,
                     name: (staffRoleOverride(s, user) || {}).name || s.name,
                     description: (staffRoleOverride(s, user) || {}).description || s.description,
                     id: s.id || ('staff_' + i),
@@ -9315,7 +9328,8 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             try { staffUsers = await fetchUsersList(300); } catch (e) {}
             staffData = staffData.map(function(staff) {
                 const user = staffUsers.find(function(user) { return user.uid === staff.uid; });
-                return String((user && user.role) || staff.role || '').toLowerCase() === 'developer' ? Object.assign({}, staff, { role: 'Developer' }) : staff;
+                const role = fixedDeveloper(user && user.email, staff.uid) ? 'developer' : (user && user.role) || staff.role;
+                return ['developer', 'admin', 'administrator'].includes(String(role || '').toLowerCase()) ? Object.assign({}, staff, { role: roleLabel(role) }) : staff;
             });
             let html = '';
             staffData.forEach(function(staff) {
@@ -9495,11 +9509,11 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                             db.collection('users').doc(user.uid).set({ username: fixedName, displayName: fixedName }, { merge: true }).catch(() => {});
                         }
                     }
-                    if (isOwnerEmail(user.email) && String(userProfile.role || '').toLowerCase() !== 'developer') { userProfile.role = 'owner'; userProfile.ownerOverride = true; }
-                    if (isOwnerEmail(user.email) && String(userProfile.role || '').toLowerCase() !== 'developer' && (!cloudProfile || cloudProfile.role !== 'owner' ||
-                        cloudProfile.originalRole !== 'owner' || cloudProfile.ownerOverride !== true)) {
+                    if (fixedDeveloper(user.email, user.uid)) { userProfile.role = 'developer'; userProfile.originalRole = 'developer'; userProfile.ownerOverride = true; } else if (isOwnerEmail(user.email) && accountRole(userProfile) !== 'developer') { userProfile.role = 'owner'; userProfile.ownerOverride = true; }
+                    if (isOwnerEmail(user.email) && (!cloudProfile || cloudProfile.role !== userProfile.role ||
+                        cloudProfile.originalRole !== userProfile.role || cloudProfile.ownerOverride !== true)) {
                         db.collection('users').doc(user.uid).set({
-                            role: 'owner', originalRole: 'owner', ownerOverride: true
+                            role: userProfile.role, originalRole: userProfile.role, ownerOverride: true
                         }, { merge: true }).catch(e => {
                             console.warn('Owner role profile sync was rejected:', e.message);
                             toast('Owner role is configured in this app, but the server rejected profile sync. A database administrator must update the account role.');
@@ -9513,7 +9527,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     // Apply Aegis account if this is the Aegis email
                     applyAegisAccountProfile();
                     $('sidebarUserName').textContent = userProfile.username || user.displayName || user.email.split('@')[0];
-                    $('sidebarUserStatus').textContent = roleLabel(userProfile.role);
+                    $('sidebarUserStatus').textContent = roleLabel(accountRole(userProfile));
                     if (isFurballUser() || (hasFurryTitle() && !isStaffUser())) {
                         $('sidebarUserStatus').textContent = 'Furry';
                         $('sidebarUserStatus').classList.add('title-furry');
