@@ -231,6 +231,7 @@
   .row[data-launch="geometry-dash"] { --row-accent: #a3e635; }
   .row[data-launch="pixel-canvas"] { --row-accent: #ad9aff; }
   .row[data-launch="sp1der"] { --row-accent: #8b5cf6; }
+  .row[data-launch="sp1der-intro"] { --row-accent: #79e4ef; }
   .row[data-launch="tiers"] { --row-accent: #44d1a0; }
   .beta-chip {
     display: inline-block; vertical-align: middle; margin-left: 6px;
@@ -1002,7 +1003,7 @@
             <button type="button" data-phone-filter="apps" aria-pressed="false">Apps</button>
           </nav>
         </div>
-        <div class="phone-section-head"><h2 id="phoneSectionTitle">Explore the arcade</h2><span id="phoneCount" role="status" aria-live="polite">8 experiences</span></div>
+        <div class="phone-section-head"><h2 id="phoneSectionTitle">Explore the arcade</h2><span id="phoneCount" role="status" aria-live="polite">9 experiences</span></div>
       </div>
     </header>
 
@@ -1093,6 +1094,20 @@
         <span class="row-body">
           <span class="row-name">Project Sp1der</span>
           <span class="row-desc">The Sp1der chat app — opens a Sp1der backup, cloaked like the other games</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+      <button class="row" data-launch="sp1der-intro">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 2 8.7 5v10L12 22l-8.7-5V7L12 2Z"/><path d="m3.3 7 8.7 5 8.7-5M12 12v10"/><path d="m9 7 6 3.5"/>
+          </svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Intro beta <span class="beta-chip">SP1DER</span></span>
+          <span class="row-desc">The same Sp1der, with a cinematic 3-D boot sequence and an original synced soundtrack</span>
         </span>
         <span class="row-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
@@ -1906,6 +1921,7 @@ document.querySelectorAll("[data-launch]").forEach(function (btn) {
    Each app lists [htmlUrl, baseUrl, mode] sources tried in order. The fetched
    HTML is injected with a <base> pointing at the repo, so relative assets load
    too. Sources with a mode get their scripts inlined (see below). */
+const INTRO_BASE = /^https?:/.test(document.baseURI) ? document.baseURI : "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/";
 const REPO_APPS = {
   /* raw.githubusercontent.com is the only host the school filter lets through, but it
      serves every file as text/plain with nosniff, so browsers refuse to run its
@@ -1959,6 +1975,14 @@ const REPO_APPS = {
       ["https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/fishes.html", "https://cdn.statically.io/gh/fish01-jpg/mantle-menu@main/"]
     ]
   },
+  "sp1der-intro": {
+    label: "Sp1der · Intro beta",
+    sources: [
+      [new URL("sp1der-intro.html", INTRO_BASE).href, new URL(".", INTRO_BASE).href],
+      ["https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sp1der-intro.html", "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/"],
+      ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sp1der-intro.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"]
+    ]
+  },
   /* Server Tiers (BETA): how much server data each account can use. */
   tiers: {
     label: "Server Tiers",
@@ -1980,7 +2004,8 @@ const PHONE_APPS = {
   "geometry-dash": { category: "games", touch: true, description: "Find your rhythm. Time every jump.", capability: "Tap to jump" },
   tetris: { category: "games", touch: true, description: "Stack blocks and clear your next line.", capability: "On-screen controls" },
   tiers: { category: "apps", touch: true, description: "Compare Free, Pro and Ultra plans.", capability: "Phone-friendly" },
-  sp1der: { category: "apps", touch: true, description: "Your community, made for your phone.", capability: "Mobile chat" }
+  sp1der: { category: "apps", touch: true, description: "Your community, made for your phone.", capability: "Mobile chat" },
+  "sp1der-intro": { category: "apps", touch: true, description: "Sp1der with a cinematic 3-D intro and synced sound.", capability: "22-second intro · Skippable" }
 };
 
 (function initPhoneMenu() {
@@ -2155,7 +2180,7 @@ async function launchPhoneApp(id) {
     } else {
       const app = REPO_APPS[id];
       html = app.html || null;
-      const localPaths = { tetris: "tetris/tetris.html", "geometry-dash": "geometry-dash/index.html", tiers: "tiers.html", sp1der: "sp1der-mobile.html" };
+      const localPaths = { tetris: "tetris/tetris.html", "geometry-dash": "geometry-dash/index.html", tiers: "tiers.html", sp1der: "sp1der-mobile.html", "sp1der-intro": "sp1der-intro.html" };
       let sources = app.sources.slice();
       if (localPaths[id]) {
         const url = new URL(localPaths[id], document.baseURI);
@@ -2174,7 +2199,7 @@ async function launchPhoneApp(id) {
           html = await buildAppHtml(text, sourceBase, mode); base = sourceBase;
           // Firebase auth needs a real HTTP(S) page origin where available.
           // Raw GitHub / CDN mirrors still use the existing srcdoc fallback.
-          if (id === "sp1der" && !/^(raw\.githubusercontent\.com|.*jsdelivr\.net|.*githack\.com|cdn\.statically\.io)$/.test(new URL(url).hostname)) directPage = url;
+          if ((id === "sp1der" || id === "sp1der-intro") && !/^(raw\.githubusercontent\.com|.*jsdelivr\.net|.*githack\.com|cdn\.statically\.io)$/.test(new URL(url).hostname)) directPage = url;
           break;
         } catch (error) { lastError = error; }
       }
@@ -2316,7 +2341,7 @@ async function launchRepoApp(appId) {
   const label = (app && app.label) || appId;
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
-  if (appId !== "sp1der" && appId !== "tiers") trackGameWindow(win, appId); // sp1der = chat app, tiers = info page
+  if (appId !== "sp1der" && appId !== "sp1der-intro" && appId !== "tiers") trackGameWindow(win, appId); // Sp1der entries are apps, not games.
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
   d.open(); d.write(appSplashHtml(label)); d.close();
@@ -2341,7 +2366,7 @@ async function launchRepoApp(appId) {
     frame.srcdoc = base ? injectBase(html, base) : html;
     d.body.innerHTML = ""; /* drop the splash */
     d.body.appendChild(frame);
-    if (appId !== "sp1der" && appId !== "tiers") injectGameBridge(d, appId);
+    if (appId !== "sp1der" && appId !== "sp1der-intro" && appId !== "tiers") injectGameBridge(d, appId);
     applySpoof(d, spoof);
     console.info("[Fishes Arcade] " + label + " served from " + base + (inlined ? " (scripts inlined)" : ""));
   } catch (e) {

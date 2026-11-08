@@ -9,7 +9,7 @@ The existing desktop hub is preserved. Phones automatically receive a separate, 
 - Resize, orientation, media-query and visual-viewport changes update the interface without reloading it.
 - Portrait uses a two-column catalog and bottom navigation. Wider landscape uses a two- or three-column catalog and a side navigation rail.
 - Controls have at least 44px touch targets. Safe-area padding, dynamic viewport heights, keyboard focus, reduced motion and browser zoom are supported.
-- Search, All / Touch-ready / Games / Apps filters, result counts and an empty state operate on the existing eight app entries.
+- Search, All / Touch-ready / Games / Apps filters, result counts and an empty state operate on all nine app entries, including the optional Sp1der Intro beta.
 
 ## Phone app launches
 

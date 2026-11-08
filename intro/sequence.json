@@ -1,0 +1,16 @@
+{
+  "title": "Sp1der / First Signal",
+  "version": 1,
+  "duration": 22,
+  "bpm": 120,
+  "stages": [
+    {"at": 0, "name": "First signal", "detail": "Out of the silence, a single connection.", "tag": "01 / ACQUIRE"},
+    {"at": 3, "name": "Ideas take shape.", "detail": "Messages. People. Windows into other worlds.", "tag": "02 / ASSEMBLE"},
+    {"at": 7, "name": "At the center of it all.", "detail": "Separate pieces. One shared space.", "tag": "03 / IGNITE"},
+    {"at": 11, "name": "Every connection matters.", "detail": "A world built around the people in it.", "tag": "04 / CONNECT"},
+    {"at": 15, "name": "This is Sp1der.", "detail": "Your community, coming into focus.", "tag": "05 / SYNTHESIZE"},
+    {"at": 19, "name": "You're in.", "detail": "The introduction ends. Your space begins.", "tag": "06 / ENTER"}
+  ],
+  "impacts": [0.15, 3, 7, 11, 15, 19],
+  "notes": [146.8324, 174.6141, 220, 261.6256, 293.6648, 349.2282, 440, 523.2511]
+}
