@@ -8048,6 +8048,68 @@ Furball found a sunbeam and is not moving for anyone.`;
                 presenceUnsubs.push(unsub);
             } catch (e) {}
         }
+/* FISHES PUBLIC ARCADE FEEDBACK PATCH
+Paste inside sp1der's existing JavaScript scope, immediately after the arcade
+tracker block, AFTER db, currentUser and arcadeWindows are defined.
+Do not add a second script tag if pasting inside an existing script.
+Firestore rules must separately allow the new collection; see SETUP.txt.
+*/
+(function installArcadeCommunityFeedback(){
+'use strict';
+if(window.__fishesFeedbackInstalled)return;
+window.__fishesFeedbackInstalled=true;
+const categories=['Broken game','Game recommendation','Arcade or application problem','Feature suggestion','Other feedback'];
+const collection=()=>db.collection('arcadeFeedback');
+const lastSubmit=new Map();
+function clean(value,max){if(typeof value!=='string'||value.length>max)throw Error('Invalid feedback field.');return value.trim();}
+window.addEventListener('message',async e=>{
+const m=e.data;if(!m||m.type!=='FISHES_ARCADE_FEEDBACK')return;
+// Only accept actual arcade windows opened and registered by this sp1der tab.
+if(!e.source||!arcadeWindows.has(e.source))return;
+if(typeof m.requestId!=='string'||!/^[a-f0-9]{32}$/.test(m.requestId))return;
+const reply=(ok,error)=>{try{e.source.postMessage({type:'FISHES_ARCADE_FEEDBACK_RESULT',requestId:m.requestId,ok,error:error||''},'*');}catch(_){};};
+try{
+if(!currentUser||!currentUser.uid)throw Error('Sign into sp1der before submitting feedback.');
+const user=currentUser,raw=m.report;
+if(!raw||raw.id!==m.requestId)throw Error('Invalid report ID.');
+const report={category:clean(raw.category,80),game:clean(raw.game,160),gameLabel:clean(raw.gameLabel,200),issue:clean(raw.issue,80),suggestion:clean(raw.suggestion,160),link:clean(raw.link,1000),description:clean(raw.description,5000)};
+if(!categories.includes(report.category)||report.description.length<10)throw Error('Choose a category and write at least 10 characters.');
+if(report.category==='Game recommendation'&&!report.suggestion)throw Error('Enter the recommended game title.');
+if(report.link&&!/^https?:\/\//i.test(report.link))throw Error('Links must start with http:// or https://.');
+if(report.category!=='Broken game')report.issue='';
+const ref=collection().doc(m.requestId);
+const existing=await ref.get();
+if(existing.exists){if(existing.data().authorUid!==user.uid)throw Error('Report ID conflict. Edit the draft and retry.');reply(true);return;}
+if(Date.now()-(lastSubmit.get(user.uid)||0)<10000)throw Error('Please wait a few seconds before sending another report.');
+lastSubmit.set(user.uid,Date.now());
+// Use the profile display name when available. Never fall back to email.
+let authorName='Member';
+try{const profile=await db.collection('users').doc(user.uid).get();if(profile.exists){const name=profile.data().username;if(typeof name==='string'&&name.trim())authorName=name.trim().slice(0,80);}}catch(_){}
+if(authorName==='Member'&&typeof user.displayName==='string'&&user.displayName.trim())authorName=user.displayName.trim().slice(0,80);
+if(!currentUser||currentUser.uid!==user.uid)throw Error('Account changed. Submit again after signing in.');
+// Transaction makes retries of the same ID idempotent, including after an ack is lost.
+await db.runTransaction(async tx=>{const snapshot=await tx.get(ref);if(snapshot.exists){if(snapshot.data().authorUid!==user.uid)throw Error('Report ID conflict.');return;}tx.set(ref,{...report,authorUid:user.uid,authorName,createdAt:Date.now(),status:'New'});});
+reply(true);
+}catch(err){console.warn('[Arcade feedback]',err);reply(false,err&&err.code==='permission-denied'?'Database permissions do not allow this report yet. Ask staff to check the arcadeFeedback rules.':String(err.message||'Could not save feedback.'));}
+});
+function el(tag,text){const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x;}
+let dialog,list,message,search,category,status,unsub=null;
+function stop(){if(unsub){unsub();unsub=null;}}
+function mount(){if(document.getElementById('sp1derFeedbackLauncher'))return;
+const style=el('style');style.textContent=`#sp1derFeedbackLauncher{position:fixed;right:16px;bottom:18px;z-index:9998;background:#7c3aed;color:white;border:1px solid #ffffff33;border-radius:10px;padding:12px 16px;font:600 13px system-ui;cursor:pointer;box-shadow:0 4px 20px #0005}#sp1derFeedbackPage{width:min(900px,calc(100% - 24px));max-height:88dvh;overflow:auto;background:#111115;color:#f4f4f5;border:1px solid #ffffff30;border-radius:16px;padding:22px;font:14px/1.6 system-ui}#sp1derFeedbackPage::backdrop{background:#000b}#sp1derFeedbackPage header{display:flex;align-items:center;justify-content:space-between;gap:12px}#sp1derFeedbackPage h2{font-size:22px;margin:0}#sp1derFeedbackPage button,#sp1derFeedbackPage input,#sp1derFeedbackPage select{font:inherit;background:#22222a;color:#fff;border:1px solid #ffffff30;border-radius:8px;min-height:44px;padding:10px}#sp1derFeedbackPage button{cursor:pointer}#sp1derFeedbackPage .af-filters{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}#sp1derFeedbackPage .af-filters input{flex:1;min-width:160px}#sp1derFeedbackPage article{padding:18px 0;border-top:1px solid #ffffff22;overflow-wrap:anywhere}#sp1derFeedbackPage article h3{margin:0 0 6px;font-size:17px}#sp1derFeedbackPage article p{white-space:pre-wrap;margin:7px 0}#sp1derFeedbackPage small{color:#b4b4c0}#sp1derFeedbackPage :focus-visible,#sp1derFeedbackLauncher:focus-visible{outline:2px solid #c4b5fd;outline-offset:3px}@media(max-width:500px){#sp1derFeedbackLauncher{right:10px;bottom:80px;padding:10px;font-size:12px}}`;
+document.head.append(style);
+const launcher=el('button','Arcade Feedback');launcher.id='sp1derFeedbackLauncher';launcher.type='button';launcher.onclick=open;document.body.append(launcher);
+dialog=el('dialog');dialog.id='sp1derFeedbackPage';dialog.setAttribute('aria-labelledby','sp1derFeedbackHeading');
+const header=el('header'),heading=el('h2','Arcade Feedback');heading.id='sp1derFeedbackHeading';const close=el('button','Close');close.type='button';close.onclick=()=>dialog.close();header.append(heading,close);
+const intro=el('p','Community reports and suggestions. All signed-in members can browse. Submit feedback using the form in Fishes Arcade.');
+const filters=el('div');filters.className='af-filters';search=el('input');search.type='search';search.placeholder='Search feedback';search.setAttribute('aria-label','Search feedback');category=el('select');category.setAttribute('aria-label','Feedback category');['All categories',...categories].forEach(x=>category.add(new Option(x,x)));status=el('select');status.setAttribute('aria-label','Review status');['All statuses','New','Reviewing','Considering','Planned','Fixed','Added','Could not reproduce','Not planned'].forEach(x=>status.add(new Option(x,x)));filters.append(search,category,status);
+message=el('p');message.setAttribute('role','status');message.setAttribute('aria-live','polite');list=el('section');list.setAttribute('aria-label','Feedback entries');dialog.append(header,intro,filters,message,list);document.body.append(dialog);dialog.addEventListener('close',()=>{stop();list.replaceChildren();});window.addEventListener('pagehide',stop);
+}
+function open(){mount();if(!dialog.open)dialog.showModal();stop();list.replaceChildren();if(!currentUser){message.textContent='Sign into the community to view feedback.';return;}message.textContent='Loading community feedback…';const viewerUid=currentUser.uid;
+try{unsub=collection().orderBy('createdAt','desc').limit(200).onSnapshot(snapshot=>{if(!currentUser||currentUser.uid!==viewerUid){stop();list.replaceChildren();message.textContent='Account changed. Close and reopen this page after signing in.';return;}const reports=snapshot.docs.map(d=>({id:d.id,...d.data()}));function draw(){list.replaceChildren();const q=search.value.toLowerCase().trim();const filtered=reports.filter(r=>(category.selectedIndex===0||r.category===category.value)&&(status.selectedIndex===0||r.status===status.value)&&[r.gameLabel,r.suggestion,r.description,r.authorName,r.category].join(' ').toLowerCase().includes(q));message.textContent=filtered.length+' matching entries · newest '+reports.length+' loaded (maximum 200)';filtered.forEach(r=>{const article=el('article');article.append(el('h3',(r.gameLabel||r.suggestion||'General feedback')+' — '+(r.status||'New')),el('small',(r.category||'Other')+' · '+(r.authorName||'Member')+' · '+(Number.isFinite(r.createdAt)?new Date(r.createdAt).toLocaleString():'')),el('p',String(r.description||'')));if(r.issue)article.append(el('p','Problem type: '+r.issue));if(r.link)article.append(el('p','Submitted link: '+r.link));article.append(el('small','Report ID: '+r.id));list.append(article);});}search.oninput=category.onchange=status.onchange=draw;draw();},err=>{list.replaceChildren();message.textContent='Could not load feedback. Check your connection and arcadeFeedback database permissions.';console.warn('[Arcade feedback page]',err);});}catch(err){message.textContent='Feedback database is unavailable.';}}
+window.openArcadeFeedbackPage=open;
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
+})();
 
         /* ===== MODERATION CORE (enforcement on the user's own client + live staff effects) ===== */
         const PAGE_LOAD_TS = Date.now();
