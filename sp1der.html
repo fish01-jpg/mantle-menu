@@ -1821,9 +1821,18 @@ input,textarea,select{font-size:16px!important;max-width:100%;box-sizing:border-
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V20h6v-3c0-2.66-5.33-4-8-4z"></path></svg> Active Users <span class="nav-badge" id="onlineNavBadge" style="display:none">0</span>
                 </button>
                 <button class="nav-item" data-view="events" onclick="showView('events')">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"></path></svg> Events
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z">
+</path></svg> Events
                     <span class="nav-badge" id="eventsNavBadge" style="display:none">1</span>
                 </button>
+<button class="nav-item"
+        data-view="arcadereports"
+        onclick="showView('arcadereports')">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"></path>
+    </svg>
+    Arcade Reports
+</button>
                 <button class="nav-item" data-view="staff" onclick="showView('staff')">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg> Staff
                 </button>
@@ -8491,34 +8500,160 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
         /* ===== 17. VIEW MANAGEMENT ===== */
         function showView(viewName) {
-            if (viewName === 'admin' && !canAccessAdminPanel()) { toast('Admin panel requires an admin role'); viewName = 'home'; }
-            try { trackArcadeViews(viewName); } catch (e) {}
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            const panel = $('panel-' + viewName);
-            if (panel) panel.classList.add('active');
-            const navBtn = document.querySelector(`[data-view="${viewName}"]`);
-            if (navBtn) navBtn.classList.add('active');
-            const titles = { home: 'Home', community: 'Community', games: 'Resources', activeusers: 'Active Users', events: 'Events', staff: 'Staff', aegis: 'Aegis AI', updates: 'Updates', editor: 'Code Editor', admin: 'Admin' };
-            $('topbarTitle').textContent = titles[viewName] || 'Project Sp1der';
-            if (viewName === 'games') renderAppsGrid();
-            if (viewName === 'updates') { renderChangelog(); switchUpdatesTab('changelog'); }
-            if (viewName === 'activeusers') renderActiveUsers();
-            if (viewName === 'admin') adminRefresh(false);
-            if (viewName === 'events') { renderEventsCurrent(); try { Sp1derIndicators.markEventSeen();   } catch (e) {} }
-            if (viewName === 'staff') { renderStaffPage(); }
-            if (viewName === 'aegis' && !aegisMessageUnsub) initAegisChat();
-            if (viewName === 'community' && selectedChannelId) {
-                try {
-                    Sp1derIndicators.markRead(selectedChannelId);
-                    ReadReceipts.start(selectedChannelId);
-                    ComposerPresence.start(selectedChannelId);
-                    ReadReceipts.remarkViewed();
-                } catch (e) {}
-            }
-            if (viewName !== 'community') { try { ComposerPresence.stop(); } catch (e) {} }
+    if (viewName === 'admin' && !canAccessAdminPanel()) { toast('Admin panel requires an admin role'); viewName = 'home'; }
+    try { trackArcadeViews(viewName); } catch (e) {}
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const panel = $('panel-' + viewName);
+    if (panel) panel.classList.add('active');
+    const navBtn = document.querySelector(`[data-view="${viewName}"]`);
+    if (navBtn) navBtn.classList.add('active');
+    const titles = { home: 'Home', community: 'Community', games: 'Resources', activeusers: 'Active Users', events: 'Events', arcadereports: 'Arcade Reports', staff: 'Staff', aegis: 'Aegis AI', updates: 'Updates', editor: 'Code Editor', admin: 'Admin' };
+    $('topbarTitle').textContent = titles[viewName] || 'Project Sp1der';
+    if (typeof window.sp1derArcadeReportsViewChanged === 'function') window.sp1derArcadeReportsViewChanged(viewName);
+    if (viewName === 'games') renderAppsGrid();
+    if (viewName === 'updates') { renderChangelog(); switchUpdatesTab('changelog'); }
+    if (viewName === 'activeusers') renderActiveUsers();
+    if (viewName === 'admin') adminRefresh(false);
+    if (viewName === 'events') { renderEventsCurrent(); try { Sp1derIndicators.markEventSeen(); } catch (e) {} }
+    if (viewName === 'staff') { renderStaffPage(); }
+    if (viewName === 'aegis' && !aegisMessageUnsub) initAegisChat();
+    if (viewName === 'community' && selectedChannelId) {
+        try {
+            Sp1derIndicators.markRead(selectedChannelId);
+            ReadReceipts.start(selectedChannelId);
+            ComposerPresence.start(selectedChannelId);
+            ReadReceipts.remarkViewed();
+        } catch (e) {}
+    }
+    if (viewName !== 'community') { try { ComposerPresence.stop(); } catch (e) {} }
+}
+(function installSidebarArcadeReports() {
+'use strict';
+if (window.__sidebarArcadeReportsInstalled) return;
+window.__sidebarArcadeReportsInstalled = true;
+let panel, list, message, search, category, status, unsubscribe = null, accountTimer = null, records = [];
+function make(tag, text) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; return e; }
+function stop() {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    if (accountTimer) { clearInterval(accountTimer); accountTimer = null; }
+    records = [];
+    if (list) list.replaceChildren();
+}
+function draw() {
+    list.replaceChildren();
+    const q = search.value.trim().toLowerCase();
+    const matches = records.filter(r =>
+        (category.value === 'all' || r.category === category.value) &&
+        (status.value === 'all' || r.status === status.value) &&
+        [r.gameLabel, r.suggestion, r.description, r.category, r.issue, r.authorName].join(' ').toLowerCase().includes(q));
+    message.textContent = matches.length + ' matching entries · newest ' + records.length + ' loaded (maximum 200)';
+    if (!matches.length) list.append(make('p', records.length ? 'No matching feedback. Try another search or filter.' : 'No arcade feedback yet. Submit a report or recommendation from Fishes Arcade.'));
+    matches.forEach(r => {
+        const card = make('article'); card.className = 'sarf-card';
+        card.append(make('h3', String(r.gameLabel || r.suggestion || 'General feedback')));
+        const meta = make('p', String(r.category || 'Other feedback') + ' · ' + String(r.status || 'New')); meta.className = 'sarf-muted'; card.append(meta);
+        let date = null;
+        if (typeof r.createdAt === 'number') date = new Date(r.createdAt);
+        else if (r.createdAt && typeof r.createdAt.toDate === 'function') date = r.createdAt.toDate();
+        const by = make('p', 'Submitted by ' + String(r.authorName || 'Member') + (date && !isNaN(date.getTime()) ? ' · ' + date.toLocaleString() : '')); by.className = 'sarf-muted'; card.append(by);
+        if (r.issue) card.append(make('p', 'Problem type: ' + String(r.issue)));
+        card.append(make('p', String(r.description || '')));
+        if (r.link) card.append(make('p', 'Submitted link: ' + String(r.link)));
+        card.append(make('small', 'Report ID: ' + r.id));
+        list.append(card);
+    });
+}
+function start() {
+    stop();
+    if (!currentUser || !currentUser.uid) { message.textContent = 'Sign into sp1der to view community feedback.'; return; }
+    const uid = currentUser.uid;
+    message.textContent = 'Loading arcade reports…';
+    function stillSignedIn() {
+        if (!currentUser || currentUser.uid !== uid) {
+            stop(); message.textContent = 'Your account changed. Reopen Arcade Reports after signing in.'; return false;
         }
-
+        return true;
+    }
+    accountTimer = setInterval(stillSignedIn, 1000);
+    try {
+        unsubscribe = db.collection('arcadeFeedback').orderBy('createdAt', 'desc').limit(200).onSnapshot(snapshot => {
+            if (!stillSignedIn()) return;
+            records = snapshot.docs.map(d => ({ ...d.data(), id: d.id })); draw();
+        }, error => {
+            stop();
+            message.textContent = error.code === 'permission-denied'
+                ? 'Feedback access was denied. Ask staff to check the arcadeFeedback database rules.'
+                : 'Could not load reports. Check your connection and choose Refresh.';
+            console.warn('[Arcade Reports]', error);
+        });
+    } catch (error) {
+        stop(); message.textContent = 'Feedback database unavailable. Check that db is initialized and this patch is in the correct script scope.';
+        console.warn('[Arcade Reports]', error);
+    }
+}
+function mount() {
+    if (panel) return true;
+    const nav = document.getElementById('navList');
+    const home = document.getElementById('panel-home');
+    if (!nav || !home || !home.parentElement) { console.warn('[Arcade Reports] navList or panel-home was not found.'); return false; }
+    // Remove previous generated modal/floating interfaces, if they were installed.
+    ['arcadeReportsLaunch','arcadeReportsPanel','sp1derFeedbackLauncher','sp1derFeedbackPage'].forEach(id => { const e = document.getElementById(id); if (e) { if (e.tagName === 'DIALOG' && e.open) e.close(); e.remove(); } });
+    const css = make('style'); css.textContent = `
+#panel-arcadereports{box-sizing:border-box;padding:24px;overflow:auto;min-height:0;color:var(--text,#ececf1)}
+#panel-arcadereports:not(.active){display:none!important}
+#panel-arcadereports.active{display:block!important}
+#panel-arcadereports .sarf-wrap{max-width:1100px;margin:0 auto}
+#panel-arcadereports h2{margin:0 0 8px;font-size:24px}
+#panel-arcadereports .sarf-tools{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}
+#panel-arcadereports input,#panel-arcadereports select,#panel-arcadereports button{font:inherit;padding:10px 12px;min-height:44px;border:1px solid #ffffff30;border-radius:8px;background:#25252e;color:#f4f4f5}
+#panel-arcadereports input{flex:1;min-width:170px;user-select:text;-webkit-user-select:text}
+#panel-arcadereports button{cursor:pointer}
+#panel-arcadereports .sarf-card{border:1px solid #ffffff25;border-radius:12px;background:#191920;color:#f4f4f5;padding:18px;margin:12px 0;overflow-wrap:anywhere}
+#panel-arcadereports .sarf-card h3{font-size:17px;margin:0 0 8px}
+#panel-arcadereports .sarf-card p{margin:8px 0;white-space:pre-wrap}
+#panel-arcadereports .sarf-muted,#panel-arcadereports small{color:#b8b8c8}
+#panel-arcadereports :focus-visible{outline:2px solid #c4b5fd;outline-offset:3px}
+@media(max-width:600px){#panel-arcadereports{padding:16px}#panel-arcadereports .sarf-tools>*{width:100%}}
+`;
+    document.head.append(css);
+    // Insert beside the existing home panel, under the same content parent.
+    panel = document.getElementById('panel-arcadereports');
+    if (!panel) { panel = make('section'); panel.id = 'panel-arcadereports'; panel.className = 'panel'; home.parentElement.append(panel); }
+    panel.replaceChildren();
+    const wrap = make('div'); wrap.className = 'sarf-wrap';
+    const heading = make('h2', 'Arcade Reports & Suggestions'); heading.id = 'sarf-heading';
+    panel.setAttribute('aria-labelledby', 'sarf-heading');
+    wrap.append(heading, make('p', 'Community feedback from Fishes Arcade. All signed-in members can browse reports and recommendations. Submit feedback from inside the arcade.'));
+    const tools = make('div'); tools.className = 'sarf-tools';
+    search = make('input'); search.type = 'search'; search.placeholder = 'Search games, feedback or members'; search.setAttribute('aria-label', 'Search arcade feedback');
+    category = make('select'); category.setAttribute('aria-label', 'Feedback category'); category.add(new Option('All categories', 'all'));
+    ['Broken game','Game recommendation','Arcade or application problem','Feature suggestion','Other feedback'].forEach(x => category.add(new Option(x, x)));
+    status = make('select'); status.setAttribute('aria-label', 'Review status'); status.add(new Option('All statuses', 'all'));
+    ['New','Reviewing','Considering','Planned','Fixed','Added','Could not reproduce','Not planned'].forEach(x => status.add(new Option(x, x)));
+    const refresh = make('button', 'Refresh'); refresh.type = 'button'; refresh.onclick = start;
+    tools.append(search, category, status, refresh); wrap.append(tools);
+    message = make('p'); message.setAttribute('role', 'status'); message.setAttribute('aria-live', 'polite');
+    list = make('section'); list.setAttribute('aria-label', 'Arcade reports'); wrap.append(message, list); panel.append(wrap);
+    search.oninput = category.onchange = status.onchange = draw;
+    let button = nav.querySelector('[data-view="arcadereports"]');
+    if (!button) {
+        button = make('button'); button.type = 'button'; button.className = 'nav-item'; button.dataset.view = 'arcadereports';
+        button.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"></path></svg> Arcade Reports';
+        const events = nav.querySelector('[data-view="events"]'); if (events) events.after(button); else nav.append(button);
+    }
+    button.removeAttribute('onclick'); button.onclick = () => showView('arcadereports');
+    return true;
+}
+window.sp1derArcadeReportsViewChanged = function(viewName) {
+    if (viewName !== 'arcadereports') { stop(); return; }
+    if (!mount()) return;
+    start();
+};
+window.addEventListener('pagehide', stop);
+function init() { if (mount() && panel.classList.contains('active')) start(); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true }); else init();
+})();
         /* ===== 18. CANVAS ANIMATED BACKGROUND ===== */
         function initCanvas() {
             if (typeof aegisWeb !== 'undefined' && aegisWeb.started) return;
