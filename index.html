@@ -22,7 +22,39 @@
     }
   }, 150);
 </script>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<script>
+/* Run before first paint. Device identity does not depend on portrait width,
+   so rotating a phone never sends it back to the desktop menu. */
+(function () {
+  const coarse = window.matchMedia("(pointer: coarse)");
+  const narrow = window.matchMedia("(max-width: 600px)");
+  const landscape = window.matchMedia("(orientation: landscape)");
+  const uaPhone = /iPhone|iPod|Android.*Mobile|Windows Phone|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  let pending = false;
+  function update() {
+    pending = false;
+    const shortScreen = Math.min(screen.width || innerWidth, screen.height || innerHeight);
+    const isPhone = uaPhone || !!(navigator.userAgentData && navigator.userAgentData.mobile) ||
+      (coarse.matches && shortScreen <= 600) || narrow.matches;
+    const orientation = landscape.matches ? "landscape" : "portrait";
+    document.documentElement.dataset.device = isPhone ? "phone" : "desktop";
+    document.documentElement.dataset.orientation = orientation;
+    window.MantleDevice = { isPhone: isPhone, orientation: orientation };
+    window.dispatchEvent(new CustomEvent("mantle:devicechange"));
+  }
+  function queue() { if (!pending) { pending = true; requestAnimationFrame(update); } }
+  [coarse, narrow, landscape].forEach(function (query) {
+    if (query.addEventListener) query.addEventListener("change", queue);
+    else if (query.addListener) query.addListener(queue);
+  });
+  window.addEventListener("resize", queue, { passive: true });
+  window.addEventListener("orientationchange", queue, { passive: true });
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", queue, { passive: true });
+  update();
+})();
+</script>
 <title>Google</title>
 <link rel="icon" href="https://www.google.com/favicon.ico">
 
@@ -734,10 +766,152 @@
     font: 400 16px/1.6 -apple-system, Arial, sans-serif; color: #ececef; text-align: center;
     max-width: 44ch; min-height: 3.4em; margin: 0; opacity: 0; animation: sebassFade 1.3s ease 3.2s forwards;
   }
+  /* Phone-first shell. Desktop rules above remain unchanged. */
+  :root {
+    --phone-xs: clamp(.75rem, .72rem + .15vw, .8125rem);
+    --phone-sm: clamp(.875rem, .83rem + .2vw, .9375rem);
+    --phone-base: 1rem;
+    --phone-title: clamp(1.5rem, 1.25rem + 1vw, 1.875rem);
+    --phone-accent: #f5b83d;
+    --phone-muted: #b0b0b3;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px;
+    --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  }
+  .phone-only { display: none; }
+  .skip-link { position: fixed; top: -100px; left: 16px; z-index: 2147483647; padding: 12px; color: #111; background: #f5b83d; }
+  .skip-link:focus { top: 12px; }
+  .mobile-player[hidden], .phone-warning[hidden] { display: none; }
+  .mobile-player {
+    position: fixed; inset: 0; z-index: 2147483647; height: 100%;
+    height: 100dvh; background: var(--bg); display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  body.player-open { overflow: hidden; }
+  .player-bar {
+    display: flex; align-items: center; gap: var(--space-2); flex: none;
+    min-height: 60px; padding: var(--space-2); border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .player-bar button, .player-restore, .player-message button, .phone-warning button {
+    min-width: 44px; min-height: 44px; padding: var(--space-2) var(--space-3);
+    border: 1px solid rgba(255,255,255,.15); border-radius: 8px; background: #202022;
+    color: var(--text-1); font: 500 var(--phone-sm)/1.3 'Geist', sans-serif;
+    touch-action: manipulation; cursor: pointer;
+  }
+  .player-title { flex: 1; min-width: 0; margin: 0; font-size: var(--phone-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player-body { position: relative; flex: 1; min-height: 0; }
+  .player-frame { width: 100%; height: 100%; border: 0; display: block; background: var(--bg); }
+  .player-message { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); padding: var(--space-6); text-align: center; background: var(--bg); }
+  .player-message[hidden] { display: none; }
+  .player-message p { color: var(--phone-muted); font-size: var(--phone-sm); max-width: 38ch; margin: 0; overflow-wrap: anywhere; }
+  .player-message h2 { font-size: var(--phone-base); margin: 0; }
+  .player-message .primary, .phone-warning .primary { background: var(--phone-accent); color: #17120a; border-color: transparent; }
+  .player-restore { position: absolute; z-index: 3; top: var(--space-2); right: var(--space-2); background: #202022f5; }
+  .player-restore[hidden], .player-bar[hidden] { display: none; }
+  .phone-warning { position: fixed; inset: 0; z-index: 2147483647; background: #000b; display: grid; place-items: center; padding: max(var(--space-5), env(safe-area-inset-top)) max(var(--space-5), env(safe-area-inset-right)) max(var(--space-5), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left)); }
+  .phone-warning-card { max-width: 400px; max-height: 100%; overflow: auto; background: #171718; border: 1px solid var(--border); border-radius: 16px; padding: var(--space-6); }
+  .phone-warning h2 { margin: 0 0 var(--space-3); font-size: 1.125rem; }
+  .phone-warning p { margin: 0 0 var(--space-5); color: var(--phone-muted); font-size: var(--phone-sm); line-height: 1.6; }
+  .phone-warning-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+  .mobile-player :focus-visible, .phone-warning :focus-visible { outline: 2px solid var(--phone-accent); outline-offset: 3px; }
+
+  html[data-device="phone"] { scroll-padding-top: var(--space-4); }
+  html[data-device="phone"] body {
+    padding: calc(var(--space-4) + env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
+      calc(92px + env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+    font-size: var(--phone-base); overflow-x: clip; -webkit-text-size-adjust: 100%;
+  }
+  html[data-device="phone"] .phone-only { display: block; }
+  html[data-device="phone"] main { max-width: 1040px; min-width: 0; }
+  html[data-device="phone"] header { margin-bottom: var(--space-5); text-align: left; }
+  html[data-device="phone"] .brand-block { display: flex; align-items: center; gap: var(--space-3); text-align: left; width: 100%; }
+  html[data-device="phone"] .boss-wrap { flex: none; margin: 0; width: 72px; }
+  html[data-device="phone"] .brand-block .logo { width: 72px; max-width: 100%; margin: 0; }
+  html[data-device="phone"] .tagline { display: none; }
+  html[data-device="phone"] .boss-bubble { top: 50px; right: auto; left: 0; width: 220px; font-size: var(--phone-xs); }
+  html[data-device="phone"] .phone-brand { flex: 1; min-width: 0; }
+  .phone-brand h1 { margin: 0; font-size: var(--phone-title); font-weight: 600; letter-spacing: -.045em; line-height: 1.2; }
+  .phone-brand p { margin: var(--space-1) 0 0; color: var(--phone-muted); font-size: var(--phone-xs); }
+  .phone-brand p span { color: var(--phone-accent); }
+  .phone-intro { margin: var(--space-5) 0 var(--space-4); color: var(--phone-muted); font-size: var(--phone-sm); }
+  .phone-search { display: flex; align-items: center; gap: var(--space-2); min-height: 48px; border: 1px solid rgba(255,255,255,.15); border-radius: 10px; background: var(--surface); padding-left: var(--space-3); }
+  .phone-search:focus-within { border-color: var(--phone-accent); }
+  .phone-search svg { width: 20px; height: 20px; flex: none; color: var(--phone-muted); }
+  .phone-search input { width: 100%; min-width: 0; background: transparent; color: var(--text-1); border: 0; outline: 0; font: inherit; font-size: var(--phone-base); padding: var(--space-3) 0; user-select: text; -webkit-user-select: text; }
+  .phone-search input::placeholder { color: var(--phone-muted); }
+  .phone-search button { min-width: 44px; min-height: 44px; background: none; border: 0; color: var(--phone-muted); font: inherit; cursor: pointer; }
+  .phone-search button[hidden] { display: none; }
+  .phone-filters { display: flex; gap: var(--space-2); margin-top: var(--space-3); overflow-x: auto; scrollbar-width: none; }
+  .phone-filters button { flex: none; min-height: 44px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 8px; color: var(--phone-muted); background: var(--surface); font: 500 var(--phone-xs) 'Geist', sans-serif; touch-action: manipulation; cursor: pointer; }
+  .phone-filters button[aria-pressed="true"] { color: #17120a; background: var(--phone-accent); border-color: transparent; }
+  .phone-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: var(--space-5) 0 var(--space-3); }
+  .phone-section-head h2 { font-size: var(--phone-base); font-weight: 500; margin: 0; }
+  .phone-section-head span { color: var(--phone-muted); font-size: var(--phone-xs); font-variant-numeric: tabular-nums; }
+  html[data-device="phone"] .apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  html[data-device="phone"] .row { min-width: 0; min-height: 174px; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr auto; align-items: start; gap: var(--space-3) var(--space-1); padding: var(--space-4); border-radius: 12px; touch-action: manipulation; }
+  html[data-device="phone"] .row[hidden] { display: none; }
+  html[data-device="phone"] .row-icon { grid-column: 1; width: 36px; height: 36px; border: 0; background: none; justify-content: flex-start; border-radius: 0; }
+  html[data-device="phone"] .row-icon svg { width: 27px; height: 27px; }
+  html[data-device="phone"] .row-body { grid-column: 1 / -1; grid-row: 2; }
+  html[data-device="phone"] .row-name { font-size: var(--phone-base); font-weight: 500; overflow-wrap: anywhere; }
+  html[data-device="phone"] .row-desc { font-size: var(--phone-xs); line-height: 1.5; margin-top: var(--space-1); white-space: normal; overflow: visible; text-overflow: clip; }
+  html[data-device="phone"] .row-arrow { grid-column: 2; grid-row: 1; min-height: 36px; color: var(--phone-muted); }
+  html[data-device="phone"] .phone-capability { display: block; grid-column: 1 / -1; grid-row: 3; font-size: var(--phone-xs); color: var(--phone-muted); }
+  html[data-device="phone"] .phone-capability[data-touch="true"] { color: #b8d9b4; }
+  html[data-device="phone"] .beta-chip { font-size: var(--phone-xs); letter-spacing: 0; padding: 0 var(--space-1); margin-left: var(--space-1); }
+  html[data-device="phone"] .row:hover { transform: none; }
+  html[data-device="phone"] .row:active { background: #242422; border-color: var(--row-accent); }
+  html[data-device="phone"] .community, html[data-device="phone"] .bouncer { display: none; }
+  html[data-device="phone"] footer { margin-top: var(--space-5); padding-top: var(--space-3); color: var(--phone-muted); font-size: var(--phone-xs); }
+  html[data-device="phone"] footer .terms-btn { display: none; }
+  html[data-device="phone"] .phone-dock { position: fixed; z-index: 100; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around; gap: var(--space-2); padding: var(--space-2) max(var(--space-4), env(safe-area-inset-right)) calc(var(--space-2) + env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left)); background: #111112fa; border-top: 1px solid rgba(255,255,255,.12); }
+  .phone-dock button { min-height: 48px; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 0; border-radius: 8px; background: none; color: var(--phone-muted); font: 500 var(--phone-xs) 'Geist', sans-serif; touch-action: manipulation; cursor: pointer; }
+  .phone-dock svg { width: 20px; height: 20px; }
+  .phone-dock button[aria-pressed="true"] { color: var(--phone-accent); background: #f5b83d0d; }
+  html[data-device="phone"] .phone-empty { grid-column: 1 / -1; padding: var(--space-6) var(--space-4); text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .phone-empty p { margin: 0 0 var(--space-4); color: var(--phone-muted); font-size: var(--phone-sm); }
+  .phone-empty button { min-height: 44px; padding: var(--space-2) var(--space-4); color: #17120a; background: var(--phone-accent); border: 0; border-radius: 8px; font: 500 var(--phone-sm) 'Geist', sans-serif; cursor: pointer; }
+  .phone-empty[hidden] { display: none !important; }
+  html[data-device="phone"] .terms-overlay { padding: max(var(--space-3), env(safe-area-inset-top)) max(var(--space-3), env(safe-area-inset-right)) max(var(--space-3), env(safe-area-inset-bottom)) max(var(--space-3), env(safe-area-inset-left)); z-index: 300; }
+  html[data-device="phone"] .terms-card { max-height: 100%; max-height: calc(100dvh - 48px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: var(--space-4); overscroll-behavior: contain; }
+  html[data-device="phone"] .terms-head { position: sticky; top: calc(-1 * var(--space-4)); padding-block: var(--space-2); background: var(--surface); }
+  html[data-device="phone"] .modal-close { min-width: 44px; min-height: 44px; flex: none; }
+  html[data-device="phone"] :focus-visible { outline: 2px solid var(--phone-accent); outline-offset: 3px; }
+  html[data-device="phone"] #sp1derArcadeBar { display: none !important; }
+  html[data-device="phone"] #grid-pulse { opacity: .45; }
+  @media (min-width: 700px) {
+    html[data-device="phone"] .apps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (orientation: landscape) and (min-width: 600px) {
+    html[data-device="phone"] body { padding-top: max(var(--space-3), env(safe-area-inset-top)); padding-bottom: max(var(--space-4), env(safe-area-inset-bottom)); padding-left: calc(84px + env(safe-area-inset-left)); }
+    html[data-device="phone"] header { margin-bottom: var(--space-3); }
+    html[data-device="phone"] .brand-block .logo, html[data-device="phone"] .boss-wrap { width: 52px; }
+    html[data-device="phone"] .phone-brand h1 { font-size: 1.5rem; }
+    html[data-device="phone"] .phone-intro { display: none; }
+    html[data-device="phone"] .phone-tools { display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: var(--space-3); margin-top: var(--space-3); }
+    html[data-device="phone"] .phone-filters { margin: 0; align-items: center; gap: var(--space-1); }
+    html[data-device="phone"] .phone-filters button { padding-inline: var(--space-2); }
+    html[data-device="phone"] .phone-section-head { margin-top: var(--space-3); }
+    html[data-device="phone"] .row { min-height: 150px; padding: var(--space-3); gap: var(--space-2); }
+    html[data-device="phone"] .phone-dock { flex-direction: column; top: 0; bottom: 0; right: auto; width: calc(72px + env(safe-area-inset-left)); padding: max(var(--space-3), env(safe-area-inset-top)) var(--space-1) max(var(--space-3), env(safe-area-inset-bottom)) calc(var(--space-1) + env(safe-area-inset-left)); border-top: 0; border-right: 1px solid var(--border); justify-content: center; }
+    html[data-device="phone"] .phone-dock button { flex: none; min-height: 64px; padding-inline: var(--space-1); font-size: .75rem; }
+    .player-bar { min-height: 52px; padding: var(--space-1) var(--space-2); }
+  }
+  @media (max-width: 350px) {
+    html[data-device="phone"] .apps { gap: var(--space-2); }
+    html[data-device="phone"] .row { padding: var(--space-3); }
+    .phone-filters { gap: var(--space-1); }
+    .phone-filters button { padding-inline: var(--space-2); }
+    .player-bar { gap: var(--space-1); }
+    .player-bar button { padding-inline: var(--space-2); font-size: .75rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  }
 </style>
 </head>
 
 <body>
+  <a class="skip-link" href="#applications">Skip to games</a>
   <div id="grid-pulse" aria-hidden="true"><canvas></canvas></div>
 
   <script>
@@ -751,7 +925,7 @@
     }, 2500);
   </script>
 
-  <main>
+  <main id="hub">
     <header>
       <div class="brand-block" data-grid-avoid data-grid-avoid-block>
         <div class="boss-wrap">
@@ -807,11 +981,32 @@
             <path d="M284 148 C300 140, 312 136, 320 132 L322 158 C310 160, 296 162, 286 164 Z" fill="#e8721f"/>
           </svg>
         </div>
+        <div class="phone-brand phone-only">
+          <h1>Fishes Arcade</h1>
+          <p><span>Phone edition</span> · <span id="phoneOrientation">Portrait</span></p>
+        </div>
         <p class="tagline" id="tagline"><span id="tagText">An arcade that swims right past your school filter.</span><span class="caret" id="tagCaret" aria-hidden="true"></span></p>
+      </div>
+      <div class="phone-only">
+        <p class="phone-intro">Pick something. Make a little time for play.</p>
+        <div class="phone-tools">
+          <label class="phone-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+            <input id="phoneSearch" type="search" aria-label="Find a game or app" placeholder="Find a game or app" autocomplete="off" enterkeyhint="search">
+            <button id="phoneClear" type="button" aria-label="Clear search" hidden>×</button>
+          </label>
+          <nav class="phone-filters" aria-label="Filter applications">
+            <button type="button" data-phone-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-phone-filter="touch" aria-pressed="false">Touch-ready</button>
+            <button type="button" data-phone-filter="games" aria-pressed="false">Games</button>
+            <button type="button" data-phone-filter="apps" aria-pressed="false">Apps</button>
+          </nav>
+        </div>
+        <div class="phone-section-head"><h2 id="phoneSectionTitle">Explore the arcade</h2><span id="phoneCount" role="status" aria-live="polite">8 experiences</span></div>
       </div>
     </header>
 
-    <div class="apps" aria-label="Applications">
+    <div class="apps" id="applications" aria-label="Applications" tabindex="-1">
       <button class="row" data-launch="spidercraft">
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -903,6 +1098,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
         </span>
       </button>
+      <div class="phone-empty phone-only" id="phoneEmpty" hidden><p>No matches here. Try another name or explore all experiences.</p><button type="button" id="phoneReset">Show everything</button></div>
     </div>
 
     <div class="community" data-grid-avoid>
@@ -955,7 +1151,7 @@
     </div>
 
     <footer data-grid-avoid>
-      © 2026 Fishes Arcade · run by the fish family · v1.0.2 ·
+      © 2026 Fishes Arcade · run by the fish family · v1.1.0 ·
       <button class="terms-btn" id="reviewTermsBtn" type="button">Review terms</button>
     </footer>
 
@@ -976,10 +1172,42 @@
     </div>
   </main>
 
+  <nav class="phone-dock phone-only" aria-label="Phone navigation">
+    <button type="button" data-phone-filter="all" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Browse</button>
+    <button type="button" data-phone-filter="touch" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V5a2 2 0 0 1 4 0v6l2-1 6 3v5a4 4 0 0 1-4 4h-4l-7-7a2 2 0 0 1 3-2Z"/></svg>Touch-ready</button>
+    <button type="button" id="phoneTerms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v7M12 6v2"/></svg>Info &amp; terms</button>
+  </nav>
+
+  <section class="mobile-player" id="mobilePlayer" role="dialog" aria-modal="true" aria-labelledby="playerTitle" hidden>
+    <div class="player-bar" id="playerBar">
+      <button type="button" id="playerBack" aria-label="Back to arcade">‹ Back</button>
+      <h2 class="player-title" id="playerTitle">Loading</h2>
+      <button type="button" id="playerReload" aria-label="Reload current app">Reload</button>
+      <button type="button" id="playerFullscreen" aria-label="Enter fullscreen, or hide toolbar if unavailable">Expand</button>
+    </div>
+    <div class="player-body" id="playerBody">
+      <button class="player-restore" type="button" id="playerRestore" hidden>Show controls</button>
+      <iframe class="player-frame" id="playerFrame" title="Selected arcade app" allow="fullscreen; autoplay; gamepad; clipboard-read; clipboard-write; camera; microphone" allowfullscreen></iframe>
+      <div class="player-message" id="playerMessage" role="status" aria-live="polite">
+        <h2 id="playerMessageTitle">Loading your app</h2>
+        <p id="playerMessageDetail">Getting everything ready…</p>
+        <button class="primary" type="button" id="playerRetry" hidden>Try again</button>
+      </div>
+    </div>
+  </section>
+  <div class="phone-warning" id="phoneWarning" hidden>
+    <div class="phone-warning-card" role="dialog" aria-modal="true" aria-labelledby="phoneWarningTitle">
+      <h2 id="phoneWarningTitle">Bring a keyboard for this one</h2>
+      <p id="phoneWarningText">This game uses keyboard controls. The phone menu works here, but the game may need an external keyboard and mouse.</p>
+      <div class="phone-warning-actions"><button type="button" id="phoneWarningCancel">Not now</button><button class="primary" type="button" id="phoneWarningOpen">Open anyway</button></div>
+    </div>
+  </div>
+
 <script>
 "use strict";
 
 (function initGridPulse() {
+  if (window.MantleDevice.isPhone || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const el = document.getElementById("grid-pulse");
   const canvas = el && el.querySelector("canvas");
   const ctx = canvas && canvas.getContext("2d");
@@ -1266,6 +1494,7 @@ const TAGLINES = [
 ];
 
 (function runTaglines() {
+  if (window.MantleDevice.isPhone || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const el = document.getElementById("tagText");
   const p = document.getElementById("tagline");
   if (!el || !p || !TAGLINES.length) return;
@@ -1610,6 +1839,7 @@ window.addEventListener("message", function (e) {
     refreshCurrentGame();
   }
   else if (data.type === "SP1DER_ARCADE_END") {
+    if (phoneLaunch) closePhonePlayer();
     trackedWins.forEach(function (entry, win) { try { if (!win.closed) win.close(); } catch (err) {} });
     trackedWins.clear(); refreshCurrentGame(); updateArcadeBar();
     showSp1derPopup("Your arcade games were closed by staff.", "Staff");
@@ -1666,7 +1896,8 @@ async function launchSp1dercraft() {
 document.querySelectorAll("[data-launch]").forEach(function (btn) {
   btn.addEventListener("click", function () {
     var id = btn.getAttribute("data-launch");
-    if (id === "spidercraft") launchSp1dercraft();
+    if (window.MantleDevice.isPhone) requestPhoneLaunch(id, btn);
+    else if (id === "spidercraft") launchSp1dercraft();
     else if (REPO_APPS[id]) launchRepoApp(id);
   });
 });
@@ -1740,6 +1971,286 @@ const REPO_APPS = {
     ]
   }
 };
+
+const PHONE_APPS = {
+  spidercraft: { category: "games", touch: false, description: "Build and explore a block-built world.", capability: "Keyboard + mouse" },
+  polytrack: { category: "games", touch: false, description: "Loops, jumps and low-poly racing.", capability: "Keyboard controls" },
+  fluid: { category: "games", touch: true, description: "Swirl colorful fluids with your fingers.", capability: "Touch to explore" },
+  "pixel-canvas": { category: "games", touch: true, description: "Paint pixels. Play with color.", capability: "Touch to paint" },
+  "geometry-dash": { category: "games", touch: true, description: "Find your rhythm. Time every jump.", capability: "Tap to jump" },
+  tetris: { category: "games", touch: true, description: "Stack blocks and clear your next line.", capability: "On-screen controls" },
+  tiers: { category: "apps", touch: true, description: "Compare Free, Pro and Ultra plans.", capability: "Phone-friendly" },
+  sp1der: { category: "apps", touch: true, description: "Your community, made for your phone.", capability: "Mobile chat" }
+};
+
+(function initPhoneMenu() {
+  const search = document.getElementById("phoneSearch");
+  const clear = document.getElementById("phoneClear");
+  const cards = Array.from(document.querySelectorAll(".apps [data-launch]"));
+  let filter = "all";
+  cards.forEach(function (card) {
+    const id = card.dataset.launch, meta = PHONE_APPS[id];
+    const desc = card.querySelector(".row-desc");
+    card.dataset.desktopDescription = desc.textContent;
+    card.dataset.testid = "launch-" + id;
+    const hint = document.createElement("span");
+    hint.className = "phone-capability phone-only";
+    hint.dataset.touch = String(meta.touch);
+    hint.textContent = meta.capability;
+    card.appendChild(hint);
+  });
+  document.querySelectorAll("button[id], input[id]").forEach(function (element) {
+    element.dataset.testid = element.id;
+  });
+  function render() {
+    const phone = window.MantleDevice.isPhone;
+    const query = search.value.trim().toLowerCase();
+    let count = 0;
+    cards.forEach(function (card) {
+      const meta = PHONE_APPS[card.dataset.launch];
+      const title = card.querySelector(".row-name").textContent;
+      const searchable = (title + " " + meta.description + " " + card.dataset.desktopDescription + " " + meta.capability).toLowerCase();
+      const matches = (!query || searchable.includes(query)) &&
+        (filter === "all" || (filter === "touch" ? meta.touch : meta.category === filter));
+      card.hidden = phone && !matches;
+      card.querySelector(".row-desc").textContent = phone ? meta.description : card.dataset.desktopDescription;
+      if (matches) count++;
+    });
+    clear.hidden = !search.value;
+    document.getElementById("phoneCount").textContent = count + (count === 1 ? " experience" : " experiences");
+    document.getElementById("phoneSectionTitle").textContent = query ? "Search results" :
+      ({ all: "Explore the arcade", touch: "Ready for your fingertips", games: "Pick your next game", apps: "More from the fish family" })[filter];
+    document.getElementById("phoneEmpty").hidden = !phone || count !== 0;
+    document.getElementById("phoneOrientation").textContent = window.MantleDevice.orientation === "landscape" ? "Landscape" : "Portrait";
+    document.querySelectorAll("[data-phone-filter]").forEach(function (button) {
+      button.setAttribute("aria-pressed", String(button.dataset.phoneFilter === filter));
+    });
+  }
+  document.querySelectorAll("[data-phone-filter]").forEach(function (button, index) {
+    button.dataset.testid = "phone-filter-" + button.dataset.phoneFilter + "-" + index;
+    button.addEventListener("click", function () {
+      filter = button.dataset.phoneFilter;
+      render();
+      if (button.closest(".phone-dock")) {
+        search.value = ""; render();
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+    });
+  });
+  search.addEventListener("input", render);
+  search.addEventListener("keydown", function (event) { if (event.key === "Enter") search.blur(); });
+  clear.addEventListener("click", function () { search.value = ""; render(); search.focus(); });
+  document.getElementById("phoneReset").addEventListener("click", function () { filter = "all"; search.value = ""; render(); search.focus(); });
+  window.addEventListener("mantle:devicechange", render);
+  render();
+})();
+
+let phoneLaunch = null;
+let phoneLaunchNumber = 0;
+let pendingPhoneLaunch = null;
+let phoneReturnFocus = null;
+
+function syncHubInert() {
+  const active = !document.getElementById("mobilePlayer").hidden || !document.getElementById("phoneWarning").hidden;
+  document.getElementById("hub").inert = active;
+  document.querySelector(".phone-dock").inert = active || !document.getElementById("termsOverlay").hidden;
+}
+
+function requestPhoneLaunch(id, source) {
+  phoneReturnFocus = source;
+  if (PHONE_APPS[id].touch) return launchPhoneApp(id);
+  pendingPhoneLaunch = id;
+  document.getElementById("phoneWarningText").textContent = REPO_APPS[id] ?
+    REPO_APPS[id].label + " uses keyboard controls. Connect an external keyboard, or choose a Touch-ready experience instead." :
+    "sp1dercraft works best with a keyboard and mouse. The phone menu is ready, but this game does not provide phone controls.";
+  document.getElementById("phoneWarning").hidden = false;
+  syncHubInert();
+  document.getElementById("phoneWarningCancel").focus();
+}
+
+function cancelPhoneWarning() {
+  document.getElementById("phoneWarning").hidden = true;
+  pendingPhoneLaunch = null;
+  syncHubInert();
+  if (phoneReturnFocus) phoneReturnFocus.focus({ preventScroll: true });
+}
+document.getElementById("phoneWarningCancel").addEventListener("click", cancelPhoneWarning);
+document.getElementById("phoneWarningOpen").addEventListener("click", function () {
+  const id = pendingPhoneLaunch;
+  document.getElementById("phoneWarning").hidden = true;
+  pendingPhoneLaunch = null;
+  if (id) launchPhoneApp(id);
+});
+document.getElementById("phoneWarning").addEventListener("click", function (event) {
+  if (event.target === event.currentTarget) cancelPhoneWarning();
+});
+
+async function phoneFetch(url, signal) {
+  const request = new AbortController();
+  const abort = function () { request.abort(); };
+  signal.addEventListener("abort", abort, { once: true });
+  if (signal.aborted) request.abort();
+  const timer = setTimeout(abort, 20000);
+  try {
+    const response = await fetch(url, { cache: "no-cache", signal: request.signal });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const bytes = await response.arrayBuffer();
+    return bytes;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", abort);
+  }
+}
+
+function enhancePhoneApp(html, id) {
+  if (id !== "pixel-canvas") return html;
+  const css = '<style>aside{left:12px!important;right:12px!important;top:auto!important;bottom:12px!important;width:auto!important;max-height:65dvh!important;overflow:auto!important;padding:16px!important;font-size:14px!important}aside h1{font-size:18px!important}aside p{font-size:12px!important}aside button,#show{min-height:44px!important;font-size:14px!important}aside input{min-height:32px!important}#show{top:12px!important;right:12px!important;padding:10px 16px!important}@media(orientation:landscape){aside{left:auto!important;width:260px!important;max-height:calc(100dvh - 24px)!important}}:focus-visible{outline:2px solid #f5b83d;outline-offset:2px}</style>';
+  const script = '<script>(function(){var hide=document.getElementById("hide"),show=document.getElementById("show");if(hide)hide.click();if(show)show.textContent="Brush controls";if(hide)hide.textContent="Back to canvas";})();<\/script>';
+  return html.replace(/<\/head>/i, css + "</head>").replace(/<\/body>/i, script + "</body>");
+}
+
+function releasePhoneTracking() {
+  if (!phoneLaunch || !phoneLaunch.trackedWindow) return;
+  const win = phoneLaunch.trackedWindow, entry = trackedWins.get(win);
+  if (entry) addArcadeSeconds(entry.id, Math.max(0, Math.round((Date.now() - entry.lastTick) / 1000)));
+  trackedWins.delete(win);
+  aliveGameWins.delete(win);
+  refreshCurrentGame();
+}
+
+async function launchPhoneApp(id) {
+  const player = document.getElementById("mobilePlayer"), frame = document.getElementById("playerFrame");
+  if (phoneLaunch) { phoneLaunch.controller.abort(); releasePhoneTracking(); }
+  const sequence = ++phoneLaunchNumber, controller = new AbortController();
+  phoneLaunch = { id: id, controller: controller, trackedWindow: null };
+  const label = id === "spidercraft" ? "sp1dercraft" : REPO_APPS[id].label;
+  player.hidden = false;
+  document.body.classList.add("player-open");
+  document.getElementById("playerBar").hidden = false;
+  document.getElementById("playerRestore").hidden = true;
+  document.getElementById("playerTitle").textContent = label;
+  frame.title = label;
+  frame.removeAttribute("srcdoc");
+  frame.src = "about:blank";
+  document.getElementById("playerMessage").hidden = false;
+  document.getElementById("playerMessageTitle").textContent = "Loading " + label;
+  document.getElementById("playerMessageDetail").textContent = id === "spidercraft" ? "Downloading the game. This may take a moment." : "Getting everything ready…";
+  document.getElementById("playerRetry").hidden = true;
+  syncHubInert();
+  document.getElementById("playerBack").focus();
+  try {
+    let html = null, base = null, lastError = null, directPage = null;
+    if (id === "spidercraft") {
+      const parts = [];
+      for (const url of SPIDER_PARTS) {
+        parts.push(new Uint8Array(await phoneFetch(url, controller.signal)));
+        if (controller.signal.aborted) return;
+        document.getElementById("playerMessageDetail").textContent = "Downloaded " + fmtMB(parts.reduce((sum, part) => sum + part.length, 0)) + " MB";
+      }
+      const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+      let offset = 0;
+      parts.forEach(function (part) { bytes.set(part, offset); offset += part.length; });
+      html = new TextDecoder().decode(bytes); base = SPIDER_BASE;
+      if (!looksLikeBundle(html)) throw new Error("The game download was incomplete.");
+    } else {
+      const app = REPO_APPS[id];
+      html = app.html || null;
+      const localPaths = { tetris: "tetris/tetris.html", "geometry-dash": "geometry-dash/index.html", tiers: "tiers.html", sp1der: "sp1der-mobile.html" };
+      let sources = app.sources.slice();
+      if (localPaths[id]) {
+        const url = new URL(localPaths[id], document.baseURI);
+        sources.unshift([url.href, new URL(".", url).href, id === "tetris" || id === "geometry-dash" ? "inline" : null]);
+        // Sp1der must never silently fall back to the desktop chat runner.
+        if (id === "sp1der") sources = sources.slice(0, 1).concat([
+          ["https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sp1der-mobile.html", "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/"],
+          ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sp1der-mobile.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"]
+        ]);
+      }
+      if (html === null) for (const [url, sourceBase, mode] of sources) {
+        if (controller.signal.aborted) return;
+        try {
+          const text = new TextDecoder().decode(await phoneFetch(url, controller.signal));
+          if (!looksLikeBundle(text)) throw new Error("The source did not return the app.");
+          html = await buildAppHtml(text, sourceBase, mode); base = sourceBase;
+          // Firebase auth needs a real HTTP(S) page origin where available.
+          // Raw GitHub / CDN mirrors still use the existing srcdoc fallback.
+          if (id === "sp1der" && !/^(raw\.githubusercontent\.com|.*jsdelivr\.net|.*githack\.com|cdn\.statically\.io)$/.test(new URL(url).hostname)) directPage = url;
+          break;
+        } catch (error) { lastError = error; }
+      }
+      if (html === null) throw lastError || new Error("No app sources are available.");
+    }
+    if (sequence !== phoneLaunchNumber || controller.signal.aborted) return;
+    html = enhancePhoneApp(html, id);
+    frame.onload = function () {
+      if (sequence !== phoneLaunchNumber || controller.signal.aborted) return;
+      document.getElementById("playerMessage").hidden = true;
+    };
+    if (directPage) frame.src = directPage;
+    else frame.srcdoc = base ? injectBase(html, base) : html;
+    if (PHONE_APPS[id].category === "games") {
+      phoneLaunch.trackedWindow = frame.contentWindow;
+      trackGameWindow(frame.contentWindow, id);
+    }
+  } catch (error) {
+    if (sequence !== phoneLaunchNumber || controller.signal.aborted) return;
+    document.getElementById("playerMessageTitle").textContent = label + " couldn't load";
+    document.getElementById("playerMessageDetail").textContent = "Check your connection, then try again. You can always go back to the arcade.";
+    document.getElementById("playerRetry").hidden = false;
+    console.warn("[Fishes Arcade] phone launch:", error.message);
+  }
+}
+
+function closePhonePlayer() {
+  if (!phoneLaunch) return;
+  ++phoneLaunchNumber;
+  phoneLaunch.controller.abort();
+  releasePhoneTracking();
+  phoneLaunch = null;
+  const frame = document.getElementById("playerFrame");
+  frame.onload = null;
+  frame.removeAttribute("srcdoc"); frame.src = "about:blank";
+  document.getElementById("mobilePlayer").hidden = true;
+  document.body.classList.remove("player-open");
+  if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
+  syncHubInert();
+  if (phoneReturnFocus && !phoneReturnFocus.hidden) phoneReturnFocus.focus({ preventScroll: true });
+}
+document.getElementById("playerBack").addEventListener("click", closePhonePlayer);
+["playerReload", "playerRetry"].forEach(function (id) {
+  document.getElementById(id).addEventListener("click", function () { if (phoneLaunch) launchPhoneApp(phoneLaunch.id); });
+});
+document.getElementById("playerFullscreen").addEventListener("click", async function () {
+  const player = document.getElementById("mobilePlayer");
+  if (player.requestFullscreen && !document.fullscreenElement) {
+    try { await player.requestFullscreen(); } catch (error) { /* iOS and embedded previews use the toolbar-free fallback. */ }
+  }
+  document.getElementById("playerBar").hidden = true;
+  document.getElementById("playerRestore").hidden = false;
+  document.getElementById("playerRestore").focus();
+});
+document.getElementById("playerRestore").addEventListener("click", function () {
+  document.getElementById("playerBar").hidden = false;
+  document.getElementById("playerRestore").hidden = true;
+  document.getElementById("playerBack").focus();
+});
+
+document.addEventListener("keydown", function (event) {
+  const warning = document.getElementById("phoneWarning"), player = document.getElementById("mobilePlayer");
+  const terms = document.getElementById("termsOverlay");
+  const modal = !warning.hidden ? warning : !player.hidden ? player : !terms.hidden ? terms : null;
+  if (!modal) return;
+  if (event.key === "Escape") {
+    if (!warning.hidden) cancelPhoneWarning();
+    else if (!player.hidden) closePhonePlayer();
+  }
+  if (event.key === "Tab") {
+    const focusable = Array.from(modal.querySelectorAll("button, input, a[href], iframe")).filter(el => !el.hidden && el.getClientRects().length);
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+});
 
 /* ---- helpers for the raw.githubusercontent inline mode ---- */
 
@@ -2071,10 +2582,27 @@ function summonSebass() {
   const openBtn = document.getElementById("reviewTermsBtn");
   const closeBtn = document.getElementById("termsClose");
   if (!overlay || !openBtn || !closeBtn) return;
-  openBtn.addEventListener("click", function () { overlay.hidden = false; });
-  closeBtn.addEventListener("click", function () { overlay.hidden = true; });
-  overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.hidden = true; });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !overlay.hidden) overlay.hidden = true; });
+  let returnFocus = null;
+  function open() {
+    returnFocus = document.activeElement;
+    overlay.hidden = false;
+    document.body.classList.add("player-open");
+    Array.from(document.getElementById("hub").children).forEach(function (child) { if (child !== overlay) child.inert = true; });
+    syncHubInert();
+    closeBtn.focus();
+  }
+  function close() {
+    overlay.hidden = true;
+    document.body.classList.remove("player-open");
+    Array.from(document.getElementById("hub").children).forEach(function (child) { child.inert = false; });
+    syncHubInert();
+    if (returnFocus) returnFocus.focus({ preventScroll: true });
+  }
+  openBtn.addEventListener("click", open);
+  document.getElementById("phoneTerms").addEventListener("click", open);
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) close(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !overlay.hidden) close(); });
 })();
 
 window.__mantleBooted = true;

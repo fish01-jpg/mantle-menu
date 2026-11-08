@@ -63,7 +63,8 @@
      * 
      * @type {boolean}
      */
-    var expelled = false;
+    var phoneControls = document.documentElement.classList.contains('phone');
+    var expelled = phoneControls;
 
 
     /**
@@ -92,14 +93,14 @@
      * 
      * @type number
      */
-    var tilesX = 21;
+    var tilesX = phoneControls ? 10 : 21;
 
     /**
      * Number of tiles on the board in Y direction
      * 
      * @type number
      */
-    var tilesY = 35;
+    var tilesY = phoneControls ? 20 : 35;
 
     /**
      * The inner tile size - border exclusive
@@ -657,7 +658,7 @@
             var x = cur[i] + newX;
             var y = cur[i + 1] + curY;
 
-            if (x < 0 || x >= tilesX || y >= 0 && board[y][x] !== undefined) {
+            if (x < 0 || x >= tilesX || y >= tilesY || y >= 0 && board[y][x] !== undefined) {
                 return false;
             }
         }
@@ -1066,6 +1067,10 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         var size = ctx.measureText(text);
+        if (phoneControls && size.width > canvas.width - 20) {
+            ctx.font = Math.floor(60 * (canvas.width - 20) / size.width) + "px Lemon";
+            size = ctx.measureText(text);
+        }
 
         ctx.fillStyle = "#fff";
         ctx.fillText(text, (canvas.width - size.width) / 2, canvas.height / 3);
@@ -1184,6 +1189,23 @@
      * Draw all components on the screen
      */
     var draw = function() {
+        if (phoneControls) {
+            var touch = document.getElementById('tetrisTouch');
+            var paused = gameStatus === STATUS_PAUSE;
+            touch.setAttribute('data-state', gameStatus === STATUS_PLAY ? 'playing' : paused ? 'paused' : gameStatus === STATUS_GAMEOVER ? 'over' : 'waiting');
+            var controls = touch.querySelectorAll('button');
+            for (var controlIndex = 0; controlIndex < controls.length; controlIndex++) {
+                var control = controls[controlIndex];
+                var isPause = control.getAttribute('data-key') === '80';
+                control.disabled = isPause ? gameStatus !== STATUS_PLAY && !paused : gameStatus !== STATUS_PLAY;
+                if (isPause) {
+                    control.textContent = paused ? 'Resume' : 'Pause';
+                    control.setAttribute('aria-pressed', String(paused));
+                    control.setAttribute('aria-label', paused ? 'Resume game' : 'Pause game');
+                }
+            }
+            document.getElementById('Cpause').checked = paused;
+        }
 
         // http://jsperf.com/ctx-clearrect-vs-canvas-width-canvas-width/3
         // Should be fine and also the standard way to go

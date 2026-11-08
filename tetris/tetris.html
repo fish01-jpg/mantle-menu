@@ -3,11 +3,18 @@
     <head>
         <title>HTML5 Tetris</title>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <script>
+          (function () {
+            var phone = /iPhone|iPod|Android.*Mobile|Windows Phone/i.test(navigator.userAgent) ||
+              innerWidth <= 600 || (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) <= 600);
+            if (phone) document.documentElement.classList.add("phone");
+          })();
+        </script>
 
-        <link href='http://fonts.googleapis.com/css?family=Lemon|Gochi+Hand' rel='stylesheet' type='text/css'>
+        <link href='https://fonts.googleapis.com/css?family=Lemon|Gochi+Hand' rel='stylesheet' type='text/css'>
 
-        <link id="fav" rel="shortcut icon" type="image/png" href="http://www.xarg.org/favicon.ico" />
-        {literal}
+        <link id="fav" rel="shortcut icon" type="image/png" href="https://www.xarg.org/favicon.ico" />
         <style>
 
             a {
@@ -198,7 +205,41 @@
             }
 
         </style>
-        {/literal}
+        <style>
+          #mobileGame { display: none; }
+          html.phone, html.phone body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+          html.phone body { background: #0a0a0b; color: #fafafa; font: 14px/1.4 'Gochi Hand', sans-serif; }
+          html.phone body > h1, html.phone #edit, html.phone #best, html.phone #xarg,
+          html.phone #highscore, html.phone #restart, html.phone body > div:not(#mobileGame) { display: none !important; }
+          html.phone #mobileGame { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 8px; padding: 12px; height: 100%; height: 100dvh; box-sizing: border-box; }
+          #mobileGame * { box-sizing: border-box; }
+          #mobileGameHeader { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+          #mobileGameHeader h2 { margin: 0; font: 600 18px sans-serif; }
+          #mobileStats { font: 14px sans-serif; color: #b0b0b3; }
+          html.phone #stat { position: static; color: #fafafa; font: inherit; text-shadow: none; }
+          html.phone #stat br { display: none; }
+          html.phone #lines { margin-left: 4px; }
+          #mobileBoard { min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 16px; overflow: hidden; }
+          html.phone #canvas { position: static; flex: none; border: 2px solid #7890ac; max-width: 100%; touch-action: none; }
+          #mobileNext { align-self: flex-start; padding-top: 8px; width: 72px; flex: none; color: #b0b0b3; font: 12px sans-serif; }
+          #mobileNext p { margin: 0 0 8px; }
+          html.phone #preview { position: static; width: 72px; height: 72px; border: 1px solid #7890ac; display: block; }
+          #mobileHelp { margin-top: 12px; line-height: 1.5; }
+          #tetrisTouch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+          #tetrisTouch button { min-width: 44px; min-height: 48px; border-radius: 8px; border: 1px solid #ffffff26; color: #fafafa; background: #202022; font: 500 14px sans-serif; touch-action: none; user-select: none; cursor: pointer; }
+          #tetrisTouch button:active { background: #3b3322; }
+          #tetrisTouch button:disabled { opacity: .65; cursor: default; }
+          #tetrisTouch button:focus-visible { outline: 2px solid #f5b83d; outline-offset: 2px; }
+          #tetrisTouch button[data-key="32"] { background: #f5b83d; color: #17120a; }
+          #mobileCredit { margin: 0; text-align: center; color: #b0b0b3; font: 12px sans-serif; }
+          @media (orientation: landscape) and (min-width: 550px) {
+            html.phone #mobileGame { grid-template-columns: minmax(0, 1fr) 204px; grid-template-rows: auto minmax(0, 1fr) auto; padding: 8px 12px; }
+            #mobileGameHeader { grid-column: 1 / -1; }
+            #mobileBoard { grid-row: 2 / 4; }
+            #tetrisTouch { grid-column: 2; grid-template-columns: repeat(2, 1fr); align-self: center; }
+            #mobileCredit { grid-column: 2; line-height: 1.5; }
+          }
+        </style>
     </head>
     <body>
 
@@ -293,9 +334,65 @@
         </div>
 
 
+        <div id="mobileGame">
+          <header id="mobileGameHeader"><h2>Tetris</h2><div id="mobileStats"></div></header>
+          <main id="mobileBoard"><aside id="mobileNext"><p>Next piece</p><p id="mobileHelp">Use the buttons below. Drop places a block instantly.</p></aside></main>
+          <nav id="tetrisTouch" aria-label="Tetris touch controls">
+            <button type="button" data-key="37" aria-label="Move left" disabled>← Left</button>
+            <button type="button" data-key="38" aria-label="Rotate block" disabled>Rotate</button>
+            <button type="button" data-key="39" aria-label="Move right" disabled>Right →</button>
+            <button type="button" data-key="40" aria-label="Move down" disabled>↓ Down</button>
+            <button type="button" data-key="32" aria-label="Drop block" disabled>Drop</button>
+            <button type="button" data-key="80" id="touchPause" aria-label="Pause game" aria-pressed="false" disabled>Pause</button>
+          </nav>
+          <p id="mobileCredit">Tetris by Robert Eisele · Use Reload for a new game</p>
+        </div>
         <script src="./tetris.js"></script>
+        <script>
+          (function () {
+            if (!document.documentElement.classList.contains("phone")) return;
+            var canvas = document.getElementById("canvas"), board = document.getElementById("mobileBoard");
+            board.prepend(canvas);
+            document.getElementById("mobileNext").insertBefore(document.getElementById("preview"), document.getElementById("mobileHelp"));
+            document.getElementById("mobileStats").appendChild(document.getElementById("stat"));
+            function fit() {
+              var maxHeight = Math.max(80, board.clientHeight - 4);
+              var maxWidth = Math.max(40, board.clientWidth - 92);
+              var scale = Math.min(maxHeight / canvas.height, maxWidth / canvas.width);
+              canvas.style.width = Math.floor(canvas.width * scale) + "px";
+              canvas.style.height = Math.floor(canvas.height * scale) + "px";
+              document.getElementById("mobileHelp").textContent = matchMedia("(orientation: landscape)").matches ?
+                "Use the buttons on the right." : "Use the buttons below.";
+            }
+            function press(code) {
+              window.dispatchEvent(new KeyboardEvent("keydown", { keyCode: code, which: code, bubbles: true, cancelable: true }));
+              var paused = document.getElementById("Cpause").checked;
+              var button = document.getElementById("touchPause");
+              button.textContent = paused ? "Resume" : "Pause";
+              button.setAttribute("aria-pressed", String(paused));
+              button.setAttribute("aria-label", paused ? "Resume game" : "Pause game");
+            }
+            var repeat = null, delay = null;
+            function stop() { clearTimeout(delay); clearInterval(repeat); delay = repeat = null; }
+            document.querySelectorAll("#tetrisTouch button").forEach(function (button) {
+              var code = +button.dataset.key;
+              button.dataset.testid = "tetris-key-" + code;
+              button.addEventListener("pointerdown", function (event) {
+                event.preventDefault(); stop(); button.setPointerCapture(event.pointerId); press(code);
+                if (code === 37 || code === 39 || code === 40) delay = setTimeout(function () { repeat = setInterval(function () { press(code); }, 100); }, 280);
+              });
+              ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (name) { button.addEventListener(name, stop); });
+              button.addEventListener("click", function (event) { if (event.detail === 0) press(code); });
+            });
+            window.addEventListener("blur", stop);
+            document.addEventListener("visibilitychange", stop);
+            window.addEventListener("resize", function () { stop(); fit(); });
+            if (window.ResizeObserver) new ResizeObserver(fit).observe(board);
+            fit();
+          })();
+        </script>
 
-        <a id="xarg" href="http://www.xarg.org/projects/"><img width="59" height="61" src="http://www.xarg.org/image/xarg-logo.png" alt="xarg open projects" /></a>
+        <a id="xarg" href="https://www.xarg.org/projects/"><img width="59" height="61" src="https://www.xarg.org/image/xarg-logo.png" alt="xarg open projects" /></a>
 
     </body>
 </html>
