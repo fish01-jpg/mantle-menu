@@ -1909,7 +1909,7 @@ input,textarea,select{font-size:16px!important;max-width:100%;box-sizing:border-
                                     <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="color:var(--accent)"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM8 14H6v-2H4v-2h2V8h2v2h2v2H8v2zm7 1c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3-3c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path></svg>
                                 </div>
                                 <div class="home-card-title">Resources</div>
-                                <div class="home-card-desc">Open the arcade, Redstone Rush, Polytrack Education, music and commands.</div>
+                                <div class="home-card-desc">Open the arcade, Polytrack Education, music and commands.</div>
                             </div>
                             <div class="home-card" onclick="showView('activeusers')">
                                 <div class="home-card-icon">
@@ -3546,7 +3546,6 @@ Furball found a sunbeam and is not moving for anyone.`;
         // Clicking a game card navigates there; the existing appViewer remains for custom/managed apps.
         const LOADED_APPS = [
             { id:'fishesarcade', name:'Fishes Arcade', category:'games', desc:'Open Fishes Arcade for the full game collection', color:'#3b82c4', featured:true },
-            { id:'redstoneRush', name:'Redstone Rush', category:'games', desc:'Rotate the redstone wires to power the target', color:'#dc2626', cmd:'redstoneRush', page:'redstoneRush.html' },
             { id:'conner-polytrack', name:'Polytrack Education', category:'games', desc:'Play Polytrack Education', color:'#3b82c4', url:'https://education.framer.photos' },
             { id:'ytplayer', name:'YouTube Music', category:'tools', desc:'Play YouTube videos as music', color:'#ef4444' },
             { id:'commandhelp', name:'Commands', category:'tools', desc:'View chat commands, moderation tools and Furry bonuses', color:'#78b4e3' }
@@ -9968,7 +9967,9 @@ const close=document.createElement('button');close.type='button';close.className
 b.onclick=()=>{const open=!layout.classList.contains('mobile-channels-open');closeChannels();layout.classList.toggle('mobile-channels-open',open);b.setAttribute('aria-expanded',String(open));if(open)close.focus()};header.prepend(b);
 channels.addEventListener('click',e=>{if(mq.matches&&e.target.closest('.chat-channel')){closeChannels();b.focus()}});layout.addEventListener('click',e=>{if(mq.matches&&layout.classList.contains('mobile-channels-open')&&!channels.contains(e.target)&&!b.contains(e.target))closeChannels()})});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeChannels();closeNav()}});
-function viewport(){const v=window.visualViewport;document.documentElement.style.setProperty('--mobile-vh',(v?v.height:innerHeight)+'px')}viewport();window.addEventListener('resize',viewport);if(window.visualViewport)window.visualViewport.addEventListener('resize',viewport);mq.addEventListener('change',()=>{if(mq.matches)closeNav();closeChannels();syncNav();viewport()});syncNav();
+function viewport(){const v=window.visualViewport;document.documentElement.style.setProperty('--mobile-vh',(v?v.height:innerHeight)+'px')}viewport();window.addEventListener('resize',viewport);if(window.visualViewport)window.visualViewport.addEventListener('resize',viewport);
+let wasMobile=mq.matches,priorCollapsed=sidebar?sidebar.classList.contains('collapsed'):false;
+mq.addEventListener('change',()=>{if(mq.matches){priorCollapsed=sidebar?sidebar.classList.contains('collapsed'):false;closeNav()}else if(sidebar&&wasMobile){sidebar.classList.toggle('collapsed',priorCollapsed)}wasMobile=mq.matches;closeChannels();syncNav();viewport()});syncNav();
 }if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init()})();
 </script>
 </body></html>
