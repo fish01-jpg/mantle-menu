@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lava Arena</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+
+```
+    #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 24px;
+        height: 24px;
+        pointer-events: none;
+        z-index: 40;
+    }
+    #crosshair::before, #crosshair::after {
+        content: '';
+        position: absolute;
+        background: rgba(255, 150, 50, 0.9);
+        box-shadow: 0 0 4px rgba(255,80,0,0.8);
+    }
+    #crosshair::before { top: 11px; left: 0; width: 24px; height: 2px; }
+    #crosshair::after { top: 0; left: 11px; width: 2px; height: 24px; }
+
+    .killfeed-item {
+        animation: fadeOut 4s forwards;
+        background: rgba(20,0,0,0.85);
+        padding: 6px 14px;
+        border-radius: 4px;
+        border-left: 4px solid #ff4400;
+    }
+
+    @keyframes fadeOut {
+        0% { opacity: 1; transform: translateX(0); }
+        80% { opacity: 1; transform: translateX(0); }
+        100% { opacity: 0; transform: translateX(20px); }
+    }
+
+    .team-btn { transition: all 0.2s; border: 2px solid transparent; }
+    .team-btn.selected-red { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+    .team-btn.selected-blue { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+
+    .spell-card { transition: all 0.2s; cursor: pointer; border: 2px solid #7c2d12; }
+    .spell-card:hover { transform: translateY(-2px); border-color: #ea580c; }
+    .spell-card.selected { border-color: #f97316; background-color: #431407; box-shadow: 0 0 15px rgba(249, 115, 22, 0.5); }
+
+    #minimap {
+        width: 150px;
+        height: 150px;
+        background: rgba(20, 5, 0, 0.7);
+        border: 2px solid rgba(255, 100, 0, 0.4);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    }
+    .map-dot {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .map-dot.me { background-color: #4ade80; z-index: 10; box-shadow: 0 0 6px #4ade80; }
+    .map-dot.ally { background-color: #60a5fa; box-shadow: 0 0 4px #60a5fa; }
+    .map-dot.enemy { background-color: #f87171; box-shadow: 0 0 4px #f87171; }
+
+    #chat-container {
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        pointer-events: auto;
+    }
+    #chat-messages {
+        max-height: 180px;
+        overflow-y: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-bottom: 8px;
+        text-shadow: 1px 1px 2px black;
+    }
+    .chat-msg { font-size: 13px; font-weight: bold; color: white; animation: fadeOutChat 12s forwards; }
+    @keyframes fadeOutChat { 0% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+   
+    #chat-input-wrapper { display: none; }
+    #chat-input {
+        width: 100%;
+        background: rgba(30, 5, 0, 0.8);
+        border: 1px solid rgba(255, 100, 0, 0.5);
+        color: #ffaa55;
+        padding: 6px 10px;
+        border-radius: 6px;
+        outline: none;
+        font-size: 14px;
+    }
+
+    /* Still-damage warning pulse */
+    @keyframes lavaWarning {
+        0%, 100% { opacity: 0; }
+        50% { opacity: 0.15; }
+    }
+    #stillWarning {
+        animation: lavaWarning 0.8s infinite;
+        pointer-events: none;
+    }
+</style>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+</script>
+```
+
+</head>
+<body>
+
+```
+<!-- Lobby -->
+<div id="lobby" class="absolute inset-0 z-50 flex items-center justify-center bg-orange-950/95 text-orange-100 backdrop-blur-md">
+    <div class="bg-orange-950 p-8 rounded-xl shadow-2xl border border-orange-800 w-full max-w-3xl text-center flex flex-col items-center max-h-screen overflow-y-auto">
+        <h1 class="text-4xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600">🌋 LAVA ARENA</h1>
+        <p class="text-orange-400 mb-6 text-sm font-semibold">THE FLOOR IS LAVA — KEEP MOVING OR DIE</p>
+
+        <div class="flex flex-col md:flex-row w-full gap-4 mb-4">
+            <div class="flex-1">
+                <label class="block text-left text-xs text-orange-400 uppercase tracking-wider mb-1 font-bold">Wizard Name</label>
+                <input type="text" id="nameInput" placeholder="Enter Name..." class="w-full p-3 bg-orange-900/50 border border-orange-700 rounded text-orange-100 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 transition-all shadow-sm font-bold" />
+            </div>
+            <div class="flex-1">
+                <label class="block text-left text-xs text-orange-400 uppercase tracking-wider mb-1 font-bold">Room Name</label>
+                <input type="text" id="roomInput" value="lava" class="w-full p-3 bg-orange-900/50 border border-orange-700 rounded text-orange-100 focus:outline-none focus:border-orange-400 transition-all shadow-sm font-bold" />
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 w-full mb-6" id="spellGrid"></div>
+
+        <div class="w-full mb-6">
+            <label class="block text-left text-xs text-orange-400 uppercase tracking-wider mb-2 font-bold">Select Team</label>
+            <div class="flex space-x-2 h-12">
+                <button id="btnRed" class="team-btn selected-red flex-1 bg-red-900/60 text-red-300 rounded-lg font-bold hover:bg-red-800/60">RED TEAM</button>
+                <button id="btnBlue" class="team-btn flex-1 bg-blue-900/60 text-blue-300 rounded-lg font-bold hover:bg-blue-800/60">BLUE TEAM</button>
+            </div>
+        </div>
+
+        <!-- Rules reminder -->
+        <div class="w-full mb-4 bg-red-950/60 border border-red-800 rounded-lg p-3 text-left text-xs text-red-300 font-bold space-y-1">
+            <div>🔥 Touch the lava = <span class="text-red-400">INSTANT DEATH</span></div>
+            <div>⚠️ Stand still = <span class="text-red-400">DAMAGE TICKS (keep moving!)</span></div>
+            <div>💥 All spells have <span class="text-orange-400">INCREASED KNOCKBACK</span> — get knocked into the lava!</div>
+        </div>
+
+        <button id="btnJoin" disabled class="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-black tracking-wide text-lg transition-all shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5">
+            SELECT 2 SPELLS TO DEPLOY
+        </button>
+        <div id="statusMsg" class="mt-4 text-xs text-orange-500 font-medium h-4">Initializing Server...</div>
+    </div>
+</div>
+
+<!-- Pause Menu -->
+<div id="pauseMenu" class="absolute inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div class="bg-orange-950 p-8 rounded-xl shadow-2xl border border-orange-800 w-96 text-center flex flex-col items-center">
+        <h2 class="text-3xl font-black mb-6 text-orange-400 tracking-widest">PAUSED</h2>
+        <button id="btnResume" class="w-full py-4 mb-3 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-black tracking-wide text-lg transition-colors shadow-lg">
+            RESUME BATTLE
+        </button>
+        <button id="btnLeave" class="w-full py-3 mb-4 bg-red-800 hover:bg-red-700 text-white rounded-lg font-black tracking-wide text-md transition-colors shadow-lg">
+            LEAVE TO LOBBY
+        </button>
+        <p class="text-xs text-orange-700 mt-2">Browser security requires a short delay before returning.</p>
+    </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="absolute inset-0 z-40 hidden pointer-events-none p-6 flex-col justify-between">
+    <div class="flex justify-between items-start">
+        <div>
+            <div id="healthDisplay" class="text-5xl font-black text-green-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-colors duration-200">100 HP</div>
+            <!-- Still-damage warning -->
+            <div id="stillWarningText" class="text-sm font-black text-orange-400 drop-shadow-md mt-1 opacity-0 transition-opacity duration-300">⚠️ KEEP MOVING — LAVA DAMAGE!</div>
+        </div>
+        <div class="text-right flex flex-col items-end gap-4">
+            <div>
+                <div class="text-xs text-orange-300 drop-shadow-md uppercase tracking-widest mb-1 font-bold">Scoreboard</div>
+                <div id="scoreDisplay" class="text-2xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] bg-black/30 px-3 py-1 rounded-lg backdrop-blur-sm">
+                    K: <span id="killCount" class="text-green-400">0</span> | D: <span id="deathCount" class="text-red-400">0</span>
+                </div>
+                <div id="roomDisplay" class="text-xs text-orange-300 drop-shadow-md font-bold mt-2">Room: lava</div>
+            </div>
+            <div id="minimap">
+                <div id="minimap-me" class="map-dot me"></div>
+            </div>
+        </div>
+    </div>
+   
+    <div class="flex justify-between items-end w-full relative">
+        <div id="chat-container">
+            <div id="chat-messages"></div>
+            <div id="chat-input-wrapper">
+                <input type="text" id="chat-input" placeholder="Press Enter to send..." autocomplete="off" maxlength="80" />
+            </div>
+            <div class="text-[10px] text-orange-400 drop-shadow-md mt-1 font-bold tracking-wider">PRESS ENTER TO CHAT</div>
+        </div>
+
+        <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex space-x-4">
+            <div id="ui-spell-0" class="relative overflow-hidden border-2 border-orange-400 px-6 py-3 text-white font-bold bg-black/60 rounded-lg transition-all text-center min-w-[120px] backdrop-blur-sm shadow-lg">
+                <div id="ui-cd-0" class="absolute bottom-0 left-0 w-full bg-black/70 transition-all duration-75" style="height: 0%;"></div>
+                <div class="relative z-10 text-xs text-orange-300 mb-1">KEY 1</div>
+                <div class="relative z-10 text-lg" id="ui-spell-name-0">Spell 1</div>
+            </div>
+            <div id="ui-spell-1" class="relative overflow-hidden border-2 border-transparent px-6 py-3 text-white font-bold bg-black/60 rounded-lg transition-all opacity-60 text-center min-w-[120px] backdrop-blur-sm shadow-lg">
+                <div id="ui-cd-1" class="absolute bottom-0 left-0 w-full bg-black/70 transition-all duration-75" style="height: 0%;"></div>
+                <div class="relative z-10 text-xs text-orange-300 mb-1">KEY 2</div>
+                <div class="relative z-10 text-lg" id="ui-spell-name-1">Spell 2</div>
+            </div>
+        </div>
+       
+        <div id="killfeed" class="text-sm font-bold text-white drop-shadow-md flex flex-col items-end space-y-2 pb-4"></div>
+    </div>
+</div>
+
+<div id="crosshair" class="hidden"></div>
+<div id="damageFlash" class="absolute inset-0 z-30 bg-red-600 opacity-0 transition-opacity duration-100 pointer-events-none"></div>
+<div id="healFlash" class="absolute inset-0 z-30 bg-green-400 opacity-0 transition-opacity duration-100 pointer-events-none"></div>
+<div id="warpFlash" class="absolute inset-0 z-30 bg-cyan-300 opacity-0 transition-opacity duration-100 pointer-events-none"></div>
+<!-- Lava death flash -->
+<div id="lavaFlash" class="absolute inset-0 z-30 bg-orange-600 opacity-0 transition-opacity duration-100 pointer-events-none"></div>
+<!-- Still damage warning overlay -->
+<div id="stillWarning" class="absolute inset-0 z-29 bg-orange-800 opacity-0 pointer-events-none"></div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+   
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const customFirebaseConfig = {
+        apiKey: "AIzaSyC_FvPLD599H8If_xXRhsspeRNhBARM0rg",
+        authDomain: "registration-snippet.firebaseapp.com",
+        databaseURL: "https://registration-snippet-default-rtdb.firebaseio.com",
+        projectId: "registration-snippet",
+        storageBucket: "registration-snippet.firebasestorage.app",
+        messagingSenderId: "934078819764",
+        appId: "1:934078819764:web:aed8d05a339840a16b16e1",
+        measurementId: "G-QH5SJ0QGK6"
+    };
+   
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'lava-arena';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : customFirebaseConfig;
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // =====================
+    // LAVA KNOCKBACK MULTIPLIER — all knockback forces multiplied by this
+    // =====================
+    const LAVA_KNOCKBACK_MULT = 2.5;
+
+    const SPELLS = {
+        'fire':  { id: 'fire',  name: 'Fireball',    icon: '🔥', color: 0xff4400, cd: 1200, speed: 45,  grav: 0,  radius: 6,   type: 'damage', dmg: 40, desc: 'Large AoE Explosion.' },
+        'frost': { id: 'frost', name: 'Frost Shard', icon: '❄️', color: 0x00ffff, cd: 1500, speed: 70,  grav: 0,  radius: 3.5, type: 'root',   dur: 2000, dmg: 15, desc: 'Roots targets for 2s.' },
+        'slime': { id: 'slime', name: 'Slime Blob',  icon: '🧪', color: 0x00ff00, cd: 1000, speed: 25,  grav: 15, radius: 5,   type: 'slow',   dur: 3000, dmg: 10, desc: 'Arcs. 60% slow for 3s.' },
+        'gale':  { id: 'gale',  name: 'Aero Gale',   icon: '🌪️', color: 0xffffff, cd: 800,  speed: 80,  grav: 0,  radius: 4.5, type: 'knockback', force: 45, dmg: 0, desc: 'MASSIVE knockback. Into the lava!' },
+        'heal':  { id: 'heal',  name: 'Vital Flask', icon: '💖', color: 0xff00ff, cd: 5000, speed: 20,  grav: 25, radius: 8,   type: 'heal',   amount: 40, desc: 'Arcs. Burst heals allies.' },
+        'void':  { id: 'void',  name: 'Void Sphere', icon: '🌌', color: 0x6600cc, cd: 3000, speed: 30,  grav: 0,  radius: 12,  type: 'pull',   force: 50, dmg: 10, desc: 'Pulls enemies toward lava.' },
+        'bolt':  { id: 'bolt',  name: 'Arc Sniper',  icon: '⚡', color: 0xffff00, cd: 2500, speed: 150, grav: 0,  radius: 2.5, type: 'damage', dmg: 80, desc: 'Ultra-fast precision bolt.' },
+        'curve': { id: 'curve', name: 'Changeup Orb',icon: '🌀', color: 0x00ff88, cd: 1500, speed: 10,  grav: -2, radius: 9,   type: 'damage', dmg: 50, desc: 'Slow, floats up, huge radius.' },
+        'warp':  { id: 'warp',  name: 'Warp Pearl',  icon: '👁️', color: 0x00ffcc, cd: 4000, speed: 35,  grav: 20, radius: 1,   type: 'teleport', desc: 'Teleports you to blast site.' }
+    };
+
+    let selectedLoadout = [];
+    let activeSpellSlot = 0;
+    let lastShotTimes = [0, 0];
+
+    let myId = null;
+    let myName = `Wizard_${Math.floor(Math.random() * 1000)}`;
+    let myTeam = 'red';
+    let roomId = 'lava';
+    let isPlaying = false;
+    let joinTime = 0;
+   
+    let health = 100;
+    let kills = 0;
+    let deaths = 0;
+
+    let speedModifier = 1.0;
+    let knockbackVelocity = new THREE.Vector3();
+
+    // --- Still-damage tracking ---
+    let lastMoveTime = Date.now();
+    let lastStillDamageTime = 0;
+    const STILL_GRACE_PERIOD = 1500; // ms before damage starts
+    const STILL_DAMAGE_INTERVAL = 800; // ms between damage ticks
+    const STILL_DAMAGE_AMOUNT = 8;    // HP per tick
+    let lastPlayerPos = new THREE.Vector3();
+    const stillWarningEl = document.getElementById('stillWarning');
+    const stillWarningText = document.getElementById('stillWarningText');
+   
+    const localProjectiles = new Map();
+    const remoteProjectiles = new Map();
+    const activeExplosions = [];
+
+    const remotePlayers = {};
+    let unsubscribePlayers = null;
+    let unsubscribeEvents = null;
+
+    const lobbyEl = document.getElementById('lobby');
+    const pauseMenuEl = document.getElementById('pauseMenu');
+    const hudEl = document.getElementById('hud');
+    const crosshairEl = document.getElementById('crosshair');
+    const btnJoin = document.getElementById('btnJoin');
+    const btnResume = document.getElementById('btnResume');
+    const btnLeave = document.getElementById('btnLeave');
+    const btnRed = document.getElementById('btnRed');
+    const btnBlue = document.getElementById('btnBlue');
+    const roomInput = document.getElementById('roomInput');
+    const nameInput = document.getElementById('nameInput');
+    const statusMsg = document.getElementById('statusMsg');
+    const healthDisplay = document.getElementById('healthDisplay');
+    const spellGrid = document.getElementById('spellGrid');
+    const damageFlash = document.getElementById('damageFlash');
+    const healFlash = document.getElementById('healFlash');
+    const warpFlash = document.getElementById('warpFlash');
+    const lavaFlash = document.getElementById('lavaFlash');
+   
+    const chatMessagesEl = document.getElementById('chat-messages');
+    const chatInputWrapper = document.getElementById('chat-input-wrapper');
+    const chatInput = document.getElementById('chat-input');
+    const minimapEl = document.getElementById('minimap');
+    const minimapMe = document.getElementById('minimap-me');
+    const minimapDots = new Map();
+
+    nameInput.value = myName;
+
+    Object.values(SPELLS).forEach(spell => {
+        const card = document.createElement('div');
+        card.className = 'spell-card bg-orange-950 p-3 rounded-lg flex flex-col items-center text-center';
+        card.innerHTML = `
+            <div class="text-3xl mb-1">${spell.icon}</div>
+            <div class="font-bold text-orange-200">${spell.name}</div>
+            <div class="text-[10px] text-orange-400 mt-1 leading-tight flex-grow">${spell.desc}</div>
+            <div class="text-xs font-bold text-orange-500 mt-2">CD: ${(spell.cd / 1000).toFixed(1)}s</div>
+        `;
+        card.onclick = () => {
+            if (selectedLoadout.includes(spell.id)) {
+                selectedLoadout = selectedLoadout.filter(id => id !== spell.id);
+                card.classList.remove('selected');
+            } else if (selectedLoadout.length < 2) {
+                selectedLoadout.push(spell.id);
+                card.classList.add('selected');
+            }
+           
+            if (selectedLoadout.length === 2 && myId) {
+                btnJoin.disabled = false;
+                btnJoin.innerText = "DEPLOY INTO LAVA ARENA";
+            } else {
+                btnJoin.disabled = true;
+                btnJoin.innerText = "SELECT 2 SPELLS TO DEPLOY";
+            }
+        };
+        spellGrid.appendChild(card);
+    });
+
+    btnRed.addEventListener('click', () => { myTeam = 'red'; btnRed.classList.add('selected-red'); btnBlue.classList.remove('selected-blue'); });
+    btnBlue.addEventListener('click', () => { myTeam = 'blue'; btnBlue.classList.add('selected-blue'); btnRed.classList.remove('selected-red'); });
+
+    btnJoin.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!myId || selectedLoadout.length !== 2) return;
+       
+        myName = nameInput.value.trim() || myName;
+        roomId = roomInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'lava';
+        document.getElementById('roomDisplay').innerText = `Room: ${roomId}`;
+       
+        document.getElementById('ui-spell-name-0').innerText = SPELLS[selectedLoadout[0]].name;
+        document.getElementById('ui-spell-name-1').innerText = SPELLS[selectedLoadout[1]].name;
+       
+        joinNetworkRoom();
+        respawn();
+    });
+
+    btnResume.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isPlaying && !btnResume.disabled) controls.lock();
+    });
+
+    btnLeave.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        isPlaying = false;
+        if (controls.isLocked) controls.unlock();
+
+        if (unsubscribePlayers) unsubscribePlayers();
+        if (unsubscribeEvents) unsubscribeEvents();
+
+        const playersColPath = `rooms_${roomId}_players`;
+        try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', playersColPath, myId)); } catch(err){}
+
+        for (let id in remotePlayers) { scene.remove(remotePlayers[id].mesh); delete remotePlayers[id]; }
+        for (const [id, p] of localProjectiles) { scene.remove(p.mesh); }
+        localProjectiles.clear();
+        for (const [id, p] of remoteProjectiles) { scene.remove(p.mesh); }
+        remoteProjectiles.clear();
+        for (let exp of activeExplosions) {
+            scene.remove(exp.group);
+            exp.group.children.forEach(c => { if(c.geometry) c.geometry.dispose(); if(c.material) c.material.dispose(); });
+        }
+        activeExplosions.length = 0;
+        minimapDots.forEach(dot => dot.remove());
+        minimapDots.clear();
+        chatMessagesEl.innerHTML = '';
+        pauseMenuEl.classList.add('hidden');
+        hudEl.classList.add('hidden');
+        crosshairEl.classList.add('hidden');
+        lobbyEl.classList.remove('hidden');
+        btnJoin.innerText = "DEPLOY INTO LAVA ARENA";
+    });
+
+    async function initAuth() {
+        try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        } catch (e) {
+            console.error("Auth error", e);
+            statusMsg.innerText = "Authentication failed.";
+        }
+    }
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            myId = user.uid;
+            statusMsg.innerText = `Connected. The lava awaits...`;
+            if (selectedLoadout.length === 2) {
+                btnJoin.disabled = false;
+                btnJoin.innerText = "DEPLOY INTO LAVA ARENA";
+            }
+        } else {
+            myId = null;
+            btnJoin.disabled = true;
+        }
+    });
+
+    initAuth();
+
+    function getCollectionRef(name) {
+        return collection(db, 'artifacts', appId, 'public', 'data', name);
+    }
+
+    async function joinNetworkRoom() {
+        joinTime = Date.now();
+        isPlaying = true;
+        lobbyEl.classList.add('hidden');
+        controls.lock();
+
+        const playersColPath = `rooms_${roomId}_players`;
+        const eventsColPath = `rooms_${roomId}_events`;
+
+        const myDocRef = doc(db, 'artifacts', appId, 'public', 'data', playersColPath, myId);
+        await setDoc(myDocRef, {
+            team: myTeam, name: myName, hp: health,
+            x: camera.position.x, y: camera.position.y, z: camera.position.z,
+            rot: camera.rotation.y, timestamp: Date.now()
+        }).catch(console.error);
+
+        unsubscribePlayers = onSnapshot(getCollectionRef(playersColPath), (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+                const peerId = change.doc.id;
+                if (peerId === myId) return;
+                if (change.type === 'added' || change.type === 'modified') {
+                    updateRemotePlayerState(peerId, change.doc.data());
+                }
+                if (change.type === 'removed') {
+                    if (remotePlayers[peerId]) { scene.remove(remotePlayers[peerId].mesh); delete remotePlayers[peerId]; }
+                }
+            });
+        }, (error) => {
+            console.error("Firebase Read Error:", error);
+            appendChatMessage("SYSTEM", "Database blocked! Check Firestore Rules.", "red");
+        });
+
+        unsubscribeEvents = onSnapshot(getCollectionRef(eventsColPath), (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    const eventData = change.doc.data();
+                    if (eventData.timestamp > joinTime && eventData.senderId !== myId) {
+                        handleNetworkEvent(eventData);
+                    }
+                }
+            });
+        }, (error) => console.error("Error listening to events:", error));
+       
+        window.addEventListener("beforeunload", () => {
+            if (myId && isPlaying) deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', playersColPath, myId));
+        });
+    }
+
+    function broadcastEvent(eventData) {
+        if (!isPlaying || !myId) return;
+        eventData.senderId = myId;
+        eventData.timestamp = Date.now();
+        const eventsColPath = `rooms_${roomId}_events`;
+        addDoc(getCollectionRef(eventsColPath), eventData).catch(e => console.warn("Event drop:", e));
+    }
+
+    function handleNetworkEvent(msg) {
+        switch(msg.type) {
+            case 'chat': appendChatMessage(msg.senderName, msg.text, msg.team); break;
+            case 'proj_spawn': spawnRemoteProjectile(msg.id, msg.spellId, msg.pos, msg.vel); break;
+            case 'proj_explode':
+                if (remoteProjectiles.has(msg.id)) { const rp = remoteProjectiles.get(msg.id); scene.remove(rp.mesh); remoteProjectiles.delete(msg.id); }
+                triggerExplosion(new THREE.Vector3(msg.pos.x, msg.pos.y, msg.pos.z), msg.spellId, msg.senderId);
+                break;
+            case 'damage': if (msg.targetId === myId) { takeDamage(msg.amount, msg.senderId); } break;
+            case 'kill': handleKillEvent(msg.victimId, msg.shooterId, msg.victimName, msg.shooterName); break;
+        }
+    }
+
+    function appendChatMessage(sender, text, team) {
+        const el = document.createElement('div');
+        el.className = 'chat-msg';
+        const color = team === 'red' ? '#ef4444' : '#3b82f6';
+        el.innerHTML = `<span style="color: ${color}">[${sender}]</span>: ${text}`;
+        chatMessagesEl.appendChild(el);
+        chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        if (chatMessagesEl.children.length > 8) chatMessagesEl.removeChild(chatMessagesEl.firstChild);
+    }
+
+    function createNameSprite(name, team) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = team === 'red' ? 'rgba(200, 0, 0, 0.7)' : 'rgba(0, 0, 200, 0.7)';
+        ctx.roundRect ? ctx.roundRect(16, 10, 224, 44, 10) : ctx.fillRect(16, 10, 224, 44);
+        ctx.fill();
+        ctx.font = 'bold 28px "Segoe UI", sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(name, 128, 32);
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(2, 0.5, 1);
+        return sprite;
+    }
+
+    function updateRemotePlayerState(peerId, state) {
+        if (!remotePlayers[peerId]) {
+            const isRed = state.team === 'red';
+            const color = isRed ? 0xd32f2f : 0x1976d2;
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.2 });
+            const group = new THREE.Group();
+            const ballGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            const ballMesh = new THREE.Mesh(ballGeo, mat);
+            group.add(ballMesh);
+            const hatMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+            const hatGeo = new THREE.ConeGeometry(0.6, 1.2, 16);
+            const hatMesh = new THREE.Mesh(hatGeo, hatMat);
+            hatMesh.position.y = 0.8;
+            group.add(hatMesh);
+            const uiGroup = new THREE.Group();
+            uiGroup.position.y = 1.8;
+            const bgGeo = new THREE.PlaneGeometry(1.2, 0.15);
+            const bgMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+            uiGroup.add(bgMesh);
+            const fgGeo = new THREE.PlaneGeometry(1.2, 0.15);
+            const fgMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const fgMesh = new THREE.Mesh(fgGeo, fgMat);
+            fgMesh.position.z = 0.01;
+            uiGroup.add(fgMesh);
+            const nameSprite = createNameSprite(state.name || "Unknown", state.team);
+            nameSprite.position.y = 0.4;
+            uiGroup.add(nameSprite);
+            group.add(uiGroup);
+            scene.add(group);
+            remotePlayers[peerId] = {
+                mesh: group, uiGroup: uiGroup, hpFg: fgMesh, nameSprite: nameSprite,
+                currentName: state.name, team: state.team,
+                targetPos: new THREE.Vector3(), targetRot: 0,
+                lastTimestamp: state.timestamp || Date.now()
+            };
+        }
+        const p = remotePlayers[peerId];
+        p.targetPos.set(state.x, state.y - 1.1, state.z);
+        p.targetRot = state.rot;
+        p.lastTimestamp = state.timestamp || Date.now();
+        const hpPercent = Math.max(0, Math.min(100, state.hp)) / 100;
+        p.hpFg.scale.x = Math.max(0.001, hpPercent);
+        p.hpFg.position.x = -(1.2 - (1.2 * hpPercent)) / 2;
+        p.hpFg.material.color.setHex(hpPercent > 0.3 ? 0x00ff00 : 0xff0000);
+        if (p.currentName !== state.name && state.name) {
+            p.uiGroup.remove(p.nameSprite);
+            p.nameSprite = createNameSprite(state.name, state.team);
+            p.nameSprite.position.y = 0.4;
+            p.uiGroup.add(p.nameSprite);
+            p.currentName = state.name;
+        }
+    }
+
+    // =====================
+    // THREE.JS SCENE SETUP
+    // =====================
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a0500); // Dark reddish-black sky
+    scene.fog = new THREE.FogExp2(0x3d0a00, 0.015); // Volcanic fog
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.8;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new PointerLockControls(camera, document.body);
+
+    // Lava-themed lighting
+    const ambientLight = new THREE.AmbientLight(0x300800, 0.4);
+    scene.add(ambientLight);
+    const lavLight = new THREE.PointLight(0xff4400, 3.0, 200);
+    lavLight.position.set(0, 2, 0);
+    scene.add(lavLight);
+    const dirLight = new THREE.DirectionalLight(0xff6600, 0.8);
+    dirLight.position.set(20, 50, 20);
+    scene.add(dirLight);
+
+    // Animated lava glow lights
+    const glowLights = [];
+    for (let i = 0; i < 6; i++) {
+        const gl = new THREE.PointLight(0xff3300, 1.5, 60);
+        gl.position.set((Math.random()-0.5)*180, 1, (Math.random()-0.5)*180);
+        scene.add(gl);
+        glowLights.push({ light: gl, offset: Math.random() * Math.PI * 2 });
+    }
+
+    const collisionBoxes = [];
+
+    // =====================
+    // ANIMATED LAVA TEXTURE
+    // =====================
+    function createLavaTexture() {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const tex = new THREE.CanvasTexture(canvas);
+
+        function drawLava(t) {
+            ctx.fillStyle = '#1a0000';
+            ctx.fillRect(0, 0, size, size);
+
+            // Draw lava blobs
+            for (let i = 0; i < 20; i++) {
+                const ox = Math.sin(t * 0.5 + i * 2.3) * 30 + (i * 13 % size);
+                const oy = Math.cos(t * 0.4 + i * 1.7) * 30 + (i * 17 % size);
+                const r = 15 + Math.sin(t + i) * 8;
+                const grd = ctx.createRadialGradient(ox % size, oy % size, 0, ox % size, oy % size, r);
+                grd.addColorStop(0, `rgba(255,${150 + Math.sin(t+i)*50},0,0.9)`);
+                grd.addColorStop(0.4, `rgba(200,60,0,0.7)`);
+                grd.addColorStop(1, 'rgba(30,0,0,0)');
+                ctx.fillStyle = grd;
+                ctx.beginPath();
+                ctx.arc(ox % size, oy % size, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Bright cracks
+            for (let i = 0; i < 8; i++) {
+                const cx = (Math.sin(t * 0.3 + i) * 60 + 128) % size;
+                const cy = (Math.cos(t * 0.2 + i * 1.5) * 60 + 128) % size;
+                const crackGrd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 20 + Math.sin(t+i)*5);
+                crackGrd.addColorStop(0, 'rgba(255,220,50,0.95)');
+                crackGrd.addColorStop(0.3, 'rgba(255,100,0,0.7)');
+                crackGrd.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = crackGrd;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            tex.needsUpdate = true;
+        }
+
+        return { tex, drawLava };
+    }
+
+    const { tex: lavaTex, drawLava } = createLavaTexture();
+    lavaTex.wrapS = lavaTex.wrapT = THREE.RepeatWrapping;
+    lavaTex.repeat.set(8, 8);
+
+    function buildMap() {
+        // === LAVA FLOOR ===
+        const floorGeo = new THREE.PlaneGeometry(200, 200, 32, 32);
+        // Slightly undulate the floor geometry for lava feel
+        const pos = floorGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i), y = pos.getY(i);
+            pos.setZ(i, (Math.sin(x * 0.3) * Math.cos(y * 0.3)) * 0.3);
+        }
+        floorGeo.computeVertexNormals();
+
+        const floorMat = new THREE.MeshStandardMaterial({
+            map: lavaTex,
+            emissiveMap: lavaTex,
+            emissive: new THREE.Color(0xff3300),
+            emissiveIntensity: 0.6,
+            roughness: 0.4,
+            metalness: 0.0,
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.02;
+        scene.add(floor);
+
+        // === DARK VOLCANIC WALLS ===
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a0500, roughness: 0.95, emissive: 0x330800, emissiveIntensity: 0.2 });
+        const borders = [
+            { w: 200, h: 40, d: 4, x: 0, z: -100 },
+            { w: 200, h: 40, d: 4, x: 0, z: 100 },
+            { w: 4, h: 40, d: 200, x: -100, z: 0 },
+            { w: 4, h: 40, d: 200, x: 100, z: 0 }
+        ];
+        borders.forEach(b => {
+            const wallMesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), wallMat);
+            wallMesh.position.set(b.x, b.h / 2, b.z);
+            scene.add(wallMesh);
+            collisionBoxes.push(wallMesh);
+        });
+
+        let seed = 42;
+        function random() { const x = Math.sin(seed++) * 10000; return x - Math.floor(x); }
+
+        // Volcanic rock platforms to jump between
+        const rockColors = [0x2d0a00, 0x3d1100, 0x1a0500, 0x4a1500];
+        for (let i = 0; i < 50; i++) {
+            const color = rockColors[Math.floor(random() * rockColors.length)];
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.95, emissive: 0x220500, emissiveIntensity: 0.3 });
+            const width = 4 + random() * 12;
+            const depth = 4 + random() * 12;
+            const height = 1 + random() * 8;
+            const boxGeo = new THREE.BoxGeometry(width, height, depth);
+            const mesh = new THREE.Mesh(boxGeo, mat);
+            mesh.position.set((random() - 0.5) * 120, height / 2, (random() - 0.5) * 120);
+            if (mesh.position.distanceTo(new THREE.Vector3(0, height/2, 0)) < 15) continue;
+            scene.add(mesh);
+            collisionBoxes.push(mesh);
+
+            // Glowing edge on top of some rocks
+            if (random() > 0.6) {
+                const glowMat = new THREE.MeshBasicMaterial({ color: 0xff4400 });
+                const edgeMesh = new THREE.Mesh(new THREE.BoxGeometry(width + 0.1, 0.05, depth + 0.1), glowMat);
+                edgeMesh.position.set(mesh.position.x, mesh.position.y + height/2 + 0.025, mesh.position.z);
+                scene.add(edgeMesh);
+            }
+        }
+
+        // Lava particle emitters (simple floating spheres)
+        for (let i = 0; i < 30; i++) {
+            const dropGeo = new THREE.SphereGeometry(0.15 + random() * 0.2, 6, 6);
+            const dropMat = new THREE.MeshBasicMaterial({ color: random() > 0.5 ? 0xff4400 : 0xff8800 });
+            const drop = new THREE.Mesh(dropGeo, dropMat);
+            drop.position.set((random() - 0.5) * 180, 0.5 + random() * 2, (random() - 0.5) * 180);
+            drop.userData.baseY = drop.position.y;
+            drop.userData.offset = random() * Math.PI * 2;
+            scene.add(drop);
+        }
+    }
+
+    buildMap();
+
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
+    let velocity = new THREE.Vector3();
+    const playerSpeedBase = 65.0;
+    const gravity = 35.0;
+    let lastSyncTime = 0;
+    const clock = new THREE.Clock();
+    let isTyping = false;
+    let lavaTime = 0;
+
+    const onKeyDown = function(event) {
+        if (isTyping) {
+            if (event.code === 'Enter') { event.preventDefault(); sendChatMessage(); }
+            else if (event.code === 'Escape') { isTyping = false; chatInput.value = ''; chatInputWrapper.style.display = 'none'; pauseMenuEl.classList.remove('hidden'); }
+            return;
+        }
+        if (event.code === 'Enter' && isPlaying) { event.preventDefault(); openChat(); return; }
+        switch (event.code) {
+            case 'ArrowUp': case 'KeyW': moveForward = true; break;
+            case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+            case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+            case 'ArrowRight': case 'KeyD': moveRight = true; break;
+            case 'Space': if (canJump && isPlaying) { velocity.y = 25; canJump = false; } break;
+            case 'Digit1': activeSpellSlot = 0; updateHUD(); break;
+            case 'Digit2': activeSpellSlot = 1; updateHUD(); break;
+        }
+    };
+
+    const onKeyUp = function(event) {
+        if (isTyping) return;
+        switch (event.code) {
+            case 'ArrowUp': case 'KeyW': moveForward = false; break;
+            case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
+            case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+            case 'ArrowRight': case 'KeyD': moveRight = false; break;
+        }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+
+    function openChat() {
+        if (!controls.isLocked) return;
+        isTyping = true;
+        controls.unlock();
+        chatInputWrapper.style.display = 'block';
+        chatInput.focus();
+        moveForward = moveBackward = moveLeft = moveRight = false;
+    }
+
+    function sendChatMessage() {
+        isTyping = false;
+        const text = chatInput.value.trim();
+        chatInput.value = '';
+        chatInputWrapper.style.display = 'none';
+        if (text.length > 0) {
+            const safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            appendChatMessage(myName, safeText, myTeam);
+            broadcastEvent({ type: 'chat', text: safeText, senderName: myName, team: myTeam });
+        }
+        if (isPlaying && pauseMenuEl.classList.contains('hidden')) controls.lock();
+    }
+
+    document.body.addEventListener('click', (event) => {
+        if (!isPlaying) return;
+        if (!pauseMenuEl.classList.contains('hidden') && event.target.id !== 'btnResume' && event.target.id !== 'btnLeave') return;
+        if (isTyping) {
+            if (event.target !== chatInput) { isTyping = false; chatInputWrapper.style.display = 'none'; controls.lock(); }
+            return;
+        }
+        if (!controls.isLocked && btnResume.disabled === false && pauseMenuEl.classList.contains('hidden')) { controls.lock(); return; }
+        if (controls.isLocked && event.button === 0) fireSpell();
+    });
+
+    controls.addEventListener('lock', () => {
+        lobbyEl.classList.add('hidden'); pauseMenuEl.classList.add('hidden');
+        hudEl.classList.remove('hidden'); hudEl.classList.add('flex');
+        crosshairEl.classList.remove('hidden'); crosshairEl.classList.add('block');
+    });
+
+    controls.addEventListener('unlock', () => {
+        if (isTyping) return;
+        if (isPlaying && health > 0) {
+            pauseMenuEl.classList.remove('hidden');
+            btnResume.innerText = "COOLDOWN..."; btnResume.disabled = true;
+            btnResume.classList.replace('bg-orange-600', 'bg-gray-500');
+            setTimeout(() => {
+                btnResume.innerText = "RESUME BATTLE"; btnResume.disabled = false;
+                btnResume.classList.replace('bg-gray-500', 'bg-orange-600');
+            }, 1500);
+        }
+    });
+
+    document.addEventListener('pointerlockerror', () => {
+        if (isPlaying && controls && !controls.isLocked) pauseMenuEl.classList.remove('hidden');
+    });
+
+    function fireSpell() {
+        if (health <= 0) return;
+        const spellId = selectedLoadout[activeSpellSlot];
+        const spell = SPELLS[spellId];
+        const now = Date.now();
+        if (now - lastShotTimes[activeSpellSlot] < spell.cd) return;
+        lastShotTimes[activeSpellSlot] = now;
+
+        const pId = myId + '_' + Date.now();
+        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+        const startPos = camera.position.clone().add(dir.clone().multiplyScalar(1.0));
+        const vel = dir.clone().multiplyScalar(spell.speed);
+
+        spawnLocalProjectile(pId, spellId, startPos, vel);
+        broadcastEvent({ type: 'proj_spawn', id: pId, spellId: spellId, pos: { x: startPos.x, y: startPos.y, z: startPos.z }, vel: { x: vel.x, y: vel.y, z: vel.z } });
+    }
+
+    function createProjectileMesh(spellId) {
+        const spell = SPELLS[spellId];
+        let geo;
+        switch(spellId) {
+            case 'fire':  geo = new THREE.IcosahedronGeometry(0.5, 0); break;
+            case 'frost': geo = new THREE.OctahedronGeometry(0.3, 0); break;
+            case 'slime': geo = new THREE.SphereGeometry(0.4, 8, 8); break;
+            case 'gale':  geo = new THREE.TorusGeometry(0.3, 0.1, 8, 16); break;
+            case 'heal':  geo = new THREE.DodecahedronGeometry(0.4, 0); break;
+            case 'void':  geo = new THREE.SphereGeometry(0.4, 16, 16); break;
+            case 'bolt':  geo = new THREE.OctahedronGeometry(0.15, 0); break;
+            case 'curve': geo = new THREE.TorusKnotGeometry(0.3, 0.1, 64, 8); break;
+            case 'warp':  geo = new THREE.SphereGeometry(0.2, 8, 8); break;
+            default:      geo = new THREE.SphereGeometry(0.3, 8, 8);
+        }
+        const mat = new THREE.MeshStandardMaterial({ color: spell.color, emissive: spell.color, emissiveIntensity: 0.8 });
+        const mesh = new THREE.Mesh(geo, mat);
+        if (spellId === 'gale') mesh.rotation.x = Math.PI / 2;
+        return mesh;
+    }
+
+    function spawnLocalProjectile(id, spellId, pos, vel) {
+        const mesh = createProjectileMesh(spellId);
+        mesh.position.copy(pos); scene.add(mesh);
+        localProjectiles.set(id, { mesh, vel, spellId });
+    }
+
+    function spawnRemoteProjectile(id, spellId, pos, velData) {
+        const mesh = createProjectileMesh(spellId);
+        mesh.position.set(pos.x, pos.y, pos.z); scene.add(mesh);
+        const vel = new THREE.Vector3(velData.x, velData.y, velData.z);
+        remoteProjectiles.set(id, { mesh, vel, spellId });
+    }
+
+    function explodeLocalProjectile(pId, cancel = false) {
+        if (!localProjectiles.has(pId)) return;
+        const proj = localProjectiles.get(pId);
+        const pos = proj.mesh.position.clone();
+        const spellId = proj.spellId;
+        scene.remove(proj.mesh);
+        localProjectiles.delete(pId);
+        if (cancel) return;
+        broadcastEvent({ type: 'proj_explode', id: pId, spellId: spellId, pos: { x: pos.x, y: pos.y, z: pos.z } });
+        triggerExplosion(pos, spellId, myId);
+    }
+
+    function triggerExplosion(pos, spellId, shooterId) {
+        const spell = SPELLS[spellId];
+        const group = new THREE.Group(); group.position.copy(pos); scene.add(group);
+        const expData = { group, type: spellId, age: 0, maxAge: 0.8, elements: [] };
+
+        if (spellId === 'fire') {
+            for(let i=0; i<3; i++) {
+                const mat = new THREE.MeshBasicMaterial({ color: i===0?0xff4400:i===1?0xffaa00:0xff0000, transparent: true, opacity: 0.8 });
+                const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(spell.radius * 0.3, 0), mat);
+                mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0); group.add(mesh);
+                expData.elements.push({ mesh, scaleSpeed: 1 + Math.random()*2, rotSpeed: (Math.random()-0.5)*10, initOp: 0.8 });
+            }
+        } else if (spellId === 'frost') {
+            for(let i=0; i<12; i++) {
+                const mat = new THREE.MeshBasicMaterial({ color: 0x88ffff, transparent: true, opacity: 0.9 });
+                const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.2, spell.radius*0.8, 4), mat);
+                const dir = new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)).normalize();
+                mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir); group.add(mesh);
+                expData.elements.push({ mesh, dir, speed: 10 + Math.random()*10, initOp: 0.9 });
+            }
+            expData.maxAge = 0.5;
+        } else if (spellId === 'slime') {
+            for(let i=0; i<8; i++) {
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 });
+                const mesh = new THREE.Mesh(new THREE.SphereGeometry(spell.radius*0.2, 8, 8), mat); group.add(mesh);
+                const dir = new THREE.Vector3((Math.random()-0.5), Math.random(), (Math.random()-0.5)).normalize();
+                expData.elements.push({ mesh, dir, speed: 5 + Math.random()*8, grav: 20, initOp: 0.8 });
+            }
+            expData.maxAge = 1.0;
+        } else if (spellId === 'gale') {
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+            const mesh = new THREE.Mesh(new THREE.TorusGeometry(spell.radius*0.1, 0.5, 8, 32), mat);
+            mesh.rotation.x = Math.PI / 2; group.add(mesh);
+            expData.elements.push({ mesh, scaleSpeed: 8, initOp: 0.7 }); expData.maxAge = 0.6;
+        } else if (spellId === 'heal') {
+            const mat = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.4 });
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(spell.radius*0.5, 16, 16), mat); group.add(mesh);
+            expData.elements.push({ mesh, type: 'core', scaleSpeed: 1.5, initOp: 0.4 });
+            for(let i=0; i<6; i++) {
+                const m2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0xffaaff, transparent: true }));
+                m2.position.set((Math.random()-0.5)*spell.radius, (Math.random()-0.5)*spell.radius, (Math.random()-0.5)*spell.radius); group.add(m2);
+                expData.elements.push({ mesh: m2, type: 'float', floatSpeed: 2 + Math.random()*4, initOp: 0.8 });
+            }
+            expData.maxAge = 1.2;
+        } else if (spellId === 'void') {
+            const m1 = new THREE.Mesh(new THREE.SphereGeometry(spell.radius*0.8, 16, 16), new THREE.MeshBasicMaterial({ color: 0x110022, transparent: true, opacity: 0.95 })); group.add(m1);
+            expData.elements.push({ mesh: m1, type: 'implode', initOp: 0.95 });
+            const m2 = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.3, 8, 32), new THREE.MeshBasicMaterial({ color: 0x8800ff, transparent: true, opacity: 0.6 }));
+            m2.rotation.x = Math.PI / 2; group.add(m2);
+            expData.elements.push({ mesh: m2, type: 'ring', scaleSpeed: 6, initOp: 0.6 }); expData.maxAge = 0.7;
+        } else if (spellId === 'bolt') {
+            const m = new THREE.Mesh(new THREE.IcosahedronGeometry(spell.radius*0.8, 0), new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.9 })); group.add(m);
+            expData.elements.push({ mesh: m, scaleSpeed: 5, initOp: 0.9 }); expData.maxAge = 0.3;
+        } else if (spellId === 'curve') {
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.5 });
+            for(let i=0; i<3; i++) {
+                const mesh = new THREE.Mesh(new THREE.TorusGeometry(spell.radius*0.3*(i+1), 0.2, 8, 32), mat);
+                mesh.rotation.x = Math.random()*Math.PI; mesh.rotation.y = Math.random()*Math.PI; group.add(mesh);
+                expData.elements.push({ mesh, scaleSpeed: 2, rotSpeed: 5, initOp: 0.5 });
+            }
+            expData.maxAge = 0.8;
+        } else if (spellId === 'warp') {
+            const m = new THREE.Mesh(new THREE.SphereGeometry(spell.radius*2, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 })); group.add(m);
+            expData.elements.push({ mesh: m, type: 'implode', initOp: 0.8 }); expData.maxAge = 0.4;
+        }
+
+        activeExplosions.push(expData);
+
+        if (spell.type === 'teleport' && shooterId === myId && health > 0) {
+            const floorY = getFloorHeight(pos);
+            camera.position.set(pos.x, Math.max(pos.y, floorY + 1.6), pos.z);
+            velocity.set(0,0,0); knockbackVelocity.set(0,0,0);
+            warpFlash.style.opacity = '0.7'; setTimeout(() => warpFlash.style.opacity = '0', 250);
+        }
+
+        if (health > 0 && spell.type !== 'teleport') {
+            const dist = camera.position.distanceTo(pos);
+            if (dist <= spell.radius) {
+                const isShooter = shooterId === myId;
+                const shooterTeam = isShooter ? myTeam : (remotePlayers[shooterId] ? remotePlayers[shooterId].team : 'unknown');
+                const isAlly = shooterTeam === myTeam;
+
+                if (spell.type === 'heal' && isAlly) {
+                    health = Math.min(100, health + spell.amount);
+                    healFlash.style.opacity = '0.4'; setTimeout(() => healFlash.style.opacity = '0', 150);
+                    updateHUD();
+                }
+               
+                // ====== INCREASED KNOCKBACK ======
+                if (spell.type === 'knockback') {
+                    const dir = camera.position.clone().sub(pos).normalize();
+                    if (dir.lengthSq() === 0) dir.set(0, 1, 0);
+                    knockbackVelocity.add(dir.multiplyScalar(spell.force * LAVA_KNOCKBACK_MULT));
+                    velocity.y += 18; // Extra vertical kick
+                }
+                if (spell.type === 'pull') {
+                    const dir = pos.clone().sub(camera.position).normalize();
+                    if (dir.lengthSq() === 0) dir.set(0, 1, 0);
+                    knockbackVelocity.add(dir.multiplyScalar(spell.force * LAVA_KNOCKBACK_MULT));
+                }
+
+                if (!isAlly && spell.type !== 'heal') {
+                    if (spell.dmg) {
+                        // All damaging spells also do knockback in lava mode
+                        const kbDir = camera.position.clone().sub(pos).normalize();
+                        if (kbDir.lengthSq() === 0) kbDir.set(0,1,0);
+                        knockbackVelocity.add(kbDir.multiplyScalar(spell.dmg * 0.4 * LAVA_KNOCKBACK_MULT));
+                        velocity.y += 5;
+
+                        takeDamage(spell.dmg, shooterId);
+                        broadcastEvent({ type: 'damage', targetId: myId, amount: spell.dmg, senderId: shooterId });
+                    }
+                    if (spell.type === 'root') { speedModifier = 0.0; setTimeout(() => speedModifier = 1.0, spell.dur); }
+                    if (spell.type === 'slow') { speedModifier = 0.4; setTimeout(() => speedModifier = 1.0, spell.dur); }
+                }
+            }
+        }
+    }
+
+    function takeDamage(amount, shooterId) {
+        if (health <= 0) return;
+        health -= amount;
+        damageFlash.style.opacity = '0.4'; setTimeout(() => damageFlash.style.opacity = '0', 150);
+        updateHUD();
+        if (health <= 0) die(shooterId);
+    }
+
+    function lavaDeath() {
+        if (health <= 0) return;
+        health = 0;
+        lavaFlash.style.opacity = '0.8'; setTimeout(() => lavaFlash.style.opacity = '0', 300);
+        deaths++;
+        broadcastEvent({ type: 'kill', victimId: myId, shooterId: 'lava', victimName: myName, shooterName: '🌋 LAVA' });
+        handleKillEvent(myId, 'lava', myName, '🌋 LAVA');
+        updateHUD();
+        setTimeout(() => { respawn(); }, 3000);
+    }
+
+    function die(shooterId) {
+        deaths++;
+        const shooterName = shooterId === myId ? myName : (remotePlayers[shooterId] ? remotePlayers[shooterId].currentName : 'Unknown');
+        broadcastEvent({ type: 'kill', victimId: myId, shooterId: shooterId, victimName: myName, shooterName: shooterName });
+        handleKillEvent(myId, shooterId, myName, shooterName);
+        health = 0; updateHUD();
+        setTimeout(() => { respawn(); }, 3000);
+    }
+
+    function respawn() {
+        health = 100; speedModifier = 1.0; knockbackVelocity.set(0,0,0);
+        camera.position.set((Math.random() - 0.5) * 80, 20, (Math.random() - 0.5) * 80);
+        velocity.set(0,0,0);
+        lastMoveTime = Date.now();
+        lastPlayerPos.copy(camera.position);
+        updateHUD();
+    }
+
+    function handleKillEvent(victimId, shooterId, victimName, shooterName) {
+        if (shooterId === myId) { kills++; updateHUD(); }
+        const shooterTeam = shooterId === myId ? myTeam : (remotePlayers[shooterId] ? remotePlayers[shooterId].team : 'lava');
+        const victimTeam = victimId === myId ? myTeam : (remotePlayers[victimId] ? remotePlayers[victimId].team : 'unknown');
+        const sColor = shooterId === 'lava' ? 'text-orange-400' : (shooterTeam === 'red' ? 'text-red-400' : 'text-blue-400');
+        const vColor = victimTeam === 'red' ? 'text-red-400' : 'text-blue-400';
+        showKillfeed(`<span class="${sColor}">${shooterName}</span> melted <span class="${vColor}">${victimName}</span>`);
+    }
+
+    function showKillfeed(htmlContent) {
+        const el = document.createElement('div');
+        el.className = 'killfeed-item'; el.innerHTML = htmlContent;
+        document.getElementById('killfeed').appendChild(el);
+        setTimeout(() => { if(el.parentNode) el.parentNode.removeChild(el); }, 4000);
+    }
+
+    function updateHUD() {
+        healthDisplay.innerText = `${Math.max(0, health)} HP`;
+        if (health <= 30) healthDisplay.classList.replace('text-green-500', 'text-red-500');
+        else healthDisplay.classList.replace('text-red-500', 'text-green-500');
+        document.getElementById('killCount').innerText = kills;
+        document.getElementById('deathCount').innerText = deaths;
+        for(let i=0; i<2; i++) {
+            const el = document.getElementById(`ui-spell-${i}`);
+            if (i === activeSpellSlot) {
+                el.classList.remove('border-transparent', 'opacity-60');
+                el.classList.add('border-orange-400', 'opacity-100');
+            } else {
+                el.classList.remove('border-orange-400', 'opacity-100');
+                el.classList.add('border-transparent', 'opacity-60');
+            }
+        }
+    }
+
+    function getFloorHeight(pos) {
+        let maxH = 0; const pRadius = 0.3;
+        for (let i = 0; i < collisionBoxes.length; i++) {
+            const box = new THREE.Box3().setFromObject(collisionBoxes[i]);
+            if (pos.x + pRadius > box.min.x && pos.x - pRadius < box.max.x &&
+                pos.z + pRadius > box.min.z && pos.z - pRadius < box.max.z) {
+                if (box.max.y > maxH && pos.y >= box.max.y - 0.5) maxH = box.max.y;
+            }
+        }
+        return maxH;
+    }
+
+    function checkWallCollision(pos) {
+        const pBox = new THREE.Box3(
+            new THREE.Vector3(pos.x - 0.4, pos.y - 1.1, pos.z - 0.4),
+            new THREE.Vector3(pos.x + 0.4, pos.y, pos.z + 0.4)
+        );
+        for (let i = 0; i < collisionBoxes.length; i++) {
+            const bBox = new THREE.Box3().setFromObject(collisionBoxes[i]);
+            if (pBox.intersectsBox(bBox)) return true;
+        }
+        return false;
+    }
+
+    function checkPointInWall(pos) {
+        for (let i = 0; i < collisionBoxes.length; i++) {
+            const bBox = new THREE.Box3().setFromObject(collisionBoxes[i]);
+            if (bBox.containsPoint(pos)) return true;
+        }
+        return pos.y < 0;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const now = Date.now();
+        const delta = Math.min(clock.getDelta(), 0.1);
+        lavaTime += delta;
+
+        // Animate lava texture
+        drawLava(lavaTime * 0.5);
+
+        // Animate lava glow lights
+        glowLights.forEach(({ light, offset }, i) => {
+            light.intensity = 1.2 + Math.sin(lavaTime * 2 + offset) * 0.5;
+            light.position.y = 1 + Math.sin(lavaTime * 0.7 + offset) * 0.5;
+        });
+
+        // Animate lava drop particles
+        scene.children.forEach(child => {
+            if (child.userData.baseY !== undefined) {
+                child.position.y = child.userData.baseY + Math.sin(lavaTime * 1.5 + child.userData.offset) * 0.8;
+                child.rotation.x = lavaTime + child.userData.offset;
+            }
+        });
+
+        if (!isPlaying) { renderer.render(scene, camera); return; }
+
+        // Ghost player cleanup
+        for (let id in remotePlayers) {
+            if (now - remotePlayers[id].lastTimestamp > 3000) {
+                scene.remove(remotePlayers[id].mesh);
+                delete remotePlayers[id];
+                if (minimapDots.has(id)) { minimapDots.get(id).remove(); minimapDots.delete(id); }
+            }
+        }
+
+        // Cooldown UI
+        for(let i=0; i<2; i++) {
+            if(selectedLoadout[i]) {
+                const spell = SPELLS[selectedLoadout[i]];
+                const timeSince = now - lastShotTimes[i];
+                const cdEl = document.getElementById(`ui-cd-${i}`);
+                if (timeSince < spell.cd) {
+                    const pct = 100 - ((timeSince / spell.cd) * 100);
+                    cdEl.style.height = `${pct}%`;
+                } else { cdEl.style.height = `0%`; }
+            }
+        }
+
+        // Minimap
+        const pxPerUnit = 150 / 200;
+        minimapMe.style.left = `${(camera.position.x + 100) * pxPerUnit}px`;
+        minimapMe.style.top = `${(camera.position.z + 100) * pxPerUnit}px`;
+        for (let id in remotePlayers) {
+            const rp = remotePlayers[id];
+            if (!minimapDots.has(id)) {
+                const dot = document.createElement('div');
+                dot.className = `map-dot ${rp.team === myTeam ? 'ally' : 'enemy'}`;
+                minimapEl.appendChild(dot); minimapDots.set(id, dot);
+            }
+            const dot = minimapDots.get(id);
+            dot.style.left = `${(rp.mesh.position.x + 100) * pxPerUnit}px`;
+            dot.style.top = `${(rp.mesh.position.z + 100) * pxPerUnit}px`;
+        }
+        for (const [id, dot] of minimapDots.entries()) {
+            if (!remotePlayers[id]) { dot.remove(); minimapDots.delete(id); }
+        }
+
+        // Explosions
+        for (let i = activeExplosions.length - 1; i >= 0; i--) {
+            const exp = activeExplosions[i];
+            exp.age += delta;
+            if (exp.age >= exp.maxAge) {
+                scene.remove(exp.group);
+                exp.group.children.forEach(c => { if(c.geometry) c.geometry.dispose(); if(c.material) c.material.dispose(); });
+                activeExplosions.splice(i, 1); continue;
+            }
+            const progress = exp.age / exp.maxAge;
+            const fade = 1.0 - progress;
+            exp.elements.forEach(el => {
+                if (el.mesh.material) el.mesh.material.opacity = fade * (el.initOp || 0.8);
+                if (exp.type === 'fire') { el.mesh.scale.addScalar(el.scaleSpeed * delta); el.mesh.rotation.x += el.rotSpeed * delta; el.mesh.rotation.y += el.rotSpeed * delta; }
+                else if (exp.type === 'frost') { el.mesh.position.add(el.dir.clone().multiplyScalar(el.speed * delta)); }
+                else if (exp.type === 'slime') { el.mesh.position.add(el.dir.clone().multiplyScalar(el.speed * delta)); el.dir.y -= el.grav * delta; }
+                else if (exp.type === 'gale') { const s = 1 + progress * el.scaleSpeed; el.mesh.scale.set(s, s, s); }
+                else if (exp.type === 'heal') { if (el.type === 'core') el.mesh.scale.addScalar(el.scaleSpeed * delta); else el.mesh.position.y += el.floatSpeed * delta; }
+                else if (exp.type === 'void') { if (el.type === 'implode') { const s = Math.max(0.01, 1.0 - (progress * 1.5)); el.mesh.scale.set(s,s,s); } else if (el.type === 'ring') { el.mesh.scale.addScalar(el.scaleSpeed * delta); } }
+                else if (exp.type === 'bolt') { el.mesh.scale.addScalar(el.scaleSpeed * delta); }
+                else if (exp.type === 'curve') { el.mesh.scale.addScalar(el.scaleSpeed * delta); el.mesh.rotation.x += el.rotSpeed * delta; el.mesh.rotation.y += el.rotSpeed * delta; }
+                else if (exp.type === 'warp') { if (el.type === 'implode') { const s = Math.max(0.01, 1.0 - (progress * 2.0)); el.mesh.scale.set(s,s,s); } }
+            });
+        }
+
+        // Local projectiles
+        for (const [id, proj] of localProjectiles.entries()) {
+            const spell = SPELLS[proj.spellId];
+            if (spell.grav !== 0) proj.vel.y -= spell.grav * delta;
+            proj.mesh.position.add(proj.vel.clone().multiplyScalar(delta));
+            proj.mesh.rotation.x += 0.1; proj.mesh.rotation.y += 0.1;
+            let hit = checkPointInWall(proj.mesh.position);
+            if (!hit) {
+                for (const [peerId, rp] of Object.entries(remotePlayers)) {
+                    if (rp.team !== myTeam && rp.mesh.position.distanceTo(proj.mesh.position) < 1.5) { hit = true; break; }
+                }
+            }
+            // Projectile hits lava (y < 0) — explode
+            const outOfBounds = proj.mesh.position.y < 0 || Math.abs(proj.mesh.position.x) > 98 || Math.abs(proj.mesh.position.z) > 98;
+            if (hit || outOfBounds) {
+                if (outOfBounds && proj.spellId === 'warp') explodeLocalProjectile(id, true); else explodeLocalProjectile(id);
+            }
+        }
+
+        // Remote projectiles
+        for (const [id, proj] of remoteProjectiles.entries()) {
+            const spell = SPELLS[proj.spellId];
+            if (spell.grav !== 0) proj.vel.y -= spell.grav * delta;
+            proj.mesh.position.add(proj.vel.clone().multiplyScalar(delta));
+            proj.mesh.rotation.x += 0.1; proj.mesh.rotation.y += 0.1;
+        }
+
+        if (controls.isLocked && health > 0) {
+            velocity.x -= velocity.x * 4.0 * delta;
+            velocity.z -= velocity.z * 4.0 * delta;
+            velocity.y -= gravity * delta;
+            knockbackVelocity.multiplyScalar(0.9);
+
+            let moveDir = new THREE.Vector3();
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); forward.y = 0; forward.normalize();
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); right.y = 0; right.normalize();
+
+            if (moveForward) moveDir.add(forward);
+            if (moveBackward) moveDir.sub(forward);
+            if (moveLeft) moveDir.sub(right);
+            if (moveRight) moveDir.add(right);
+            if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+            if (moveForward || moveBackward || moveLeft || moveRight) {
+                velocity.x += moveDir.x * (playerSpeedBase * speedModifier) * delta;
+                velocity.z += moveDir.z * (playerSpeedBase * speedModifier) * delta;
+                lastMoveTime = now; // reset still timer
+            }
+
+            const dx = (velocity.x + knockbackVelocity.x) * delta;
+            const dz = (velocity.z + knockbackVelocity.z) * delta;
+
+            camera.position.x += dx; if (checkWallCollision(camera.position)) camera.position.x -= dx;
+            camera.position.z += dz; if (checkWallCollision(camera.position)) camera.position.z -= dz;
+            camera.position.y += (velocity.y + knockbackVelocity.y) * delta;
+
+            const floorY = getFloorHeight(camera.position);
+            if (camera.position.y - 1.6 <= floorY) {
+                velocity.y = 0; knockbackVelocity.y = 0;
+                camera.position.y = floorY + 1.6;
+                canJump = (speedModifier > 0);
+            } else { canJump = false; }
+
+            // ========================
+            // LAVA DEATH CHECK
+            // ========================
+            if (camera.position.y - 1.6 <= 0.05 && floorY <= 0) {
+                // Player is touching the lava floor
+                lavaDeath();
+            }
+
+            // ========================
+            // STILL-DAMAGE CHECK
+            // ========================
+            const movedDist = camera.position.distanceTo(lastPlayerPos);
+            if (movedDist > 0.1) {
+                lastMoveTime = now;
+                lastPlayerPos.copy(camera.position);
+            }
+
+            const stillDuration = now - lastMoveTime;
+            const isStill = stillDuration > STILL_GRACE_PERIOD;
+
+            if (isStill) {
+                stillWarningText.style.opacity = '1';
+                if (now - lastStillDamageTime > STILL_DAMAGE_INTERVAL) {
+                    lastStillDamageTime = now;
+                    takeDamage(STILL_DAMAGE_AMOUNT, 'lava');
+                    damageFlash.style.opacity = '0.25'; setTimeout(() => damageFlash.style.opacity = '0', 100);
+                }
+            } else {
+                stillWarningText.style.opacity = '0';
+            }
+        }
+
+        // Remote player interpolation
+        for (let id in remotePlayers) {
+            const p = remotePlayers[id];
+            if (p.mesh && p.targetPos) {
+                p.mesh.position.lerp(p.targetPos, 0.3);
+                p.mesh.rotation.y += (p.targetRot - p.mesh.rotation.y) * 0.3;
+                if (p.uiGroup) p.uiGroup.lookAt(camera.position);
+            }
+        }
+
+        // Firebase sync
+        if (health > 0 && now - lastSyncTime > 250) {
+            const playersColPath = `rooms_${roomId}_players`;
+            setDoc(doc(db, 'artifacts', appId, 'public', 'data', playersColPath, myId), {
+                x: parseFloat(camera.position.x.toFixed(3)), y: parseFloat(camera.position.y.toFixed(3)), z: parseFloat(camera.position.z.toFixed(3)),
+                rot: parseFloat(camera.rotation.y.toFixed(3)),
+                hp: health, team: myTeam, name: myName, timestamp: Date.now()
+            }, { merge: true }).catch(()=>{});
+            lastSyncTime = now;
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+```
+
+</body>
+</html>
