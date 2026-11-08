@@ -1587,11 +1587,24 @@ function spiderErrorHtml(reason) {
 /* Inject a <base> tag so a fetched app's relative files (script.js, images,
    models, workers...) resolve against its GitHub repo instead of this page. */
 function injectBase(html, base) {
-  if (/<base\s/i.test(html)) return html;
+  // Strings in scripts, comments and templates are not active base elements.
+  // Only parse when a candidate exists, avoiding an extra DOM for large bundles.
+  if (/<base\b/i.test(html) &&
+      new DOMParser().parseFromString(html, "text/html").querySelector("base[href]")) return html;
   const baseTag = '<base href="' + base + '">';
   return /<head[^>]*>/i.test(html)
     ? html.replace(/<head[^>]*>/i, m => m + baseTag)
     : baseTag + html;
+}
+
+function prepareEmbeddedApp(html, id) {
+  if (id !== "fluid") return html;
+  // Fluid's texture images are same-origin on its own site, but cross-origin
+  // inside Arcade. Opt in to the asset host's CORS headers before assigning src.
+  const cors = '<script>(function(){var NativeImage=window.Image;function CorsImage(){var image=Reflect.construct(NativeImage,Array.from(arguments));image.crossOrigin="anonymous";return image;}CorsImage.prototype=NativeImage.prototype;Object.setPrototypeOf(CorsImage,NativeImage);window.Image=CorsImage;})();<\/script>';
+  return /<head[^>]*>/i.test(html)
+    ? html.replace(/<head[^>]*>/i, m => m + cors)
+    : cors + html;
 }
 
 function looksLikeBundle(text) {
@@ -1921,7 +1934,16 @@ document.querySelectorAll("[data-launch]").forEach(function (btn) {
    Each app lists [htmlUrl, baseUrl, mode] sources tried in order. The fetched
    HTML is injected with a <base> pointing at the repo, so relative assets load
    too. Sources with a mode get their scripts inlined (see below). */
-const INTRO_BASE = /^https?:/.test(document.baseURI) ? document.baseURI : "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/";
+function resolveArcadeBase(base) {
+  try {
+    const url = new URL(base);
+    if (url.protocol === "http:" || url.protocol === "https:") return new URL(".", url).href;
+  } catch (_) {}
+  // Older downloaded Mantle launchers may supply about:blank, srcdoc or file:.
+  // Never let a relative local URL throw before the remote sources are tried.
+  return "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/";
+}
+const ARCADE_APP_BASE = resolveArcadeBase(document.baseURI);
 const REPO_APPS = {
   /* raw.githubusercontent.com is the only host the school filter lets through, but it
      serves every file as text/plain with nosniff, so browsers refuse to run its
@@ -1948,6 +1970,11 @@ const REPO_APPS = {
     [
       "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/tetris/tetris.html",
       "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/tetris/",
+      "inline"
+    ],
+    [
+      "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/tetris/tetris.html",
+      "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/tetris/",
       "inline"
     ]
   ]
@@ -1978,7 +2005,7 @@ const REPO_APPS = {
   "sp1der-intro": {
     label: "Sp1der · Intro beta",
     sources: [
-      [new URL("sp1der-intro.html", INTRO_BASE).href, new URL(".", INTRO_BASE).href],
+      [new URL("sp1der-intro.html", ARCADE_APP_BASE).href, ARCADE_APP_BASE],
       ["https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sp1der-intro.html", "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/"],
       ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sp1der-intro.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"]
     ]
@@ -2110,12 +2137,12 @@ document.getElementById("phoneWarning").addEventListener("click", function (even
   if (event.target === event.currentTarget) cancelPhoneWarning();
 });
 
-async function phoneFetch(url, signal) {
+async function phoneFetch(url, signal, timeoutMs = 20000) {
   const request = new AbortController();
   const abort = function () { request.abort(); };
   signal.addEventListener("abort", abort, { once: true });
   if (signal.aborted) request.abort();
-  const timer = setTimeout(abort, 20000);
+  const timer = setTimeout(abort, timeoutMs);
   try {
     const response = await fetch(url, { cache: "no-cache", signal: request.signal });
     if (!response.ok) throw new Error("HTTP " + response.status);
@@ -2168,7 +2195,7 @@ async function launchPhoneApp(id) {
     if (id === "spidercraft") {
       const parts = [];
       for (const url of SPIDER_PARTS) {
-        parts.push(new Uint8Array(await phoneFetch(url, controller.signal)));
+        parts.push(new Uint8Array(await phoneFetch(url, controller.signal, 120000)));
         if (controller.signal.aborted) return;
         document.getElementById("playerMessageDetail").textContent = "Downloaded " + fmtMB(parts.reduce((sum, part) => sum + part.length, 0)) + " MB";
       }
@@ -2183,7 +2210,7 @@ async function launchPhoneApp(id) {
       const localPaths = { tetris: "tetris/tetris.html", "geometry-dash": "geometry-dash/index.html", tiers: "tiers.html", sp1der: "sp1der-mobile.html", "sp1der-intro": "sp1der-intro.html" };
       let sources = app.sources.slice();
       if (localPaths[id]) {
-        const url = new URL(localPaths[id], document.baseURI);
+        const url = new URL(localPaths[id], ARCADE_APP_BASE);
         sources.unshift([url.href, new URL(".", url).href, id === "tetris" || id === "geometry-dash" ? "inline" : null]);
         // Sp1der must never silently fall back to the desktop chat runner.
         if (id === "sp1der") sources = sources.slice(0, 1).concat([
@@ -2191,12 +2218,12 @@ async function launchPhoneApp(id) {
           ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sp1der-mobile.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"]
         ]);
       }
-      if (html === null) for (const [url, sourceBase, mode] of sources) {
+      if (html === null) for (const [url, sourceBase, mode] of uniqueAppSources(sources)) {
         if (controller.signal.aborted) return;
         try {
           const text = new TextDecoder().decode(await phoneFetch(url, controller.signal));
           if (!looksLikeBundle(text)) throw new Error("The source did not return the app.");
-          html = await buildAppHtml(text, sourceBase, mode); base = sourceBase;
+          html = await buildAppHtml(text, sourceBase, mode, controller.signal); base = sourceBase;
           // Firebase auth needs a real HTTP(S) page origin where available.
           // Raw GitHub / CDN mirrors still use the existing srcdoc fallback.
           if ((id === "sp1der" || id === "sp1der-intro") && !/^(raw\.githubusercontent\.com|.*jsdelivr\.net|.*githack\.com|cdn\.statically\.io)$/.test(new URL(url).hostname)) directPage = url;
@@ -2207,6 +2234,7 @@ async function launchPhoneApp(id) {
     }
     if (sequence !== phoneLaunchNumber || controller.signal.aborted) return;
     html = enhancePhoneApp(html, id);
+    html = prepareEmbeddedApp(html, id);
     frame.onload = function () {
       if (sequence !== phoneLaunchNumber || controller.signal.aborted) return;
       document.getElementById("playerMessage").hidden = true;
@@ -2285,15 +2313,40 @@ function absUrl(src, base) {
   try { return new URL(src, base).href; } catch (e) { return null; }
 }
 
-async function fetchText(url) {
-  const res = await fetch(url, { cache: "no-cache" });
-  if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
-  return res.text();
+function uniqueAppSources(sources) {
+  const seen = new Set();
+  return sources.filter(function ([url]) {
+    if (seen.has(url)) return false;
+    seen.add(url);
+    return true;
+  });
+}
+
+async function fetchText(url, signal) {
+  const request = new AbortController();
+  const abort = function () { request.abort(); };
+  let timedOut = false;
+  if (signal) {
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) request.abort();
+  }
+  const timer = setTimeout(function () { timedOut = true; abort(); }, 20000);
+  try {
+    const res = await fetch(url, { cache: "no-cache", signal: request.signal });
+    if (!res.ok) throw new Error("HTTP " + res.status + " on " + url.split("/").pop());
+    return await res.text();
+  } catch (error) {
+    if (timedOut) throw new Error("Timed out loading " + url.split("/").pop());
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    if (signal) signal.removeEventListener("abort", abort);
+  }
 }
 
 /* Embed every external <script src> that points at the app's own repo, so the
    browser never has to execute a text/plain script. Absolute URLs are left alone. */
-async function inlineScripts(html, base) {
+async function inlineScripts(html, base, signal) {
   const jobs = [];
   html.replace(SCRIPT_TAG_RE, (m, pre, q, src, post) => {
     if (!/^(https?:)?\/\//i.test(src)) jobs.push({ m, pre, post, src });
@@ -2302,7 +2355,7 @@ async function inlineScripts(html, base) {
   for (const j of jobs) {
     const url = absUrl(j.src, base);
     if (!url) continue;
-    const text = await fetchText(url);
+    const text = await fetchText(url, signal);
     html = html.replace(j.m, () => "<script" + j.pre + ">" + text + "<\/script>");
   }
   return html;
@@ -2315,10 +2368,10 @@ async function inlineScripts(html, base) {
 const SIM_IMPORT_FIND = '(self.__BASE||"")+"lib/ammo.wasm.js"';
 const WORKER_URL_FIND = 'new URL("simulation_worker.bundle.js",document.baseURI).href';
 
-async function patchWorkerChain(html, base) {
+async function patchWorkerChain(html, base, signal) {
   const [simText, ammoText] = await Promise.all([
-    fetchText(absUrl("simulation_worker.bundle.js", base)),
-    fetchText(absUrl("lib/ammo.wasm.js", base))
+    fetchText(absUrl("simulation_worker.bundle.js", base), signal),
+    fetchText(absUrl("lib/ammo.wasm.js", base), signal)
   ]);
   const ammoUrl = URL.createObjectURL(new Blob([ammoText], { type: "text/javascript" }));
   const simPatched = simText.replace(SIM_IMPORT_FIND, JSON.stringify(ammoUrl));
@@ -2329,10 +2382,10 @@ async function patchWorkerChain(html, base) {
   return patched;
 }
 
-async function buildAppHtml(text, base, mode) {
+async function buildAppHtml(text, base, mode, signal) {
   let html = text;
-  if (mode === "inline" || mode === "inline-worker") html = await inlineScripts(html, base);
-  if (mode === "inline-worker") html = await patchWorkerChain(html, base);
+  if (mode === "inline" || mode === "inline-worker") html = await inlineScripts(html, base, signal);
+  if (mode === "inline-worker") html = await patchWorkerChain(html, base, signal);
   return html;
 }
 
@@ -2348,7 +2401,7 @@ async function launchRepoApp(appId) {
   const note = () => { try { return d.getElementById("appNote"); } catch (_) { return null; } };
   try {
     let html = app.html || null, base = null, inlined = false, lastErr = null;
-    for (const [url, b, mode] of app.sources) {
+    for (const [url, b, mode] of uniqueAppSources(app.sources)) {
       try {
         const text = await fetchText(url);
         if (!looksLikeBundle(text)) throw new Error("didn't look like the " + label + " app");
@@ -2360,6 +2413,7 @@ async function launchRepoApp(appId) {
       } catch (e) { lastErr = e; }
     }
     if (html === null) throw lastErr || new Error("all sources failed");
+    html = prepareEmbeddedApp(html, appId);
     const frame = d.createElement("iframe");
     frame.style.cssText = "width:100vw;height:100vh;border:none;display:block;position:absolute;top:0;left:0";
     frame.setAttribute("allow", FRAME_ALLOW);

@@ -22,6 +22,15 @@ The existing desktop hub is preserved. Phones automatically receive a separate, 
 - PolyTrack and sp1dercraft remain keyboard-oriented third-party games. They show a keyboard notice with Cancel / Open anyway, rather than claiming to have phone game controls.
 - Existing external game sources and desktop popup behavior are retained.
 
+## Mantle and blank-tab loading
+
+- `Mantle.html` and the Arcade inspect real document base elements, not strings in scripts, comments or templates. Relative app assets receive the correct repository root.
+- Arcade source resolution also handles older downloaded launchers that supply `about:blank`, `about:srcdoc` or `file:` as the document base. A missing local HTTP base no longer throws before remote fallbacks.
+- Duplicate source URLs are tried once. Tetris also has an independent CDN fallback. Menu and app-text requests have a 20-second per-request limit; the large sp1dercraft chunks allow two minutes each instead. Back cancels nested script/worker downloads as well.
+- Geometry Dash uses temporary, in-memory progress only when the browser denies access to local storage. Normal saved progress is unchanged. Firebase origin-sensitive features still require an appropriate hosted origin; this repair does not change authentication.
+- Fluid Sim's embedded texture images request anonymous CORS access before loading. This prevents WebGL from rejecting repository-hosted textures as cross-origin data in both phone viewers and desktop popups.
+- `tests/arcade-loading.test.cjs` covers base handling, fallback deduplication, timeouts and cancellation. Browser QA must include the complete Mantle-to-Arcade-to-app chain and an older Mantle fixture, not just an HTTP-hosted Arcade.
+
 ## Files
 
 - `index.html`: detector, responsive phone UI, search/filtering, phone viewer and accessible dialogs.

@@ -293,6 +293,17 @@
       })();
 
       let hubPromise = null;
+      async function fetchHub(url) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 20000);
+        try {
+          const res = await fetch(url, { cache: "no-cache", signal: controller.signal });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return await res.text();
+        } finally {
+          clearTimeout(timer);
+        }
+      }
       function getHub() {
         if (!hubPromise) {
           hubPromise = (async () => {
@@ -300,9 +311,7 @@
             const targetId = "grid-pulse";
             for (const url of SOURCES) {
               try {
-                const res = await fetch(url, { cache: "no-cache" });
-                if (!res.ok) throw new Error("HTTP " + res.status);
-                const html = await res.text();
+                const html = await fetchHub(url);
                 if (
                   html.length < 200 ||
                   !/<html/i.test(html) ||
@@ -336,7 +345,9 @@
 
       function install(html, frameElement) {
         let finalHtml = html;
-        if (BASE_HREF && !/<base\s/i.test(finalHtml)) {
+        const hasBase = /<base\b/i.test(finalHtml) &&
+          new DOMParser().parseFromString(finalHtml, "text/html").querySelector("base[href]");
+        if (BASE_HREF && !hasBase) {
           finalHtml = /<head[^>]*>/i.test(finalHtml)
             ? finalHtml.replace(
                 /<head[^>]*>/i,
