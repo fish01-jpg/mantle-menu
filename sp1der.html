@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Project Sp1der — 4.6.6</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -1699,7 +1699,733 @@
         #sigmaAlert.show { display: block; animation: sigmaPulse 0.9s infinite alternate; }
     </style>
 <style id="default-dark-blue">:root {--primary:#3b82c4;--accent:#78b4e3;--bg-0:#01040a;--bg-1:#030916;--bg-2:#071120;--bg-3:#0b192b;--bg-hover:#10233a;--text:#e3eefb;--text-dim:#93acc7;--text-faint:#67829f;--border:rgba(59,130,196,0.24);--border-active:rgba(59,130,196,0.6);--input-text:#b4d8fa;--chat-side:#030916;--chat-main:rgba(7,17,32,0.96);--chat-hover:#10233a;--chat-dim:#93acc7;--input-bg:rgba(1,4,10,0.75);--glow:rgba(59,130,196,0.45);}</style>
-<style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style></head>
+<style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style><!-- sp1der-phone:start -->
+<script id="sp1der-phone-controls">
+/* Embedded into every standalone Sp1der entry by scripts/build-sp1der-phone.cjs.
+   UI only: no account, message, permission or server-state writes. */
+(function () {
+    'use strict';
+    if (window.Sp1derDevice) return;
+
+    const root = document.documentElement;
+    const coarse = window.matchMedia('(pointer: coarse)');
+    const compact = window.matchMedia('(max-width: 600px)');
+    const nav = window.navigator;
+    const phoneUA = /iPhone|iPod|Android.*Mobile|Windows Phone|IEMobile|Opera Mini/i.test(nav.userAgent || '');
+    const mobileHint = !!(nav.userAgentData && nav.userAgentData.mobile);
+    const shortScreen = Math.min(screen.width || innerWidth, screen.height || innerHeight);
+    const physicalPhone = phoneUA || mobileHint || (coarse.matches && shortScreen <= 600);
+
+    function updateDevice() {
+        const viewport = window.visualViewport;
+        // Layout dimensions, not keyboard height, decide orientation.
+        const phone = physicalPhone || compact.matches;
+        const orientation = innerWidth > innerHeight ? 'landscape' : 'portrait';
+        const changed = !window.Sp1derDevice ||
+            window.Sp1derDevice.phone !== phone || window.Sp1derDevice.orientation !== orientation;
+        window.Sp1derDevice = { phone, physicalPhone, orientation };
+        root.dataset.sp1derDevice = phone ? 'phone' : 'desktop';
+        root.dataset.sp1derOrientation = orientation;
+        root.style.setProperty('--sp1der-vh', (viewport ? viewport.height : innerHeight) + 'px');
+        root.style.setProperty('--sp1der-vtop', (viewport ? viewport.offsetTop : 0) + 'px');
+        const editing = document.activeElement && document.activeElement.matches('input,textarea,[contenteditable="true"]');
+        root.classList.toggle('sp1der-keyboard', phone && !!editing &&
+            !!viewport && innerHeight - viewport.height > 120);
+        if (changed) window.dispatchEvent(new CustomEvent('sp1der:devicechange', { detail: window.Sp1derDevice }));
+    }
+    updateDevice();
+    window.addEventListener('resize', updateDevice, { passive: true });
+    window.addEventListener('orientationchange', updateDevice, { passive: true });
+    document.addEventListener('focusin', updateDevice);
+    document.addEventListener('focusout', () => requestAnimationFrame(updateDevice));
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateDevice, { passive: true });
+        window.visualViewport.addEventListener('scroll', updateDevice, { passive: true });
+    }
+    [coarse, compact].forEach(mq => {
+        if (mq.addEventListener) mq.addEventListener('change', updateDevice);
+        else if (mq.addListener) mq.addListener(updateDevice);
+    });
+
+    function init() {
+        const shell = document.getElementById('appShell');
+        const sidebar = document.getElementById('sidebar');
+        const menu = document.getElementById('menuBtn');
+        const main = shell && shell.querySelector('.main-area');
+        if (!shell || !sidebar || !main || !menu) return;
+        const isPhone = () => window.Sp1derDevice.phone;
+        let desktopCollapsed = sidebar.classList.contains('collapsed');
+        let lastPhone = false;
+        let navReturn = menu;
+        let channelReturn = null;
+
+        function button(label, className, onClick) {
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = className;
+            el.textContent = label;
+            el.addEventListener('click', onClick);
+            return el;
+        }
+        const shade = button('', 'sp1der-nav-shade', () => closeNav(true));
+        shade.id = 'sp1derNavShade';
+        shade.tabIndex = -1;
+        shade.setAttribute('aria-label', 'Close navigation');
+        shell.appendChild(shade);
+
+        const close = button('Close menu', 'sp1der-phone-only sp1der-drawer-close', () => closeNav(true));
+        sidebar.querySelector('.sidebar-header').appendChild(close);
+        const searchWrap = document.createElement('div');
+        searchWrap.className = 'sp1der-phone-only sp1der-nav-search';
+        const search = document.createElement('input');
+        search.type = 'search';
+        search.placeholder = 'Find a page...';
+        search.setAttribute('aria-label', 'Find a page');
+        searchWrap.appendChild(search);
+        sidebar.querySelector('.nav-list').before(searchWrap);
+        const noPages = document.createElement('p');
+        noPages.className = 'sp1der-phone-only sp1der-nav-empty';
+        noPages.textContent = 'No pages found. Clear your search to see all pages.';
+        noPages.hidden = true;
+        noPages.setAttribute('role', 'status');
+        sidebar.querySelector('.nav-list').appendChild(noPages);
+        const navItems = Array.from(sidebar.querySelectorAll('.nav-item'));
+        function filterNav() {
+            const query = isPhone() ? search.value.trim().toLowerCase() : '';
+            let found = 0;
+            navItems.forEach(item => {
+                const match = !query || item.textContent.toLowerCase().includes(query);
+                item.classList.toggle('sp1der-nav-filtered', !match);
+                // Respect permission-based inline display:none; never reveal hidden Admin.
+                if (match && item.style.display !== 'none') found++;
+            });
+            noPages.hidden = found > 0;
+        }
+        search.addEventListener('input', filterNav);
+
+        const dock = document.createElement('nav');
+        dock.id = 'sp1derPhoneDock';
+        dock.setAttribute('aria-label', 'Main navigation');
+        const paths = {
+            home: '<path d="m3 10 9-7 9 7v10H4V10m5 10v-7h6v7"/>',
+            community: '<path d="M4 4h16v12H9l-5 4V4Zm4 5h8m-8 3h5"/>',
+            games: '<path d="M7 8h10c4 0 6 11 3 11-2 0-3-3-4-3H8c-1 0-2 3-4 3C1 19 3 8 7 8Zm0 2v5m-2-2h4m7-2v.1m3 3v.1"/>',
+            more: '<path d="M4 6h16M4 12h16M4 18h16"/>'
+        };
+        ['home', 'community', 'games', 'more'].forEach(view => {
+            const label = view === 'community' ? 'Community' : view[0].toUpperCase() + view.slice(1);
+            const b = button('', 'sp1der-dock-button', () => {
+                if (view === 'more') { openNav(b); return; }
+                const target = navItems.find(item => item.dataset.view === view);
+                if (target) target.click();
+            });
+            b.dataset.view = view;
+            b.setAttribute('aria-label', label);
+            if (view === 'more') {
+                b.setAttribute('aria-controls', 'sidebar');
+                b.setAttribute('aria-expanded', 'false');
+            }
+            b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths[view] + '</svg><span>' + label + '</span>';
+            dock.appendChild(b);
+        });
+        shell.appendChild(dock);
+        const more = dock.querySelector('[data-view="more"]');
+        menu.setAttribute('aria-controls', 'sidebar');
+        menu.setAttribute('aria-expanded', 'false');
+
+        function navOpen() { return isPhone() && !sidebar.classList.contains('collapsed'); }
+        function syncNav() {
+            const open = navOpen();
+            shade.classList.toggle('show', open);
+            menu.setAttribute('aria-expanded', String(open));
+            more.setAttribute('aria-expanded', String(open));
+            main.inert = open;
+            dock.inert = open;
+            sidebar.inert = isPhone() && !open;
+            if (open) {
+                sidebar.setAttribute('role', 'dialog');
+                sidebar.setAttribute('aria-modal', 'true');
+                sidebar.setAttribute('aria-label', 'Site navigation');
+            } else {
+                sidebar.removeAttribute('role');
+                sidebar.removeAttribute('aria-modal');
+                sidebar.removeAttribute('aria-label');
+            }
+            if (!isPhone()) desktopCollapsed = sidebar.classList.contains('collapsed');
+        }
+        function openNav(trigger) {
+            if (!isPhone()) return;
+            closeChannels(false);
+            navReturn = trigger || menu;
+            sidebar.classList.remove('collapsed');
+            syncNav();
+            close.focus({ preventScroll: true });
+        }
+        function closeNav(restoreFocus) {
+            if (!isPhone()) return;
+            sidebar.classList.add('collapsed');
+            syncNav();
+            if (restoreFocus && navReturn && navReturn.isConnected) navReturn.focus({ preventScroll: true });
+        }
+        menu.removeAttribute('onclick');
+        menu.addEventListener('click', () => {
+            if (isPhone()) {
+                if (navOpen()) closeNav(true);
+                else openNav(menu);
+            } else {
+                sidebar.classList.toggle('collapsed');
+                syncNav();
+            }
+        });
+        sidebar.addEventListener('click', event => {
+            if (isPhone() && event.target.closest('.nav-item,.user-chip')) closeNav(false);
+        });
+        new MutationObserver(syncNav).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+
+        function syncDock() {
+            const active = document.querySelector('.content > .panel.active');
+            const view = active ? active.id.replace('panel-', '') : 'home';
+            dock.querySelectorAll('[data-view]').forEach(item => {
+                const current = item.dataset.view === view ||
+                    (item.dataset.view === 'more' && !['home', 'community', 'games'].includes(view));
+                if (current) item.setAttribute('aria-current', 'page');
+                else item.removeAttribute('aria-current');
+            });
+            closeChannels(false);
+        }
+        document.querySelectorAll('.content > .panel').forEach(panel => {
+            new MutationObserver(syncDock).observe(panel, { attributes: true, attributeFilter: ['class'] });
+        });
+
+        const channelDrawers = [];
+        function closeChannels(restoreFocus) {
+            const wasOpen = channelDrawers.some(entry => entry.layout.classList.contains('sp1der-channels-open'));
+            channelDrawers.forEach(entry => {
+                entry.layout.classList.remove('sp1der-channels-open');
+                entry.trigger.setAttribute('aria-expanded', 'false');
+                entry.channels.inert = isPhone();
+                entry.chat.inert = false;
+                entry.channels.removeAttribute('role');
+                entry.channels.removeAttribute('aria-modal');
+                entry.channels.removeAttribute('aria-label');
+            });
+            if (restoreFocus && wasOpen && channelReturn && channelReturn.isConnected) channelReturn.focus({ preventScroll: true });
+        }
+        document.querySelectorAll('.chat-layout').forEach((layout, index) => {
+            const channels = layout.querySelector('.chat-sidebar');
+            const chat = layout.querySelector('.chat-main');
+            if (!channels || !chat) return;
+            if (!channels.id) channels.id = 'sp1derChannels' + index;
+            const trigger = button('Channels', 'sp1der-channel-trigger', () => {
+                if (!isPhone()) return;
+                const opening = !layout.classList.contains('sp1der-channels-open');
+                closeChannels(false);
+                if (!opening) return;
+                channelReturn = trigger;
+                layout.classList.add('sp1der-channels-open');
+                trigger.setAttribute('aria-expanded', 'true');
+                channels.inert = false;
+                chat.inert = true;
+                channels.setAttribute('role', 'dialog');
+                channels.setAttribute('aria-modal', 'true');
+                channels.setAttribute('aria-label', 'Channels');
+                back.focus({ preventScroll: true });
+            });
+            trigger.setAttribute('aria-controls', channels.id);
+            trigger.setAttribute('aria-expanded', 'false');
+            // Keep this outside .chat-header: channel changes replace its innerHTML.
+            chat.prepend(trigger);
+            const back = button('Back to chat', 'sp1der-phone-only sp1der-channel-back', () => closeChannels(true));
+            channels.prepend(back);
+            const overlay = button('', 'sp1der-channel-shade', () => closeChannels(true));
+            overlay.setAttribute('aria-label', 'Close channels');
+            overlay.tabIndex = -1;
+            layout.appendChild(overlay);
+            channels.addEventListener('click', event => {
+                if (isPhone() && event.target.closest('.chat-channel,.channel-item')) closeChannels(true);
+            });
+            channels.addEventListener('keydown', event => {
+                if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('.channel-item:not(button)')) {
+                    event.preventDefault(); event.target.click();
+                }
+            });
+            function labelChannels() {
+                channels.querySelectorAll('.channel-item:not(button)').forEach(item => {
+                    item.setAttribute('role', 'button'); item.tabIndex = 0;
+                });
+            }
+            new MutationObserver(labelChannels).observe(channels, { childList: true, subtree: true });
+            labelChannels();
+            channelDrawers.push({ layout, channels, chat, trigger });
+        });
+
+        function focusTrap(event, container) {
+            const options = Array.from(container.querySelectorAll('button,input,select,textarea,a[href],[tabindex="0"]'))
+                .filter(el => !el.disabled && !el.closest('[inert]') && el.getClientRects().length);
+            if (!options.length) return;
+            const first = options[0], last = options[options.length - 1];
+            if (event.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) {
+                event.preventDefault(); last.focus();
+            } else if (!event.shiftKey && (document.activeElement === last || !container.contains(document.activeElement))) {
+                event.preventDefault(); first.focus();
+            }
+        }
+        document.addEventListener('keydown', event => {
+            if (!isPhone()) return;
+            const modal = Array.from(document.querySelectorAll('.modal-overlay.active'))
+                .filter(el => el.getClientRects().length).pop();
+            if (modal) {
+                if (event.key === 'Tab') focusTrap(event, modal);
+                if (event.key === 'Escape') {
+                    const dismiss = modal.querySelector('.sp1der-modal-close');
+                    if (dismiss) { event.preventDefault(); dismiss.click(); }
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                if (navOpen()) closeNav(true);
+                else closeChannels(true);
+            }
+            if (event.key === 'Tab') {
+                if (navOpen()) focusTrap(event, sidebar);
+                else {
+                    const entry = channelDrawers.find(item => item.layout.classList.contains('sp1der-channels-open'));
+                    if (entry) focusTrap(event, entry.channels);
+                }
+            }
+        });
+        const modalFocus = new Map();
+        function syncModals() {
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                const active = modal.classList.contains('active') && modal.getClientRects().length;
+                if (isPhone() && active && !modalFocus.has(modal)) {
+                    modalFocus.set(modal, document.activeElement);
+                    const card = modal.querySelector('.modal-card');
+                    const dismiss = Array.from(modal.querySelectorAll('button'))
+                        .find(b => !b.classList.contains('sp1der-modal-close') &&
+                            (/^\s*(?:closeModal\(['"][\w-]+['"]\)|closeGameRunnerModal\(\))\s*;?\s*$/.test(b.getAttribute('onclick') || '') ||
+                            /^(close|cancel)$/i.test(b.textContent.trim())));
+                    if (card && dismiss && !card.querySelector('.sp1der-modal-close')) {
+                        const quickClose = button('Close', 'sp1der-phone-only sp1der-modal-close', () => dismiss.click());
+                        quickClose.setAttribute('aria-label', 'Close dialog');
+                        card.prepend(quickClose);
+                    }
+                    if (!modal.contains(document.activeElement)) {
+                        const focus = modal.querySelector('input:not([type="hidden"]):not([disabled]),button:not([disabled])');
+                        // Focusing a text input here would open the phone keyboard immediately.
+                        const firstButton = modal.querySelector('button:not([disabled])');
+                        if (firstButton || focus) (firstButton || focus).focus({ preventScroll: true });
+                    }
+                } else if (!active && modalFocus.has(modal)) {
+                    const previous = modalFocus.get(modal);
+                    modalFocus.delete(modal);
+                    if (previous && previous.isConnected && !previous.closest('[inert]')) previous.focus({ preventScroll: true });
+                    else if (isPhone()) menu.focus({ preventScroll: true });
+                }
+            });
+        }
+        new MutationObserver(records => {
+            if (records.some(record =>
+                (record.type === 'attributes' && record.target.matches('.modal-overlay')) ||
+                (record.type === 'childList' && Array.from(record.addedNodes)
+                    .some(node => node.nodeType === 1 && node.matches('.modal-overlay'))))) syncModals();
+        }).observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+        // Make existing clickable cards/profile operable without a mouse as well.
+        document.querySelectorAll('.home-card,.user-chip').forEach(card => {
+            card.setAttribute('role', 'button');
+            card.tabIndex = 0;
+            card.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); card.click(); }
+            });
+        });
+        const composer = document.getElementById('composerInput');
+        if (composer) composer.setAttribute('aria-label', 'Message');
+        const messageInputs = ['composerInput', 'aegisInput', 'feedbackInput']
+            .map(id => document.getElementById(id)).filter(Boolean)
+            .map(input => ({ input, placeholder: input.placeholder }));
+        messageInputs.forEach(({ input }) => {
+            input.addEventListener('keydown', event => {
+                // The phone Return key writes a newline; the visible Send button sends.
+                // Ctrl/Cmd+Enter and all desktop shortcuts keep the original behavior.
+                if (isPhone() && event.key === 'Enter' && !event.ctrlKey && !event.metaKey) event.stopImmediatePropagation();
+            }, true);
+        });
+        const appSearch = document.getElementById('appSearch');
+        if (appSearch) appSearch.setAttribute('aria-label', 'Search games');
+
+        function syncTour() {
+            if (!isPhone()) return;
+            const overlay = document.getElementById('tourOverlay');
+            const title = document.getElementById('tourTitle');
+            const highlight = document.getElementById('tourHighlight');
+            if (!overlay || !title || !highlight || !overlay.classList.contains('active')) return;
+            const name = title.textContent;
+            let target = null;
+            if (name === 'Community Chat') target = dock.querySelector('[data-view="community"]');
+            else if (name === 'Games') target = dock.querySelector('[data-view="games"]');
+            else if (['Sidebar Navigation', 'Phone Navigation', 'Events', 'Staff', 'Aegis AI', 'Settings'].includes(name)) target = more;
+            if (name === 'Sidebar Navigation') {
+                title.textContent = 'Phone Navigation';
+                document.getElementById('tourDesc').textContent = 'Use the navigation bar for Home, Community and Games. Tap More for every page, Settings and your account. It moves to the side when you rotate your phone.';
+            }
+            highlight.style.display = target ? 'block' : 'none';
+            if (target) {
+                const rect = target.getBoundingClientRect();
+                Object.assign(highlight.style, { left: rect.left + 'px', top: rect.top + 'px',
+                    width: rect.width + 'px', height: rect.height + 'px' });
+            }
+        }
+        const tourTitle = document.getElementById('tourTitle');
+        if (tourTitle) new MutationObserver(syncTour).observe(tourTitle, { childList: true });
+
+        function syncDevice() {
+            const phone = isPhone();
+            if (phone !== lastPhone) {
+                if (phone) {
+                    desktopCollapsed = sidebar.classList.contains('collapsed');
+                    sidebar.classList.add('collapsed');
+                } else {
+                    sidebar.classList.toggle('collapsed', desktopCollapsed);
+                    search.value = '';
+                }
+                lastPhone = phone;
+                closeChannels(false);
+            }
+            filterNav();
+            syncNav();
+            syncDock();
+            syncModals();
+            syncTour();
+            messageInputs.forEach(({ input, placeholder }) => {
+                input.placeholder = phone ? (input.id === 'aegisInput' ? 'Message Aegis AI...' :
+                    input.id === 'feedbackInput' ? 'Share an idea...' : 'Write a message...') : placeholder;
+                input.enterKeyHint = phone ? 'enter' : '';
+            });
+        }
+        window.addEventListener('sp1der:devicechange', syncDevice);
+        syncDevice();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+</script>
+<style id="sp1der-phone-layout">
+/* Phone-only overrides. Keep original desktop styling and per-entry themes. */
+.sp1der-phone-only, #sp1derPhoneDock, .sp1der-nav-shade,
+.sp1der-channel-trigger, .sp1der-channel-shade { display: none; }
+html[data-sp1der-device="phone"] [hidden] { display: none !important; }
+
+html[data-sp1der-device="phone"] {
+    --sp1der-dock-h: 68px;
+    --sp1der-rail-w: 76px;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    color-scheme: dark;
+}
+html[data-sp1der-device="phone"] body {
+    min-height: 0 !important;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+html[data-sp1der-device="phone"] #appShell {
+    position: fixed;
+    top: var(--sp1der-vtop, 0px);
+    left: 0;
+    width: 100% !important;
+    height: var(--sp1der-vh, 100dvh) !important;
+    min-height: 0 !important;
+    max-height: var(--sp1der-vh, 100dvh) !important;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+        calc(var(--sp1der-dock-h) + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .main-area {
+    flex: 1 1 0 !important; min-width: 0 !important; width: 100% !important; margin: 0 !important;
+}
+html[data-sp1der-device="phone"] .content,
+html[data-sp1der-device="phone"] .panel { min-width: 0; min-height: 0; }
+html[data-sp1der-device="phone"] .panel-scroll {
+    min-width: 0; padding: 16px !important; overflow-x: hidden; overscroll-behavior: contain;
+}
+html[data-sp1der-device="phone"] :is(button,[role="button"],input,textarea,select,a) { touch-action: manipulation; }
+html[data-sp1der-device="phone"] :is(button,[role="button"],input,textarea,select):focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+}
+html[data-sp1der-device="phone"] :is(input,textarea,select) {
+    font-size: 16px !important; max-width: 100%; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] :is(.topbar-btn,.composer-btn,.chat-sidebar-btn,.games-cat,.events-tab,.nav-item,.user-chip) {
+    min-height: 44px; min-width: 44px;
+}
+html[data-sp1der-device="phone"] :is(.topbar-btn,.composer-btn,.games-cat,.events-tab) {
+    letter-spacing: 0 !important; border-radius: 12px !important;
+}
+html[data-sp1der-device="phone"] :is(.composer-btn,.games-cat,.events-tab) {
+    padding: 8px 12px !important; font-size: 12px !important;
+}
+html[data-sp1der-device="phone"] .topbar {
+    height: 56px !important; min-height: 56px !important; padding: 4px 8px !important;
+    gap: 5px !important; flex-wrap: nowrap !important;
+}
+html[data-sp1der-device="phone"] #menuBtn { display: inline-flex !important; }
+html[data-sp1der-device="phone"] .topbar-title {
+    font-size: 14px !important; min-width: 0; flex: 1; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0 !important;
+}
+html[data-sp1der-device="phone"] .topbar-spacer,
+html[data-sp1der-device="phone"] #aboutBlankBtnText,
+html[data-sp1der-device="phone"] #fullscreenBtnText { display: none !important; }
+html[data-sp1der-device="phone"] .topbar-btn { padding: 9px !important; flex-shrink: 0; justify-content: center; }
+html[data-sp1der-device="phone"] #updateProgressBtn { display: none !important; }
+html[data-sp1der-device="phone"] .notif-dropdown {
+    position: fixed !important; top: calc(env(safe-area-inset-top) + 60px) !important;
+    left: max(8px, env(safe-area-inset-left)) !important; right: max(8px, env(safe-area-inset-right)) !important;
+    width: auto !important; max-height: calc(var(--sp1der-vh, 100dvh) - 148px); overflow: auto;
+}
+html[data-sp1der-device="phone"] .sp1der-phone-only { display: block; }
+html[data-sp1der-device="phone"] #sidebar {
+    position: absolute !important; inset: 0 auto 0 0 !important; z-index: 1201;
+    width: min(336px, 90%) !important; max-width: 90% !important;
+    height: 100% !important; margin: 0 !important; background: var(--bg-1);
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box; transform: translateX(0);
+    transition: transform 180ms ease, visibility 180ms; visibility: visible;
+}
+html[data-sp1der-device="phone"] #sidebar.collapsed { transform: translateX(-105%); visibility: hidden; }
+html[data-sp1der-device="phone"] .sidebar-header { gap: 6px; padding: 12px; }
+html[data-sp1der-device="phone"] .sidebar-logo { font-size: 16px; letter-spacing: 0; }
+html[data-sp1der-device="phone"] .sidebar-header .sidebar-toggle { display: none; }
+html[data-sp1der-device="phone"] .sp1der-drawer-close {
+    margin-left: auto; font-size: 12px; white-space: nowrap;
+}
+html[data-sp1der-device="phone"] .sp1der-nav-search { padding: 12px 12px 4px; }
+html[data-sp1der-device="phone"] .sp1der-nav-search input { width: 100%; min-height: 44px; }
+html[data-sp1der-device="phone"] .nav-list { min-height: 0; overscroll-behavior: contain; }
+html[data-sp1der-device="phone"] .sp1der-nav-filtered { display: none !important; }
+html[data-sp1der-device="phone"] .sp1der-nav-empty { padding: 12px; font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+html[data-sp1der-device="phone"] .sp1der-nav-shade.show {
+    display: block; position: absolute; inset: 0; z-index: 1200;
+    width: 100%; height: 100%; border: 0; background: #000b; border-radius: 0;
+}
+html[data-sp1der-device="phone"] #sp1derPhoneDock {
+    position: absolute; display: grid; grid-template-columns: repeat(4,minmax(0,1fr));
+    left: 0; right: 0; bottom: 0; z-index: 100;
+    height: calc(var(--sp1der-dock-h) + env(safe-area-inset-bottom));
+    min-height: var(--sp1der-dock-h); padding: 6px max(8px,env(safe-area-inset-right))
+        max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+    background: var(--bg-1); border-top: 1px solid var(--border); gap: 4px; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .sp1der-dock-button {
+    display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center;
+    min-height: 54px; min-width: 0; border: 1px solid transparent; border-radius: 12px;
+    background: transparent; color: var(--text-dim); font: 600 11px var(--font);
+    cursor: pointer; padding: 6px 2px;
+}
+html[data-sp1der-device="phone"] .sp1der-dock-button svg { width: 21px; height: 21px; }
+html[data-sp1der-device="phone"] .sp1der-dock-button[aria-current] {
+    color: var(--text); border-color: var(--border-active); background: var(--bg-3);
+}
+html[data-sp1der-device="phone"] :is(.sp1der-drawer-close,.sp1der-channel-back,.sp1der-channel-trigger) {
+    min-height: 44px; padding: 10px 12px; background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border-active); border-radius: 12px; font-family: var(--font);
+    font-weight: 600; cursor: pointer;
+}
+html[data-sp1der-device="phone"] .home-hero { padding: 22px 0 10px !important; }
+html[data-sp1der-device="phone"] .home-hero h1 {
+    font-size: 30px !important; letter-spacing: -1px; animation: none !important;
+    transform: none !important; margin-bottom: 10px; text-shadow: none;
+}
+html[data-sp1der-device="phone"] .home-hero p { font-size: 14px; line-height: 1.6; letter-spacing: 0; }
+html[data-sp1der-device="phone"] .home-actions {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important; margin: 20px auto 0 !important; gap: 10px !important;
+}
+html[data-sp1der-device="phone"] .home-card {
+    min-width: 0; padding: 18px 10px !important; border-radius: 16px; transform: none !important;
+}
+html[data-sp1der-device="phone"] .home-card-title { font-size: 13px; letter-spacing: .2px; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .home-card-desc { font-size: 12px; line-height: 1.5; }
+html[data-sp1der-device="phone"] .games-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 10px !important;
+}
+html[data-sp1der-device="phone"] .game-card { min-width: 0; transform: none !important; }
+html[data-sp1der-device="phone"] .game-card-body { min-width: 0; padding: 12px; }
+html[data-sp1der-device="phone"] .game-card-name { font-size: 13px; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .game-card-desc { font-size: 12px; }
+html[data-sp1der-device="phone"] .games-toolbar { gap: 6px; }
+html[data-sp1der-device="phone"] .games-search { flex: 1 1 100%; min-width: 0; min-height: 44px; }
+html[data-sp1der-device="phone"] :is(.events-tabs,.updates-tabs,.settings-tabs) { flex-wrap: wrap; gap: 5px; }
+html[data-sp1der-device="phone"] :is(.admin-stats,.active-users-grid,.staff-grid) {
+    grid-template-columns: repeat(auto-fit,minmax(min(145px,100%),1fr)) !important;
+}
+html[data-sp1der-device="phone"] :is(.admin-card,.admin-actions,.admin-controls-bar,.admin-search) {
+    min-width: 0; max-width: 100%; flex-wrap: wrap;
+}
+html[data-sp1der-device="phone"] :is(.admin-controls-bar,.admin-search) > input { min-width: 0; flex: 1 1 160px; }
+html[data-sp1der-device="phone"] :is(.panel-scroll,.modal-card) table { display: block; max-width: 100%; overflow-x: auto; }
+html[data-sp1der-device="phone"] :is(#panel-community,#panel-aegis) .chat-layout {
+    position: relative; flex: 1 !important; min-width: 0; min-height: 0;
+    margin: 0 !important; border-radius: 0 !important; border: 0; overflow: hidden;
+}
+html[data-sp1der-device="phone"] .chat-layout > .chat-sidebar {
+    display: flex !important; position: absolute !important; inset: 0 auto 0 0;
+    width: min(320px,88%) !important; max-width: 88% !important; height: 100% !important;
+    z-index: 52; background: var(--bg-1); margin: 0; padding: 0;
+    transform: translateX(-105%); visibility: hidden; transition: transform 180ms ease, visibility 180ms;
+}
+html[data-sp1der-device="phone"] .chat-layout.sp1der-channels-open > .chat-sidebar {
+    transform: translateX(0); visibility: visible;
+}
+html[data-sp1der-device="phone"] .sp1der-channel-shade {
+    position: absolute; inset: 0; z-index: 51; width: 100%; height: 100%;
+    border: 0; border-radius: 0; background: #000a;
+}
+html[data-sp1der-device="phone"] .sp1der-channels-open .sp1der-channel-shade { display: block; }
+html[data-sp1der-device="phone"] .sp1der-channel-back { flex-shrink: 0; margin: 8px; text-align: left; }
+html[data-sp1der-device="phone"] .chat-sidebar-head { padding: 8px 12px !important; flex-wrap: wrap; gap: 6px; }
+html[data-sp1der-device="phone"] .chat-sidebar-list { min-height: 0; overflow: auto !important; overscroll-behavior: contain; }
+html[data-sp1der-device="phone"] :is(.chat-channel,.channel-item) { min-height: 44px; padding: 10px !important; font-size: 14px; }
+html[data-sp1der-device="phone"] .chat-main { flex: 1 1 0; min-width: 0 !important; width: 100%; min-height: 0; }
+html[data-sp1der-device="phone"] .sp1der-channel-trigger {
+    display: block; flex-shrink: 0; align-self: flex-start; margin: 8px 10px 0; padding: 8px 12px;
+}
+html[data-sp1der-device="phone"] .chat-header {
+    min-height: 48px; height: auto; min-width: 0; padding: 8px 10px !important; gap: 8px; flex-wrap: wrap;
+}
+html[data-sp1der-device="phone"] .chat-header-title { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .chat-header-actions { flex-wrap: wrap; gap: 4px; }
+html[data-sp1der-device="phone"] #chatSearchInput { flex: 1 1 135px; min-width: 0 !important; min-height: 40px; }
+html[data-sp1der-device="phone"] .chat-feed {
+    min-width: 0 !important; min-height: 0; flex: 1 1 0; padding: 10px !important;
+    font-size: 14px; overflow-y: auto !important; overflow-x: hidden !important; overscroll-behavior: contain;
+}
+html[data-sp1der-device="phone"] :is(.msg,.message-card) {
+    display: flex !important; min-width: 0 !important; width: 100%; max-width: 100%; gap: 8px;
+    padding: 10px 0 !important; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] :is(.msg-avatar,.msg-avatar-pic,.message-avatar) {
+    width: 30px !important; height: 30px !important; min-width: 30px; flex: 0 0 30px;
+}
+html[data-sp1der-device="phone"] :is(.msg-body,.message-body) { flex: 1 1 0; min-width: 0 !important; max-width: 100%; }
+html[data-sp1der-device="phone"] :is(.msg-meta,.message-header) { flex-wrap: wrap; gap: 4px 8px; }
+html[data-sp1der-device="phone"] :is(.msg-author,.message-sender) { font-size: 14px; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .msg-text:not(.ascii-art) {
+    font-size: 14px !important; line-height: 1.55; white-space: pre-wrap; word-break: normal;
+    overflow-wrap: anywhere; writing-mode: horizontal-tb; max-width: 100%;
+}
+html[data-sp1der-device="phone"] :is(.msg-text.ascii-art,.msg-text pre) { max-width: 100%; overflow-x: auto; }
+html[data-sp1der-device="phone"] .msg-text :is(img,video) { max-width: 100% !important; height: auto; }
+html[data-sp1der-device="phone"] :is(.msg-actions,.message-actions) { opacity: 1; position: static; flex-wrap: wrap; max-width: 100%; }
+html[data-sp1der-device="phone"] :is(.msg-actions,.message-actions) button { min-height: 44px; min-width: 44px; }
+html[data-sp1der-device="phone"] .chat-composer {
+    min-width: 0; flex-shrink: 0; padding: 8px 10px !important; gap: 6px !important; flex-wrap: wrap;
+    background: var(--bg-1);
+}
+html[data-sp1der-device="phone"] :is(#composerInput,#aegisInput,#feedbackInput) {
+    flex: 1 1 100% !important; min-width: 0 !important; min-height: 44px !important;
+    max-height: min(120px,24dvh) !important; line-height: 1.45; padding: 10px 12px !important; border-radius: 14px;
+}
+html[data-sp1der-device="phone"] .composer-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-sp1der-device="phone"] .chat-composer > .primary { margin-left: auto; }
+html[data-sp1der-device="phone"] .modal-overlay {
+    top: var(--sp1der-vtop,0px); bottom: auto; height: var(--sp1der-vh,100dvh);
+    padding: max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+        max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)) !important;
+    box-sizing: border-box; align-items: center;
+}
+html[data-sp1der-device="phone"] .modal-card {
+    width: min(100%,600px) !important; max-width: 100% !important;
+    max-height: calc(var(--sp1der-vh,100dvh) - 32px) !important; min-width: 0;
+    padding: 18px !important; overflow: auto !important; overscroll-behavior: contain;
+    border-radius: 18px !important; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .modal-card button { min-height: 44px; }
+html[data-sp1der-device="phone"] .sp1der-modal-close {
+    position: sticky; top: -6px; z-index: 2; margin: 0 0 8px auto;
+    padding: 10px 14px; border: 1px solid var(--border-active); border-radius: 10px;
+    background: var(--bg-1); color: var(--text); font: 600 13px var(--font); cursor: pointer;
+}
+html[data-sp1der-device="phone"] :is(.modal-title,.modal-desc,.modal-card p) { overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] #sigmaModal .sigma-card {
+    max-width: 94vw; max-height: calc(var(--sp1der-vh,100dvh) - 24px); overflow: auto; padding: 18px; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] #sigmaBanner { flex-wrap: wrap; font-size: 12px; padding: 8px; }
+html[data-sp1der-device="phone"] #appViewer { height: var(--sp1der-vh,100dvh); top: var(--sp1der-vtop,0px); bottom: auto; }
+html[data-sp1der-device="phone"] #appViewer.open { display: flex; flex-direction: column; }
+html[data-sp1der-device="phone"] #appViewer .viewer-controls {
+    position: static; flex-shrink: 0; padding: max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left));
+    background: var(--bg-1); border-bottom: 1px solid var(--border); justify-content: flex-end;
+}
+html[data-sp1der-device="phone"] .viewer-controls .ctrl-btn { min-height: 44px; }
+html[data-sp1der-device="phone"] #appIframe { flex: 1 1 0; min-height: 0; height: auto; }
+html[data-sp1der-device="phone"] .setting-row { flex-wrap: wrap; }
+html[data-sp1der-device="phone"] .settings-section summary { padding: 12px 0; min-height: 20px; }
+html[data-sp1der-device="phone"] .settings-section { padding: 4px 14px; }
+html[data-sp1der-device="phone"] .tour-tooltip {
+    left: 12px !important; right: 12px; top: auto !important;
+    bottom: calc(var(--sp1der-dock-h) + env(safe-area-inset-bottom) + 16px);
+    max-width: none; max-height: calc(var(--sp1der-vh,100dvh) - 160px); overflow: auto;
+    box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .tour-tooltip-btns button { min-height: 44px; }
+html[data-sp1der-device="phone"].sp1der-keyboard #appShell { padding-bottom: env(safe-area-inset-bottom); }
+html[data-sp1der-device="phone"].sp1der-keyboard #sp1derPhoneDock { display: none; }
+
+@media (min-width: 640px) {
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] #appShell {
+        padding-left: calc(var(--sp1der-rail-w) + env(safe-area-inset-left));
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] #sp1derPhoneDock {
+        top: 0; right: auto; height: auto; width: calc(var(--sp1der-rail-w) + env(safe-area-inset-left));
+        grid-template-columns: 1fr; grid-template-rows: repeat(4,minmax(0,1fr));
+        padding: max(6px,env(safe-area-inset-top)) 5px max(6px,env(safe-area-inset-bottom)) max(5px,env(safe-area-inset-left));
+        border-top: 0; border-right: 1px solid var(--border);
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .sp1der-dock-button { min-height: 44px; font-size: 10px; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .topbar { height: 48px !important; min-height: 48px !important; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .home-actions {
+        grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .games-grid {
+        grid-template-columns: repeat(auto-fill,minmax(155px,1fr)) !important;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .home-hero { padding-top: 8px !important; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .sp1der-channel-trigger {
+        position: absolute; top: 5px; left: 6px; z-index: 3; margin: 0;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .chat-header { padding-left: 108px !important; min-height: 54px; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .chat-composer { flex-wrap: nowrap; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] :is(#composerInput,#aegisInput,#feedbackInput) {
+        flex: 1 1 0 !important; max-height: 70px !important;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .composer-btns { flex-wrap: nowrap; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .tour-tooltip {
+        left: auto !important; right: max(12px,env(safe-area-inset-right)); bottom: 12px;
+        width: min(420px,calc(100vw - 110px)); max-height: calc(var(--sp1der-vh,100dvh) - 32px);
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"].sp1der-keyboard #appShell {
+        padding-left: env(safe-area-inset-left);
+    }
+}
+html[data-sp1der-device="phone"].sp1der-keyboard .topbar { height: 48px !important; min-height: 48px !important; }
+html[data-sp1der-device="phone"].sp1der-keyboard :is(.sp1der-channel-trigger,#chatSearchInput,.chat-header-actions) { display: none; }
+html[data-sp1der-device="phone"].sp1der-keyboard .chat-header {
+    min-height: 36px; padding: 6px 10px !important;
+}
+html[data-sp1der-device="phone"].sp1der-keyboard #conversationOversightNotice {
+    padding: 5px 10px !important; max-height: 38px; overflow: auto; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,#feedbackInput) {
+    max-height: min(70px,calc(var(--sp1der-vh,100dvh) * .24)) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html[data-sp1der-device="phone"] *, html[data-sp1der-device="phone"] *::before,
+    html[data-sp1der-device="phone"] *::after { animation: none !important; transition: none !important; }
+}
+</style>
+<!-- sp1der-phone:end -->
+</head>
 <body>
 
     <!-- LOADING SCREEN -->

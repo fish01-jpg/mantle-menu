@@ -1,0 +1,313 @@
+/* Phone-only overrides. Keep original desktop styling and per-entry themes. */
+.sp1der-phone-only, #sp1derPhoneDock, .sp1der-nav-shade,
+.sp1der-channel-trigger, .sp1der-channel-shade { display: none; }
+html[data-sp1der-device="phone"] [hidden] { display: none !important; }
+
+html[data-sp1der-device="phone"] {
+    --sp1der-dock-h: 68px;
+    --sp1der-rail-w: 76px;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    color-scheme: dark;
+}
+html[data-sp1der-device="phone"] body {
+    min-height: 0 !important;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+html[data-sp1der-device="phone"] #appShell {
+    position: fixed;
+    top: var(--sp1der-vtop, 0px);
+    left: 0;
+    width: 100% !important;
+    height: var(--sp1der-vh, 100dvh) !important;
+    min-height: 0 !important;
+    max-height: var(--sp1der-vh, 100dvh) !important;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+        calc(var(--sp1der-dock-h) + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .main-area {
+    flex: 1 1 0 !important; min-width: 0 !important; width: 100% !important; margin: 0 !important;
+}
+html[data-sp1der-device="phone"] .content,
+html[data-sp1der-device="phone"] .panel { min-width: 0; min-height: 0; }
+html[data-sp1der-device="phone"] .panel-scroll {
+    min-width: 0; padding: 16px !important; overflow-x: hidden; overscroll-behavior: contain;
+}
+html[data-sp1der-device="phone"] :is(button,[role="button"],input,textarea,select,a) { touch-action: manipulation; }
+html[data-sp1der-device="phone"] :is(button,[role="button"],input,textarea,select):focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+}
+html[data-sp1der-device="phone"] :is(input,textarea,select) {
+    font-size: 16px !important; max-width: 100%; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] :is(.topbar-btn,.composer-btn,.chat-sidebar-btn,.games-cat,.events-tab,.nav-item,.user-chip) {
+    min-height: 44px; min-width: 44px;
+}
+html[data-sp1der-device="phone"] :is(.topbar-btn,.composer-btn,.games-cat,.events-tab) {
+    letter-spacing: 0 !important; border-radius: 12px !important;
+}
+html[data-sp1der-device="phone"] :is(.composer-btn,.games-cat,.events-tab) {
+    padding: 8px 12px !important; font-size: 12px !important;
+}
+html[data-sp1der-device="phone"] .topbar {
+    height: 56px !important; min-height: 56px !important; padding: 4px 8px !important;
+    gap: 5px !important; flex-wrap: nowrap !important;
+}
+html[data-sp1der-device="phone"] #menuBtn { display: inline-flex !important; }
+html[data-sp1der-device="phone"] .topbar-title {
+    font-size: 14px !important; min-width: 0; flex: 1; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0 !important;
+}
+html[data-sp1der-device="phone"] .topbar-spacer,
+html[data-sp1der-device="phone"] #aboutBlankBtnText,
+html[data-sp1der-device="phone"] #fullscreenBtnText { display: none !important; }
+html[data-sp1der-device="phone"] .topbar-btn { padding: 9px !important; flex-shrink: 0; justify-content: center; }
+html[data-sp1der-device="phone"] #updateProgressBtn { display: none !important; }
+html[data-sp1der-device="phone"] .notif-dropdown {
+    position: fixed !important; top: calc(env(safe-area-inset-top) + 60px) !important;
+    left: max(8px, env(safe-area-inset-left)) !important; right: max(8px, env(safe-area-inset-right)) !important;
+    width: auto !important; max-height: calc(var(--sp1der-vh, 100dvh) - 148px); overflow: auto;
+}
+html[data-sp1der-device="phone"] .sp1der-phone-only { display: block; }
+html[data-sp1der-device="phone"] #sidebar {
+    position: absolute !important; inset: 0 auto 0 0 !important; z-index: 1201;
+    width: min(336px, 90%) !important; max-width: 90% !important;
+    height: 100% !important; margin: 0 !important; background: var(--bg-1);
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box; transform: translateX(0);
+    transition: transform 180ms ease, visibility 180ms; visibility: visible;
+}
+html[data-sp1der-device="phone"] #sidebar.collapsed { transform: translateX(-105%); visibility: hidden; }
+html[data-sp1der-device="phone"] .sidebar-header { gap: 6px; padding: 12px; }
+html[data-sp1der-device="phone"] .sidebar-logo { font-size: 16px; letter-spacing: 0; }
+html[data-sp1der-device="phone"] .sidebar-header .sidebar-toggle { display: none; }
+html[data-sp1der-device="phone"] .sp1der-drawer-close {
+    margin-left: auto; font-size: 12px; white-space: nowrap;
+}
+html[data-sp1der-device="phone"] .sp1der-nav-search { padding: 12px 12px 4px; }
+html[data-sp1der-device="phone"] .sp1der-nav-search input { width: 100%; min-height: 44px; }
+html[data-sp1der-device="phone"] .nav-list { min-height: 0; overscroll-behavior: contain; }
+html[data-sp1der-device="phone"] .sp1der-nav-filtered { display: none !important; }
+html[data-sp1der-device="phone"] .sp1der-nav-empty { padding: 12px; font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+html[data-sp1der-device="phone"] .sp1der-nav-shade.show {
+    display: block; position: absolute; inset: 0; z-index: 1200;
+    width: 100%; height: 100%; border: 0; background: #000b; border-radius: 0;
+}
+html[data-sp1der-device="phone"] #sp1derPhoneDock {
+    position: absolute; display: grid; grid-template-columns: repeat(4,minmax(0,1fr));
+    left: 0; right: 0; bottom: 0; z-index: 100;
+    height: calc(var(--sp1der-dock-h) + env(safe-area-inset-bottom));
+    min-height: var(--sp1der-dock-h); padding: 6px max(8px,env(safe-area-inset-right))
+        max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+    background: var(--bg-1); border-top: 1px solid var(--border); gap: 4px; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .sp1der-dock-button {
+    display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center;
+    min-height: 54px; min-width: 0; border: 1px solid transparent; border-radius: 12px;
+    background: transparent; color: var(--text-dim); font: 600 11px var(--font);
+    cursor: pointer; padding: 6px 2px;
+}
+html[data-sp1der-device="phone"] .sp1der-dock-button svg { width: 21px; height: 21px; }
+html[data-sp1der-device="phone"] .sp1der-dock-button[aria-current] {
+    color: var(--text); border-color: var(--border-active); background: var(--bg-3);
+}
+html[data-sp1der-device="phone"] :is(.sp1der-drawer-close,.sp1der-channel-back,.sp1der-channel-trigger) {
+    min-height: 44px; padding: 10px 12px; background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border-active); border-radius: 12px; font-family: var(--font);
+    font-weight: 600; cursor: pointer;
+}
+html[data-sp1der-device="phone"] .home-hero { padding: 22px 0 10px !important; }
+html[data-sp1der-device="phone"] .home-hero h1 {
+    font-size: 30px !important; letter-spacing: -1px; animation: none !important;
+    transform: none !important; margin-bottom: 10px; text-shadow: none;
+}
+html[data-sp1der-device="phone"] .home-hero p { font-size: 14px; line-height: 1.6; letter-spacing: 0; }
+html[data-sp1der-device="phone"] .home-actions {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important; margin: 20px auto 0 !important; gap: 10px !important;
+}
+html[data-sp1der-device="phone"] .home-card {
+    min-width: 0; padding: 18px 10px !important; border-radius: 16px; transform: none !important;
+}
+html[data-sp1der-device="phone"] .home-card-title { font-size: 13px; letter-spacing: .2px; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .home-card-desc { font-size: 12px; line-height: 1.5; }
+html[data-sp1der-device="phone"] .games-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 10px !important;
+}
+html[data-sp1der-device="phone"] .game-card { min-width: 0; transform: none !important; }
+html[data-sp1der-device="phone"] .game-card-body { min-width: 0; padding: 12px; }
+html[data-sp1der-device="phone"] .game-card-name { font-size: 13px; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .game-card-desc { font-size: 12px; }
+html[data-sp1der-device="phone"] .games-toolbar { gap: 6px; }
+html[data-sp1der-device="phone"] .games-search { flex: 1 1 100%; min-width: 0; min-height: 44px; }
+html[data-sp1der-device="phone"] :is(.events-tabs,.updates-tabs,.settings-tabs) { flex-wrap: wrap; gap: 5px; }
+html[data-sp1der-device="phone"] :is(.admin-stats,.active-users-grid,.staff-grid) {
+    grid-template-columns: repeat(auto-fit,minmax(min(145px,100%),1fr)) !important;
+}
+html[data-sp1der-device="phone"] :is(.admin-card,.admin-actions,.admin-controls-bar,.admin-search) {
+    min-width: 0; max-width: 100%; flex-wrap: wrap;
+}
+html[data-sp1der-device="phone"] :is(.admin-controls-bar,.admin-search) > input { min-width: 0; flex: 1 1 160px; }
+html[data-sp1der-device="phone"] :is(.panel-scroll,.modal-card) table { display: block; max-width: 100%; overflow-x: auto; }
+html[data-sp1der-device="phone"] :is(#panel-community,#panel-aegis) .chat-layout {
+    position: relative; flex: 1 !important; min-width: 0; min-height: 0;
+    margin: 0 !important; border-radius: 0 !important; border: 0; overflow: hidden;
+}
+html[data-sp1der-device="phone"] .chat-layout > .chat-sidebar {
+    display: flex !important; position: absolute !important; inset: 0 auto 0 0;
+    width: min(320px,88%) !important; max-width: 88% !important; height: 100% !important;
+    z-index: 52; background: var(--bg-1); margin: 0; padding: 0;
+    transform: translateX(-105%); visibility: hidden; transition: transform 180ms ease, visibility 180ms;
+}
+html[data-sp1der-device="phone"] .chat-layout.sp1der-channels-open > .chat-sidebar {
+    transform: translateX(0); visibility: visible;
+}
+html[data-sp1der-device="phone"] .sp1der-channel-shade {
+    position: absolute; inset: 0; z-index: 51; width: 100%; height: 100%;
+    border: 0; border-radius: 0; background: #000a;
+}
+html[data-sp1der-device="phone"] .sp1der-channels-open .sp1der-channel-shade { display: block; }
+html[data-sp1der-device="phone"] .sp1der-channel-back { flex-shrink: 0; margin: 8px; text-align: left; }
+html[data-sp1der-device="phone"] .chat-sidebar-head { padding: 8px 12px !important; flex-wrap: wrap; gap: 6px; }
+html[data-sp1der-device="phone"] .chat-sidebar-list { min-height: 0; overflow: auto !important; overscroll-behavior: contain; }
+html[data-sp1der-device="phone"] :is(.chat-channel,.channel-item) { min-height: 44px; padding: 10px !important; font-size: 14px; }
+html[data-sp1der-device="phone"] .chat-main { flex: 1 1 0; min-width: 0 !important; width: 100%; min-height: 0; }
+html[data-sp1der-device="phone"] .sp1der-channel-trigger {
+    display: block; flex-shrink: 0; align-self: flex-start; margin: 8px 10px 0; padding: 8px 12px;
+}
+html[data-sp1der-device="phone"] .chat-header {
+    min-height: 48px; height: auto; min-width: 0; padding: 8px 10px !important; gap: 8px; flex-wrap: wrap;
+}
+html[data-sp1der-device="phone"] .chat-header-title { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .chat-header-actions { flex-wrap: wrap; gap: 4px; }
+html[data-sp1der-device="phone"] #chatSearchInput { flex: 1 1 135px; min-width: 0 !important; min-height: 40px; }
+html[data-sp1der-device="phone"] .chat-feed {
+    min-width: 0 !important; min-height: 0; flex: 1 1 0; padding: 10px !important;
+    font-size: 14px; overflow-y: auto !important; overflow-x: hidden !important; overscroll-behavior: contain;
+}
+html[data-sp1der-device="phone"] :is(.msg,.message-card) {
+    display: flex !important; min-width: 0 !important; width: 100%; max-width: 100%; gap: 8px;
+    padding: 10px 0 !important; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] :is(.msg-avatar,.msg-avatar-pic,.message-avatar) {
+    width: 30px !important; height: 30px !important; min-width: 30px; flex: 0 0 30px;
+}
+html[data-sp1der-device="phone"] :is(.msg-body,.message-body) { flex: 1 1 0; min-width: 0 !important; max-width: 100%; }
+html[data-sp1der-device="phone"] :is(.msg-meta,.message-header) { flex-wrap: wrap; gap: 4px 8px; }
+html[data-sp1der-device="phone"] :is(.msg-author,.message-sender) { font-size: 14px; overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] .msg-text:not(.ascii-art) {
+    font-size: 14px !important; line-height: 1.55; white-space: pre-wrap; word-break: normal;
+    overflow-wrap: anywhere; writing-mode: horizontal-tb; max-width: 100%;
+}
+html[data-sp1der-device="phone"] :is(.msg-text.ascii-art,.msg-text pre) { max-width: 100%; overflow-x: auto; }
+html[data-sp1der-device="phone"] .msg-text :is(img,video) { max-width: 100% !important; height: auto; }
+html[data-sp1der-device="phone"] :is(.msg-actions,.message-actions) { opacity: 1; position: static; flex-wrap: wrap; max-width: 100%; }
+html[data-sp1der-device="phone"] :is(.msg-actions,.message-actions) button { min-height: 44px; min-width: 44px; }
+html[data-sp1der-device="phone"] .chat-composer {
+    min-width: 0; flex-shrink: 0; padding: 8px 10px !important; gap: 6px !important; flex-wrap: wrap;
+    background: var(--bg-1);
+}
+html[data-sp1der-device="phone"] :is(#composerInput,#aegisInput,#feedbackInput) {
+    flex: 1 1 100% !important; min-width: 0 !important; min-height: 44px !important;
+    max-height: min(120px,24dvh) !important; line-height: 1.45; padding: 10px 12px !important; border-radius: 14px;
+}
+html[data-sp1der-device="phone"] .composer-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-sp1der-device="phone"] .chat-composer > .primary { margin-left: auto; }
+html[data-sp1der-device="phone"] .modal-overlay {
+    top: var(--sp1der-vtop,0px); bottom: auto; height: var(--sp1der-vh,100dvh);
+    padding: max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+        max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)) !important;
+    box-sizing: border-box; align-items: center;
+}
+html[data-sp1der-device="phone"] .modal-card {
+    width: min(100%,600px) !important; max-width: 100% !important;
+    max-height: calc(var(--sp1der-vh,100dvh) - 32px) !important; min-width: 0;
+    padding: 18px !important; overflow: auto !important; overscroll-behavior: contain;
+    border-radius: 18px !important; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .modal-card button { min-height: 44px; }
+html[data-sp1der-device="phone"] .sp1der-modal-close {
+    position: sticky; top: -6px; z-index: 2; margin: 0 0 8px auto;
+    padding: 10px 14px; border: 1px solid var(--border-active); border-radius: 10px;
+    background: var(--bg-1); color: var(--text); font: 600 13px var(--font); cursor: pointer;
+}
+html[data-sp1der-device="phone"] :is(.modal-title,.modal-desc,.modal-card p) { overflow-wrap: anywhere; }
+html[data-sp1der-device="phone"] #sigmaModal .sigma-card {
+    max-width: 94vw; max-height: calc(var(--sp1der-vh,100dvh) - 24px); overflow: auto; padding: 18px; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] #sigmaBanner { flex-wrap: wrap; font-size: 12px; padding: 8px; }
+html[data-sp1der-device="phone"] #appViewer { height: var(--sp1der-vh,100dvh); top: var(--sp1der-vtop,0px); bottom: auto; }
+html[data-sp1der-device="phone"] #appViewer.open { display: flex; flex-direction: column; }
+html[data-sp1der-device="phone"] #appViewer .viewer-controls {
+    position: static; flex-shrink: 0; padding: max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left));
+    background: var(--bg-1); border-bottom: 1px solid var(--border); justify-content: flex-end;
+}
+html[data-sp1der-device="phone"] .viewer-controls .ctrl-btn { min-height: 44px; }
+html[data-sp1der-device="phone"] #appIframe { flex: 1 1 0; min-height: 0; height: auto; }
+html[data-sp1der-device="phone"] .setting-row { flex-wrap: wrap; }
+html[data-sp1der-device="phone"] .settings-section summary { padding: 12px 0; min-height: 20px; }
+html[data-sp1der-device="phone"] .settings-section { padding: 4px 14px; }
+html[data-sp1der-device="phone"] .tour-tooltip {
+    left: 12px !important; right: 12px; top: auto !important;
+    bottom: calc(var(--sp1der-dock-h) + env(safe-area-inset-bottom) + 16px);
+    max-width: none; max-height: calc(var(--sp1der-vh,100dvh) - 160px); overflow: auto;
+    box-sizing: border-box;
+}
+html[data-sp1der-device="phone"] .tour-tooltip-btns button { min-height: 44px; }
+html[data-sp1der-device="phone"].sp1der-keyboard #appShell { padding-bottom: env(safe-area-inset-bottom); }
+html[data-sp1der-device="phone"].sp1der-keyboard #sp1derPhoneDock { display: none; }
+
+@media (min-width: 640px) {
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] #appShell {
+        padding-left: calc(var(--sp1der-rail-w) + env(safe-area-inset-left));
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] #sp1derPhoneDock {
+        top: 0; right: auto; height: auto; width: calc(var(--sp1der-rail-w) + env(safe-area-inset-left));
+        grid-template-columns: 1fr; grid-template-rows: repeat(4,minmax(0,1fr));
+        padding: max(6px,env(safe-area-inset-top)) 5px max(6px,env(safe-area-inset-bottom)) max(5px,env(safe-area-inset-left));
+        border-top: 0; border-right: 1px solid var(--border);
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .sp1der-dock-button { min-height: 44px; font-size: 10px; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .topbar { height: 48px !important; min-height: 48px !important; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .home-actions {
+        grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .games-grid {
+        grid-template-columns: repeat(auto-fill,minmax(155px,1fr)) !important;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .home-hero { padding-top: 8px !important; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .sp1der-channel-trigger {
+        position: absolute; top: 5px; left: 6px; z-index: 3; margin: 0;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .chat-header { padding-left: 108px !important; min-height: 54px; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .chat-composer { flex-wrap: nowrap; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] :is(#composerInput,#aegisInput,#feedbackInput) {
+        flex: 1 1 0 !important; max-height: 70px !important;
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .composer-btns { flex-wrap: nowrap; }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"] .tour-tooltip {
+        left: auto !important; right: max(12px,env(safe-area-inset-right)); bottom: 12px;
+        width: min(420px,calc(100vw - 110px)); max-height: calc(var(--sp1der-vh,100dvh) - 32px);
+    }
+    html[data-sp1der-device="phone"][data-sp1der-orientation="landscape"].sp1der-keyboard #appShell {
+        padding-left: env(safe-area-inset-left);
+    }
+}
+html[data-sp1der-device="phone"].sp1der-keyboard .topbar { height: 48px !important; min-height: 48px !important; }
+html[data-sp1der-device="phone"].sp1der-keyboard :is(.sp1der-channel-trigger,#chatSearchInput,.chat-header-actions) { display: none; }
+html[data-sp1der-device="phone"].sp1der-keyboard .chat-header {
+    min-height: 36px; padding: 6px 10px !important;
+}
+html[data-sp1der-device="phone"].sp1der-keyboard #conversationOversightNotice {
+    padding: 5px 10px !important; max-height: 38px; overflow: auto; box-sizing: border-box;
+}
+html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,#feedbackInput) {
+    max-height: min(70px,calc(var(--sp1der-vh,100dvh) * .24)) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html[data-sp1der-device="phone"] *, html[data-sp1der-device="phone"] *::before,
+    html[data-sp1der-device="phone"] *::after { animation: none !important; transition: none !important; }
+}
