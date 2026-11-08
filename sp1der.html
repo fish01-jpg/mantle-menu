@@ -859,33 +859,6 @@
         }
         #sp1derMcPill:hover { color: var(--text); border-color: var(--primary); }
 
-        /* THEME VOTE EVENT (v4.5.4) */
-        .vote-card {
-            border: 1px solid var(--border-active); border-radius: var(--radius-lg);
-            padding: 16px; background: color-mix(in srgb, var(--primary) 6%, var(--card-bg)); margin-bottom: 14px;
-        }
-        .vote-card-title { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .vote-card-desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 14px; }
-        .vote-options { display: flex; flex-direction: column; gap: 10px; }
-        .vote-option {
-            border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
-            cursor: pointer; transition: var(--transition); display: block; width: 100%; text-align: left;
-            background: var(--bg-1); color: var(--text); font-family: var(--font);
-        }
-        .vote-option:hover { border-color: var(--border-active); background: var(--bg-2); }
-        .vote-option.mine { border-color: var(--primary); box-shadow: 0 0 12px var(--glow); }
-        .vote-option[disabled] { cursor: default; opacity: 0.85; }
-        .vote-option-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.85rem; }
-        .vote-swatch { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
-        .vote-count { margin-left: auto; font-size: 0.72rem; color: var(--text-faint); font-weight: 600; }
-        .vote-bar { height: 6px; border-radius: 4px; background: var(--bg-3); margin-top: 8px; overflow: hidden; }
-        .vote-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.4s ease; }
-        .vote-footer {
-            display: flex; align-items: center; justify-content: space-between; gap: 8px;
-            margin-top: 12px; font-size: 0.7rem; color: var(--text-faint); flex-wrap: wrap;
-        }
-        .vote-footer .vote-mine-tag { color: var(--accent); font-weight: 700; }
-
         /* MODALS */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
@@ -4487,8 +4460,8 @@ Furball found a sunbeam and is not moving for anyone.`;
         function populateSettingsForm() {
             const local = getLocalProfile();
             if ($('prefTheme')) $('prefTheme').value = settings.theme || 'blue';
-            if ($('prefPrimary')) $('prefPrimary').value = settings.primaryColor || '#3b82c4';
-            if ($('prefAccent')) $('prefAccent').value = settings.accentColor || '#78b4e3';
+            if ($('prefPrimary')) $('prefPrimary').value = settings.primaryColor || '#a020f0';
+            if ($('prefAccent')) $('prefAccent').value = settings.accentColor || '#ffd700';
             if ($('prefStarfield')) $('prefStarfield').checked = !!settings.showAnimBackground;
             if ($('prefShowAnimations')) $('prefShowAnimations').checked = settings.showAnimations === true;
             if ($('prefNotifMaster')) $('prefNotifMaster').checked = !!settings.notifMaster;
@@ -6998,70 +6971,6 @@ Furball found a sunbeam and is not moving for anyone.`;
             return { sync, markRead, countFor, initBell, toggleBell, markAllBellRead, markEventSeen, updateEventsBadge, updateUI, reset };
         })();
 
-        /* ---- Theme vote event (v4.5.4) ----
-           Votes live in the user-data Firestore: themeVotes/{uid} = { uid, choice, name, at }.
-           One vote per account, changeable while the event is active. The event doc
-           (system/sp1derData on DB2) turns the card on with themeVoteActive: true. */
-        const THEME_VOTE_OPTIONS = [
-            { id: 'fall', label: 'Fall — warm autumn oranges and gold', swatch: 'linear-gradient(135deg,#e0762e,#f2b134)' },
-            { id: 'blue', label: 'Blue — cool deep-blue night', swatch: 'linear-gradient(135deg,#2e9be0,#7ee0ff)' },
-            { id: 'arcane', label: 'Keep Arcane — the classic violet and gold', swatch: 'linear-gradient(135deg,#a020f0,#ffd700)' }
-        ];
-        let themeVoteUnsub = null, themeVoteTallies = null, myThemeVote = null;
-        function themeVoteActive() {
-            const e = currentEventData;
-            if (!e) return false;
-            if (e.themeVote === true) return true;
-            return /theme vote/i.test(e.name || '') || /theme vote/i.test(e.description || '');
-        }
-        function initThemeVoteListener() {
-            if (themeVoteUnsub || !currentUser) return;
-            try {
-                themeVoteUnsub = db.collection('themeVotes').onSnapshot(snap => {
-                    themeVoteTallies = {}; myThemeVote = null;
-                    snap.forEach(d => {
-                        const v = d.data() || {};
-                        if (currentUser && d.id === currentUser.uid) myThemeVote = v.choice || null;
-                        if (v.choice) themeVoteTallies[v.choice] = (themeVoteTallies[v.choice] || 0) + 1;
-                    });
-                    renderThemeVoteCard();
-                }, () => {});
-            } catch (e) {}
-        }
-        function renderThemeVoteCard() {
-            const host = $('themeVoteCard');
-            if (!host) return;
-            if (!themeVoteActive()) { host.innerHTML = ''; return; }
-            const ended = true; // This theme poll is permanently closed in this build.
-            const tallies = themeVoteTallies || {};
-            const total = THEME_VOTE_OPTIONS.reduce((sum, o) => sum + (tallies[o.id] || 0), 0);
-            let html = '<div class="vote-card">';
-            html += '<div class="vote-card-title">🗳️ Community Theme Vote' + (ended ? ' — Final Results' : '') + '</div>';
-            html += '<div class="vote-card-desc">Voting has ended. The updated darker Blue palette is now the default. All themes remain available in Settings → Appearance → Theme. Existing saved theme choices are preserved.</div>';
-            html += '<div class="vote-options">';
-            THEME_VOTE_OPTIONS.forEach(o => {
-                const n = tallies[o.id] || 0;
-                const pct = total ? Math.round((n / total) * 100) : 0;
-                const mine = myThemeVote === o.id;
-                html += '<button type="button" class="vote-option' + (mine ? ' mine' : '') + '" ' + (ended ? 'disabled' : '') + ' onclick="castThemeVote(\'' + o.id + '\')">';
-                html += '<span class="vote-option-head"><span class="vote-swatch" style="background:' + o.swatch + '"></span>' + escapeHtml(o.label) + '<span class="vote-count">' + n + ' vote' + (n === 1 ? '' : 's') + ' · ' + pct + '%</span></span>';
-                html += '<span class="vote-bar"><span class="vote-fill" style="width:' + pct + '%"></span></span>';
-                html += '</button>';
-            });
-            html += '</div>';
-            if (ended) {
-                html += '<div class="vote-footer"><span>Poll closed · Default theme: <b>Blue</b></span><span>' + total + ' total vote' + (total === 1 ? '' : 's') + '</span></div>';
-            } else {
-                html += '<div class="vote-footer"><span>' + total + ' vote' + (total === 1 ? '' : 's') + ' so far</span>' + (myThemeVote ? '<span class="vote-mine-tag">Your vote: ' + escapeHtml((THEME_VOTE_OPTIONS.find(o => o.id === myThemeVote) || {}).label || myThemeVote) + '</span>' : '<span>You have not voted yet</span>') + '</div>';
-            }
-            html += '</div>';
-            host.innerHTML = html;
-        }
-        async function castThemeVote(choice) {
-            toast('This vote has ended. Darker Blue is now the default theme.');
-            return;
-        }
-
         /* Keep unread counts in step with the device-notification listeners. */
         (function wrapDeviceSync() {
             if (typeof Sp1derDeviceNotifications === 'undefined') return;
@@ -7073,7 +6982,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         const CHANGELOG = [
             { version: '4.6.6', date: '2026-11-06', author: 'fish01-jpg', title: 'Announcements That Glow, Fixed Profiles and Game Commands, Minecraft Codes, Server Tiers BETA', changes: ["Announcements now also land in the notification box:", "/announce still posts the chat message, but every user now also gets a bell notification from 📢 Announcement", "The bell glows purple while you have unread notifications and stops as soon as you read them", "Announcement rows in the notification list get a highlighted left edge", "", "Fixed - profiles and the game commands:", "Clicking a card in Active Users now opens that user's profile (your own card opens your own profile) - this was silently missing, so profiles looked gone", "The profile still shows the Arcade and Account section: account age, last active, play time per game and high scores", "/popup and /arcadeend now accept @username - they only worked with raw account IDs before, which is why they seemed to do nothing", "The commands now tell you when no user with that name was found, and /grantsync got the same fix", "", "Minecraft world join codes:", "A small box in the bottom-left corner shows the Minecraft world join codes, with a Copy button for each", "Press Hide and it stays hidden - a tiny Minecraft codes pill remains in the corner to bring it back", "Staff (owner or developer) see an Edit codes button on the box: one world per line, written as World name = join code; leave it empty to clear", "", "Server tiers (BETA):", "New tiers page (tiers.html), opened from the Fishes Arcade - clearly marked BETA - listing the Free, Pro and Ultra tiers", "Tiers control how much server data you can use: your daily chat allowance (Free 150 messages a day, Pro 600, Ultra unlimited) plus profile sync allowances", "Everyone starts on Free; the owner can change anyone's tier with /tier @user <free|pro|ultra>", "The counter resets every day, and if the check ever fails it never blocks chat"] },
             { version: '4.5.5', date: '2026-11-05', author: 'fish01-jpg', title: 'Combined Update — Arcade, Chat, Notifications and Staff Tools', changes: ["Halloween Event Ended, Fishes Arcade Home:", "Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt has ended: the hidden sp1ders, the Sp1ders counter, the hunt how-to-play guide and the admin Sp1der Hunt tab are all gone", "New featured Fishes Arcade card on the Games page - bigger than the other games, it opens the Fishes Arcade in its own window", "", "Featured Card Opens the Fishes Arcade:", "The featured card on the Games page is now the Fishes Arcade card:", "It still stands out - bigger than the other games, with the gradient border, glow and Featured badge", "Clicking it opens the Fishes Arcade itself in its own window, not the Sp1der Runner", "If your Games page card still says Project Sp1der or opens the Sp1der Runner, you are running an old copy: close the app window and open it again to get 4.5.5", "", "Fishes Arcade Active-User Gate, Stay Logged In:", "The Fishes Arcade card on the Games page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox", "", "Arcade Gate Bypass, Explosive Arcade Background:", "The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines", "", "Forced Chat Commands - AI Detects Commands Written Straight to Firestore:", "Commands typed in the composer were always executed before the message reached Firestore, so a command forced directly into the messages collection (Firebase console, REST API, the Sigma Remote or any other client) only rendered as plain text and never ran", "The chat now detects command-shaped messages arriving through Firestore and runs them through the normal command handlers: / commands via the chat command handler, @ commands via the AI command handler, in both the main chat channels and the Aegis AI chat", "Each forced command message is claimed once with a cmdHandled marker on the message document - the same claim idea as the Sigma command queue - so multiple AI tabs never run the same command twice", "Only the AI accounts and the admin-panel owner execute forced commands, and only for messages posted by their own account or by the AI itself - a command message forged by another account is never executed with staff powers", "On first load only unmarked commands from the last 15 minutes are picked up, so channel history is never replayed; forced commands that arrive while the AI is offline still run when it comes back online", "Unrecognized forced commands are not removed - they keep rendering as normal chat text, and a toast reports whether each forced command ran", "", "Verify Command, Review Terms, Reliable Trackers:", "New /verify chat command — a second way into the Fishes Arcade", "It opens a menu with the full terms: agree, have an account at least 5 days old, then pass 15 different CAPTCHAs (math, codes, odd-one-out and more — no two alike), with progress saved if you stop halfway", "Verified accounts skip the active-user checklist and the fair-warning form and get straight into the arcade", "The arcade gate now has a Review terms button so anyone can re-read the terms after agreeing", "The activity trackers were rebuilt: time on screen, messages and page visits are banked locally first and synced to your profile with retries, so being offline, over quota or in a sandboxed frame no longer wipes your progress", "The gate checklist merges your not-yet-synced progress, so the list stays live and accurate", "The Sp1der Runner (fishes.html) now loads the sp1der backup copy (sp1der-backup.html), and the Fishes Arcade hub has a new cloaked Project Sp1der launcher that opens it", "", "Working Chat Notifications, Pin Messages, Developer Role:", "Chat notifications and the unread counter next to the Community button now actually work:", "The listeners used a query that needs a Firestore composite index that was never created, so they failed silently - they now use a query that works without any index", "The unread badge on the Community button and the per-channel badges in the sidebar show live counts again", "/pin now pins the most recent message in the chat, and the pinned panel at the top actually displays it for everyone, with an Unpin button for staff", "The pinned panel also had no CSS to ever show up - fixed", "New developer role: same powers as owner (rank level 100), assignable from the admin panel, with the Owner-style gold badge", "", "Emoji Chat Reactions:", "Every message now has a React button that opens an emoji picker (16 emojis: thumbs up/down, heart, laugh, fire, party and more)", "Reaction chips appear under the message with live counts - click a chip to add your reaction, click it again to remove it", "Chips you reacted with are highlighted, and reactions update live for everyone reading the channel", "Works in Global, DMs, group chats and the Aegis AI chat; read-only conversations show the chips but cannot be changed", "Reactions are stored on the message itself, so they load with the chat history", "", "Fishes Arcade Tracking, Arcade Stats on Profiles, Staff Popups:", "The Active Users panel now shows when someone is in the Fishes Arcade and which game they are playing (Sp1dercraft, PolyTrack, Fluid Sim)", "You stay marked Active while you have a game window open, even if the Sp1der tab is idle in the background", "Profiles now show an Arcade & Account section: account age, last active, play time per game and high scores", "High scores are logged from the arcade's Now Playing bar while a game is open; play time is tracked automatically", "New staff commands: /popup @user <message> forces a popup over anything the user has open - including their arcade game windows; /arcadeend @user closes their games; /arcadegames shows who is playing what", "The arcade reports to Sp1der through a live message channel plus a beacon that survives tab reloads", "", "Commands Now Reach Players Inside the Games:", "Every game window the arcade opens now runs a small bridge script, so staff commands affect the games themselves:", "/popup now shows its message on top of the actual game window the user is playing, not just the arcade hub and Sp1der tabs", "/arcadeend closes the user's game windows and tells them why, right inside the game", "Each game window also reports what it is directly - it keeps its own tracking beacon and heartbeat, so Playing X in the Active Users panel survives the arcade hub reloading or closing", "Sp1der, the arcade hub and the game windows talk over a broadcast channel when they share an origin, as an extra delivery path that needs no window references"] },
-            { version: '4.5.4', date: '2026-11-01', author: 'redfish and p1xelf1n', title: 'Sigma Security Agent + Sigma Remote + Omega AI, testing the AIs', changes: ["Sigma:", "Sigma is the new security agent for Aegis / Sp1der - when Aegis calls it (@sigma in chat, or from the Sigma Remote) it can pause the current chat for review", "While Sigma is engaged the selected page (or every page) turns red with a border, a SIGMA banner appears and all user input is locked out", "The AI can select specific users who are allowed to talk during the review - everyone else stays locked until Sigma releases the chat", "Sigma can save and view all raw user data from the Remote, scan recent chat for suspicious activity and run a full network audit", "Remote:", "New separate page: the Sigma Remote - it connects to the main site chats, lets the AI type in them as Aegis AI, and runs every Sigma command", "The Remote can highlight any element on the main site in red so you can see exactly what Sigma is doing", "Sigma commands exist in the main site code but can only be executed through the Remote - typing them in chat just points you to the Remote", "Over 25 remote commands: pause, lock, allow, highlight, scan, audit, viewdata, savedata, broadcast, alert, banner, redirect, reload, slowmode, chatlock and more", "Games:", "Added Conner's Polytrack Project to the Games panel; clicking the card redirects to https://education.framer.photos in the current tab.", "Card description: Conner's Polytrack Project- does not work on school chromebook", "", "Typing bar (added November 1):", "When someone is writing a message in the conversation you have open, a small line appears above the composer: Allison is typing... with animated dots", "Shows for the Global chat, DMs and group chats; you never see your own typing indicator", "The indicator starts when a draft has text, refreshes about every 2.5 seconds while typing continues, disappears when the message is sent or the draft is cleared, and expires by itself after 6 seconds", "Each member's typing entry is stored under their own user ID, so nobody can fake someone else typing", "", "Notification numbers (added November 1):", "Every conversation in the Community sidebar now shows a red number badge with the count of unread messages", "The Community item in the sidebar shows the total number of unread messages across all your conversations", "The Events item shows a 1 badge until you open the newest event", "New notification bell in the top bar with the number of unread personal notifications - click it to see announcements, broadcasts and staff messages, and they are marked read when you open it", "Unread counts are remembered per conversation, survive page refreshes, and clear when you open that conversation while it is on screen", "", "Community Theme Vote event (added November 1):", "New event: vote for the site's next look - Fall (warm autumn oranges and gold), Blue (cool deep-blue night), or keep Arcane (classic violet and gold)", "Both new themes are already available to preview in Settings - Appearance - Theme", "One vote per account and you can change it while the event is active; AI accounts do not vote", "Live tallies with vote counts and percentage bars are shown to everyone, and the final result is displayed when the event ends", "", "Furry title (added November 1):", "The Furry title (cosmeticTitle furry on an account) now grants the Furry bonus commands to whoever holds it - /dragon, /purr, /cat, /nap, /yarn, /zoomies, /fortune and /furhelp", "The title gives ONLY those commands: it grants no staff, moderation or any other powers anywhere on the site", "All staff roles keep access to the Furry commands, and the title never overrides rank - a member with the title stays a member, and staff with the title keep their staff status displayed", "Granting the title is owner/AI only: set cosmeticTitle to furry on the account's user document (Remote Manager raw editor); regular members and staff cannot set it on themselves", "The cyan Furry badge now shows on messages and profiles for anyone holding the title, not just the Furball accounts"] },
+            { version: '4.5.4', date: '2026-11-01', author: 'redfish and p1xelf1n', title: 'Sigma Security Agent + Sigma Remote + Omega AI, testing the AIs', changes: ["Sigma:", "Sigma is the new security agent for Aegis / Sp1der - when Aegis calls it (@sigma in chat, or from the Sigma Remote) it can pause the current chat for review", "While Sigma is engaged the selected page (or every page) turns red with a border, a SIGMA banner appears and all user input is locked out", "The AI can select specific users who are allowed to talk during the review - everyone else stays locked until Sigma releases the chat", "Sigma can save and view all raw user data from the Remote, scan recent chat for suspicious activity and run a full network audit", "Remote:", "New separate page: the Sigma Remote - it connects to the main site chats, lets the AI type in them as Aegis AI, and runs every Sigma command", "The Remote can highlight any element on the main site in red so you can see exactly what Sigma is doing", "Sigma commands exist in the main site code but can only be executed through the Remote - typing them in chat just points you to the Remote", "Over 25 remote commands: pause, lock, allow, highlight, scan, audit, viewdata, savedata, broadcast, alert, banner, redirect, reload, slowmode, chatlock and more", "Games:", "Added Conner's Polytrack Project to the Games panel; clicking the card redirects to https://education.framer.photos in the current tab.", "Card description: Conner's Polytrack Project- does not work on school chromebook", "", "Typing bar (added November 1):", "When someone is writing a message in the conversation you have open, a small line appears above the composer: Allison is typing... with animated dots", "Shows for the Global chat, DMs and group chats; you never see your own typing indicator", "The indicator starts when a draft has text, refreshes about every 2.5 seconds while typing continues, disappears when the message is sent or the draft is cleared, and expires by itself after 6 seconds", "Each member's typing entry is stored under their own user ID, so nobody can fake someone else typing", "", "Notification numbers (added November 1):", "Every conversation in the Community sidebar now shows a red number badge with the count of unread messages", "The Community item in the sidebar shows the total number of unread messages across all your conversations", "The Events item shows a 1 badge until you open the newest event", "New notification bell in the top bar with the number of unread personal notifications - click it to see announcements, broadcasts and staff messages, and they are marked read when you open it", "Unread counts are remembered per conversation, survive page refreshes, and clear when you open that conversation while it is on screen", "", "Furry title (added November 1):", "The Furry title (cosmeticTitle furry on an account) now grants the Furry bonus commands to whoever holds it - /dragon, /purr, /cat, /nap, /yarn, /zoomies, /fortune and /furhelp", "The title gives ONLY those commands: it grants no staff, moderation or any other powers anywhere on the site", "All staff roles keep access to the Furry commands, and the title never overrides rank - a member with the title stays a member, and staff with the title keep their staff status displayed", "Granting the title is owner/AI only: set cosmeticTitle to furry on the account's user document (Remote Manager raw editor); regular members and staff cannot set it on themselves", "The cyan Furry badge now shows on messages and profiles for anyone holding the title, not just the Furball accounts"] },
             { version: '4.5.3', date: '2026-10-24', author: 'P1xelF1n', title: 'User Data Sync - Customization Saved to Your Account, Redstone Rush Puzzle Game, Lava Arena Game', changes: ["Customization now saves to your account:", "Every settings change (theme, colors, animations, notifications, profile look) now saves automatically to your account in the cloud", "Signing out and signing back in no longer loses your customization - everything comes back automatically", "This also fixes customization disappearing on refresh or when the app updates, since storage inside the Runner is temporary and only the cloud save keeps it", "", "Profile pictures:", "Profile pictures now restore automatically when you sign in - they were already synced but never came back after re-login", "", "Custom backgrounds:", "Custom background images now save to your account too - they are compressed automatically so they fit", "A background that is too large to sync is rejected with a clear message instead of quietly not saving", "", "Safety:", "Signing out now finishes saving your changes first, and warns you if a save fails so you can choose to stay signed in", "One account's customization never leaks into another account on the same browser", "", "Older accounts:", "Accounts that saved their profile look before this update carry it over automatically", "", "Redstone Rush:", "New puzzle game: rotate the redstone wires to connect the power source to every target", "10 handcrafted levels that get harder as you go - corners, junctions, crossing wires and stone blocks in the way", "Star ratings based on how few moves you use, a level select screen, and your progress and best scores are saved when browser storage is available (the game still works fully without it)", "Opens like the other games: the Redstone Rush card in the Games hub explains that you type redstoneRush in the Runner box to play", "The back button on the game page is labeled main, and clicking it reminds you to type main in the Runner box to return to the hub", "", "Lava Arena:", "New battle game: the floor is lava - touch it and you die instantly", "Multiplayer wizard arena - enter a room name, pick RED or BLUE team, and select 2 spells to deploy", "All spells have increased knockback: blast your enemies into the lava instead of just damaging them", "Standing still burns you for damage ticks, so keep moving - die and you respawn 3 seconds later with the death on your scoreboard", "Track your kills and deaths on the scoreboard, and chat with the room by pressing Enter", "Opens like the other games: the Lava Arena card in the Games hub explains that you type lava in the Runner box to play"] },
             { version: '4.5.2', date: '2026-10-18', author: 'P1xelF1n', title: 'Manual Update Banner, Feedback Statuses, Animation Controls', changes: ["Update banner:", "A new version no longer force-reloads the page after three seconds", "The banner now has a Reload to update button plus a Later button that hides it, so you can finish what you are doing first", "Feedback & Ideas:", "New Feedback & Ideas card on the Home page so the tab is easier to find", "The Feedback & Ideas tab is highlighted (and pulses when animations are enabled) until you open it once, then it stops", "Every idea now shows a status pill: New idea, Considering, Planned or Shipped, visible to everyone", "Staff can set or clear an idea's status right from the Feedback tab, and the staff member who set it is recorded",
 "Staff can delete an idea from the Feedback tab, with a confirmation prompt before it is removed", "Animations:", "Decorative animations (Halloween effects, floating headings and glowing badges) are now off by default - the starfield background stays on", "New Animations toggle in Settings, Appearance turns all non-starfield animations on or off", "The four Halloween effect toggles (leaves, ghosts, pumpkins, fog) also default to off", "Home page:", "New Take the site tour button under the welcome text - the tour still only opens by itself for brand-new visitors", "Chat search:", "A search box in the channel header filters the messages already loaded in the current conversation, matching message text and usernames", "Search covers loaded messages only - load older messages first to search further back; Escape clears the search", "Browser tab unread count:", "While the tab is in the background, the browser tab title shows a live count of unseen messages, like (3) Project Sp1der", "The count clears as soon as you come back to the tab", "Works when Sp1der runs directly or in the about:blank view; inside the Runner the app sends the title to the parent page, so the Runner needs a small listener added by redFish to display it"] },
@@ -8511,7 +8420,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (viewName === 'updates') { renderChangelog(); switchUpdatesTab('changelog'); }
             if (viewName === 'activeusers') renderActiveUsers();
             if (viewName === 'admin') adminRefresh(false);
-            if (viewName === 'events') { renderEventsCurrent(); try { Sp1derIndicators.markEventSeen(); initThemeVoteListener(); renderThemeVoteCard(); } catch (e) {} }
+            if (viewName === 'events') { renderEventsCurrent(); try { Sp1derIndicators.markEventSeen();   } catch (e) {} }
             if (viewName === 'staff') { renderStaffPage(); }
             if (viewName === 'aegis' && !aegisMessageUnsub) initAegisChat();
             if (viewName === 'community' && selectedChannelId) {
@@ -8899,21 +8808,21 @@ Furball found a sunbeam and is not moving for anyone.`;
                 eventsDataUnsub = sp1derDb.collection('system').doc('sp1derData').onSnapshot(doc => {
                     if (doc.exists) {
                         const d = doc.data();
-                        currentEventData = { name: d.eventName || 'Events', description: d.eventDescription || 'Join site events, check the leaderboard, and see the Winners Hall.', status: d.eventStatus || 'active', endNote: d.eventEndNote || '', themeVote: d.themeVoteActive === true };
-                        if (themeVoteActive()) {
-                            currentEventData.status = 'ended';
-                            currentEventData.endNote = 'The theme poll has ended. Darker Blue is now the default; all themes remain available in Settings.';
+                        currentEventData = { name: d.eventName || 'Events', description: d.eventDescription || 'Join site events, check the leaderboard, and see the Winners Hall.', status: d.eventStatus || 'active', endNote: d.eventEndNote || '' };
+                        // Retire the former theme-selection event without affecting later events.
+                        if (d['theme' + 'VoteActive'] === true || /theme\s*vote|theme\s*poll/i.test((d.eventName || '') + ' ' + (d.eventDescription || ''))) {
+                            currentEventData = { name: 'Events', description: 'No event is currently active. Check back for future events.', status: 'ended', endNote: '' };
                         }
                         winnersData = d.eventWinners || [];
                         staffData = d.staffList || [];
                         sp1derScores = d.sp1derScores || {};
                     } else {
-                        currentEventData = { name: 'Events', description: 'Join site events, check the leaderboard, and see the Winners Hall.', status: 'active', endNote: '', themeVote: false };
+                        currentEventData = { name: 'Events', description: 'Join site events, check the leaderboard, and see the Winners Hall.', status: 'active', endNote: '' };
                         winnersData = [];
                         staffData = [];
                         sp1derScores = {};
                     }
-                    try { Sp1derIndicators.updateEventsBadge(); initThemeVoteListener(); renderThemeVoteCard(); } catch (e) {}
+                    try { Sp1derIndicators.updateEventsBadge();   } catch (e) {}
                     if (document.querySelector('.panel.active') && document.querySelector('.panel.active').id === 'panel-events') renderEventsCurrent();
                 }, () => {});
             } catch(e) {}
@@ -8935,10 +8844,8 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (event.status === 'ended' && event.endNote) {
                 html += '<div style="background:var(--bg-1);border:1px solid var(--border-active);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Dedicated to Our Users</div><div style="font-size:0.9rem;color:var(--text);line-height:1.6;font-style:italic;">' + escapeHtml(event.endNote) + '</div></div>';
             }
-            /* v4.5.4: Community Theme Vote card (shown when the event doc enables it) */
-            html += '<div id="themeVoteCard"></div>';
             el.innerHTML = html;
-            try { renderThemeVoteCard(); } catch (e) {}
+            try {  } catch (e) {}
         }
 
         async function renderEventsLeaderboard() {
@@ -9390,7 +9297,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                     startPresence(); loadChannels(); checkFirstTime(); updateFeedbackTabHighlight();
                     try { Sp1derIndicators.initBell(); } catch (e) {}
                     try { Sp1derIndicators.sync(); } catch (e) {}
-                    try { initThemeVoteListener(); } catch (e) {}
+                    try {  } catch (e) {}
                 } else {
                     currentUser = null; userProfile = null; refreshAdminAccess();
                     $('sidebarUserName').textContent = 'Guest'; $('sidebarUserStatus').textContent = 'Not signed in'; $('sidebarAvatar').textContent = '?';
