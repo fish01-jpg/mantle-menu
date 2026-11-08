@@ -2,6 +2,7 @@
   'use strict';
   const score = window.SP1DER_INTRO_SCORE;
   const timeline = window.Sp1derTiming.create(score), T = timeline.times;
+  const sceneLayout = window.Sp1derSceneLayout;
   const $ = id => document.getElementById(id);
   const canvas = $('world'), ctx = canvas.getContext('2d'), audio = $('score'), app = $('sp1derApp');
   const state = {
@@ -14,6 +15,7 @@
   const TAU = Math.PI * 2;
   const C = { cyan: [121,228,239], pale: [217,248,251], warm: [237,187,124], dim: [60,103,123] };
   let w = 1, h = 1, unit = 1, cx = 0, cy = 0, camera = 0, zoom = 1;
+  let composition = null;
   const phone = () => Math.min(innerWidth,innerHeight) < 650;
   const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${clamp(a)})`;
   function rotate(p, rx = 0, ry = 0, rz = 0) {
@@ -39,16 +41,19 @@
     ctx.strokeStyle=rgba(color,alpha);ctx.lineWidth=width;ctx.stroke();
   }
   function dot(p,r,color,alpha) {
+    if(alpha<=.002)return;
     const q=project(p);if(!ctx||!q)return;
     ctx.fillStyle=rgba(color,alpha);ctx.beginPath();ctx.arc(q[0],q[1],r,0,TAU);ctx.fill();
   }
   function annotation(p, text, side, alpha) {
+    if(alpha<=.002)return;
     const q=project(p);if(!q||!ctx)return;
     const x=q[0]+side*36,y=q[1]-22;
     ctx.strokeStyle=rgba(C.dim,alpha*.7);ctx.beginPath();ctx.moveTo(q[0],q[1]);ctx.lineTo(q[0]+side*16,y);ctx.lineTo(x+side*64,y);ctx.stroke();
-    ctx.fillStyle=rgba(C.pale,alpha*.8);ctx.font="10px 'IBM Plex Mono',monospace";ctx.textAlign=side<0?'right':'left';ctx.fillText(text,x,y-7);
+    ctx.fillStyle=rgba(C.pale,alpha*.8);ctx.font="12px 'IBM Plex Mono',monospace";ctx.textAlign=side<0?'right':'left';ctx.fillText(text,x,y-7);
   }
   function ring(radius, depth, tilt, spin, alpha, segmented = false, color = C.cyan) {
+    if(alpha<=.002)return;
     const n=phone()?64:100, pts=[];
     for(let i=0;i<=n;i++){
       const a=i/n*TAU+spin;
@@ -199,32 +204,48 @@
     const portrait=w<h, short=h<560;
     const reduced=state.reduced;
     const actual=t;
+    const layers=sceneLayout.layers(score,actual,poster,reduced);
     if(reduced&&!poster)t=score.stages[Math.max(0,state.stage)].at+1.5;
     const motion=reduced?0:t;
     cx=poster?(portrait?w*.5:w*.70):w*.5;
     cy=poster?(portrait?h*.73:h*.50):(portrait?h*.43:h*.46);
     unit=Math.min(w,h)*(portrait?.255:short?.30:.275);
     if(poster&&portrait&&h<720){cy=h*.77;unit=w*.22;}
+    if(!poster){
+      const header=document.querySelector('.masthead').getBoundingClientRect();
+      const copy=$('sequenceCopy').getBoundingClientRect();
+      const footer=document.querySelector('.telemetry').getBoundingClientRect();
+      const fit=sceneLayout.fit({width:w,height:h,headerBottom:header.bottom,
+        copyTop:copy.top,copyRight:copy.right,footerTop:footer.top,scene:layers.scene});
+      ({cx,cy,unit}=fit);
+      composition={...fit,layers};
+    }else composition={layers,box:null,cx,cy,unit};
     camera=poster?-.25:reduced?-.15:Math.sin(t*.22)*.23;
     const fx=timeline.effects(actual,reduced||poster);
-    zoom=!reduced&&!poster?1+fx.punch*.075+fx.kick*.012+ease((t-T.handoff)/4)*.6:1;
+    // Keep the handoff advance restrained and include the maximum punch in fit margins.
+    zoom=!reduced&&!poster?1+fx.punch*.045+fx.kick*.008+ease((t-T.handoff)/4)*.18:1;
     if(!reduced&&!poster){cx+=Math.sin(actual*31)*fx.punch*3;cy+=Math.cos(actual*27)*fx.punch*2;}
     const fade=!reduced&&!poster&&actual>score.duration-1?1-ease(actual-(score.duration-1)):1;
     ctx.globalAlpha=fade;
+    ctx.save();
+    if(!poster){
+      const b=composition.box;
+      ctx.beginPath();ctx.rect(b.left,b.top,b.width,b.height);ctx.clip();
+    }
     const active=poster?1:ease(t/1.5);
     // Dust, a receding construction grid, and depth slices establish real space.
-    for(const s of stars.slice(0,phone()?85:160)){
+    if(layers.signal>0)for(const s of stars.slice(0,phone()?85:160)){
       const z=((s[2]+18-motion*(t>=T.network&&t<T.identity?2.2:.16))%18+18)%18;
-      dot([s[0]*9,s[1]*6,z-2],z<2?1.1:.6,C.pale,.15+active*.12);
+      dot([s[0]*9,s[1]*6,z-2],z<2?1.1:.6,C.pale,(.15+active*.12)*layers.signal);
     }
-    for(let i=-8;i<=8;i++){
-      path([[i*.7,2.15,-1],[i*.7,2.15,18]],C.dim,.15*active);
-      path([[-7,2.15,i+8],[7,2.15,i+8]],C.dim,.11*active);
+    if(layers.signal>0)for(let i=-8;i<=8;i++){
+      path([[i*.7,2.15,-1],[i*.7,2.15,18]],C.dim,.15*active*layers.signal);
+      path([[-7,2.15,i+8],[7,2.15,i+8]],C.dim,.11*active*layers.signal);
     }
     const beat=fx.pulse;
     // The initial signal resolves into stacked orbital schematics.
     const ringIn=poster?1:ease((t-.3)/2);
-    const ringOut=t>=T.identity&&!poster?1-ease((t-T.identity)/4)*.65:1;
+    const ringOut=layers.signal;
     const alpha=ringIn*ringOut;
     ring(1.58,0,[.88,.15,.15],motion*.18,.45*alpha,true);
     ring(1.83,.08,[-.78,.4,-.5],-motion*.12,.35*alpha,true,C.warm);
@@ -237,22 +258,20 @@
       for(let k=0;k<8;k++)dot([Math.cos(k/8*TAU)*1.58,Math.sin(k/8*TAU)*1.58,0],2,C.warm,ease((t-k*.15)/.3));
     }
     // Cards enter from far outside the frustum, settle, then pass the camera.
-    const assembly=poster?1:ease((t-T.assembly)/2);
-    const modelCount=phone()?6:8;
+    const modelCount=poster?(phone()?6:8):6;
     for(let i=0;i<modelCount;i++){
       const arrival=poster?1:reduced?1:ease((t-T.assembly-i*.13)/1.6);
-      if(!poster&&(t<T.assembly||t>T.network+4))continue;
+      if(layers.assembly<=0)continue;
       const a=i/modelCount*TAU-.3+motion*.075;
-      const orbit=poster?2.02:t>T.network?2.5+ease((t-T.network)/4)*4.8:2.1;
+      const orbit=poster?2.02:2.05;
       const fly=1-arrival;
       const p=[Math.cos(a)*(orbit+fly*5),Math.sin(a)*(orbit*.75+fly*4),Math.sin(a*2)*.6+fly*12];
-      if(t>T.network&&!poster&&!reduced)p[2]-=ease((t-T.network)/4)*6;
-      model(names[i%names.length],p,.30+beat*.025,[Math.sin(motion*.3+i)*.3,a*.3+motion*.09,Math.sin(i+motion*.1)*.12],arrival*.8*(poster?1:1-ease((t-T.network-2)/2)),i%3===0?C.warm:C.cyan);
-      if(i<(phone()?2:4)&&arrival>.95&&t<T.orbital)annotation(p,names[i%names.length],Math.cos(a)<0?-1:1,.48);
+      model(names[i%names.length],p,(poster?.30:.40)+beat*.025,[Math.sin(motion*.3+i)*.3,a*.3+motion*.09,Math.sin(i+motion*.1)*.12],arrival*.9*layers.assembly,i%3===0?C.warm:C.cyan);
+      if(!phone()&&i<2&&arrival>.95)annotation(p,names[i%names.length],Math.cos(a)<0?-1:1,.48*layers.assembly);
     }
     // Exploded geodesic core: separated vertices gather into one faceted object.
     const ignition=poster?1:ease((t-T.ignition)/2.1);
-    const coreAlpha=poster?.9:t<T.ignition?assembly*.34:1-ease((t-T.identity)/3)*.88;
+    const coreAlpha=(poster?.9:1)*layers.core;
     const coreScale=poster?.68:.52+ignition*.22+beat*.055+fx.punch*.09;
     const pts=ico.map((p,i)=>{
       const spread=poster?0:(1-ignition)*(.6+Math.sin(i*8)*.2);
@@ -263,17 +282,16 @@
     ring(.91,0,[motion*.15,motion*.12,0],motion*.2,.26*coreAlpha,true,C.warm);
     // Inner stacked rotors and orbiting circuit fragments add a second depth scale.
     for(let layer=0;layer<3;layer++)ring(.26+layer*.12,(layer-1)*.22,[.7,motion*.08,layer*.5],-motion*.3,.25*coreAlpha,true,layer===1?C.warm:C.cyan);
-    if(poster||(t>T.assembly+2&&t<T.identity)){
+    if(layers.core>0){
       for(let i=0;i<(phone()?24:48);i++){
         const a=i/48*TAU+motion*.13, r=1.05+(i%4)*.055, z=(i%3-1)*.17;
         path([[Math.cos(a)*r,Math.sin(a)*r,z],[Math.cos(a+.025)*r,Math.sin(a+.025)*r,z]],i%4===0?C.warm:C.cyan,.6*coreAlpha,1.4);
       }
     }
-    if(!poster&&t>=T.orbital&&t<T.network+1)
-      orbitalMachine(t,motion,(reduced?1:ease((t-T.orbital)/.8))*(1-ease((t-T.network)/1)),beat);
+    if(layers.orbital>0)orbitalMachine(t,motion,layers.orbital,beat);
     // A triangulated spherical network turns into a corridor of depth planes.
-    if(!poster&&t>=T.network&&t<T.warp+1){
-      const enter=reduced?1:ease((t-T.network)/1.3), exit=1-ease((t-T.warp+.5)/1.5);
+    if(layers.network>0){
+      const enter=reduced?1:ease((t-T.network)/1.3), exit=layers.network;
       const p=nodes.map(v=>rotate(v,motion*.09,motion*.13,0).map(n=>n*enter));
       links.forEach(([a,b],i)=>path([p[a],p[b]],i%11===0?C.warm:C.cyan,(.12+beat*.08)*enter*exit));
       p.forEach((v,i)=>dot(v,i%9===0?2:1,C.cyan,(.45+beat*.25)*enter*exit));
@@ -282,13 +300,12 @@
         ring(3.3,z-3,[0,0,.3],j*.07,.10*enter*exit,true);
       }
     }
-    if(!poster&&t>=T.warp&&t<T.identity+1)
-      warpCorridor(t,motion,(reduced?1:ease((t-T.warp)/.6))*(1-ease((t-T.identity)/1)));
+    if(layers.warp>0)warpCorridor(t,motion,layers.warp);
     if(!poster)drawImpact(fx,actual);
     // Six independently projected, extruded letters assemble from different axes.
     if(!poster&&t>=T.identity){
       const title='SP1DER';
-      const titleFit=Math.min(1,(w-40)/(unit*5.3*zoom));
+      const titleFit=Math.min(1,(composition.box.width-24)/(unit*5.3*zoom));
       for(let i=0;i<title.length;i++){
         const lockAt=T.identity+i*timeline.beat;
         const u=reduced?1:ease((t-(lockAt-.6))/.6);
@@ -308,13 +325,14 @@
       const a=ease((t-T.identity-2.5)/1.2);
       path([[-2.3*titleFit,.66*titleFit,-.6],[2.3*titleFit,.66*titleFit,-.6]],C.warm,.6*a);
       const q=project([0,.98*titleFit,-.6]);
-      if(q){ctx.font="11px 'IBM Plex Mono',monospace";ctx.textAlign='center';ctx.fillStyle=rgba(C.cyan,.85*a);ctx.fillText('YOUR PEOPLE. YOUR SPACE.',q[0],q[1]);}
+      if(q){ctx.font="12px 'IBM Plex Mono',monospace";ctx.textAlign='center';ctx.fillStyle=rgba(C.cyan,.85*a);ctx.fillText('YOUR PEOPLE. YOUR SPACE.',q[0],q[1]);}
     }
     // Small engineering readouts belong to the spatial artwork, not app diagnostics.
     if(!phone()&&ringIn>.8){
       annotation([-1.2,-1.15,0],t>=T.network&&t<T.warp?'NETWORK / 110 NODES':'GEODESIC / 30 EDGES',-1,.55*ringOut);
       annotation([1.1,.95,0],'FIRST SIGNAL / 120 BPM',1,.4*ringOut);
     }
+    ctx.restore();
     ctx.globalAlpha=1;
   }
   function syncAppViewport(){
@@ -521,7 +539,8 @@
   window.Sp1derIntroBeta=Object.freeze({
     getState:()=>({phase:state.phase,clock:state.mode,time:playbackTime(),stage:state.stage,reduced:state.reduced,appReady:state.ready,appFailed:state.appFailed}),
     duration:score.duration,
-    getEffects:()=>timeline.effects(playbackTime(),state.reduced)
+    getEffects:()=>timeline.effects(playbackTime(),state.reduced),
+    getComposition:()=>composition?JSON.parse(JSON.stringify(composition)):null
   });
   syncControls();resize();
   if(document.fonts)document.fonts.ready.then(()=>{if(state.phase==='ready')drawWorld(8.5,true);});

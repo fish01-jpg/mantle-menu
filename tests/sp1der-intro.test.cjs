@@ -39,6 +39,7 @@ function runtime({reduced=false,failApp=false,failAudio=false}={}) {
   };
   sandbox.window=sandbox;
   vm.runInNewContext(read('intro/timing.js'),sandbox);
+  vm.runInNewContext(read('intro/scene-layout.js'),sandbox);
   vm.runInNewContext(source,sandbox);
   return {
     sandbox, elements, frames, timers, documentEvents,
@@ -52,7 +53,7 @@ function runtime({reduced=false,failApp=false,failAudio=false}={}) {
 test('generated intro is current and all inline scripts parse',()=>{
   cp.execFileSync(process.execPath,['scripts/build-sp1der-intro.cjs','--check'],{cwd:root});
   for(const match of read('sp1der-intro.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi))assert.doesNotThrow(()=>new vm.Script(match[1]));
-  assert.doesNotMatch(read('sp1der-intro.html'),/__(?:STYLE|SCORE|SCRIPT|TIMING|DURATION|VERSION|AUDIO)__|<script[^>]+src=/);
+  assert.doesNotMatch(read('sp1der-intro.html'),/__(?:STYLE|SCORE|SCRIPT|TIMING|LAYOUT|DURATION|VERSION|AUDIO)__|<script[^>]+src=/);
 });
 test('raw GitHub launcher injects a real document base instead of matching a script string',()=>{
   const hub=read('index.html');
@@ -108,7 +109,10 @@ test('reduced motion suppresses all impact, camera, percussion and charge envelo
 });
 test('Arcade has separate normal and beta entries with phone metadata',()=>{
   const hub=read('index.html');
-  assert.equal((hub.match(/class="row" data-launch=/g)||[]).length,9);
+  const entries=[...hub.matchAll(/class="row" data-launch="([^"]+)"/g)].map(match=>match[1]);
+  assert.equal(new Set(entries).size,entries.length,'catalog launch IDs must remain unique');
+  for(const id of ['spidercraft','polytrack','fluid','pixel-canvas','geometry-dash','tetris','tiers','sp1der','sp1der-intro'])
+    assert.ok(entries.includes(id),'existing entry must remain available: '+id);
   assert.match(hub,/data-launch="sp1der">/);
   assert.match(hub,/data-launch="sp1der-intro">/);
   assert.match(hub,/"sp1der-intro": \{ category: "apps", touch: true/);

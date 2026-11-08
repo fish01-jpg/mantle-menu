@@ -15,6 +15,12 @@ Fishes Arcade's separate **Intro beta** entry opens the same current `sp1der.htm
 
 Ten major impact cues drive expanding triple wavefronts, flying polygon shards and trails, a localized glow, horizontal lens beams and a short camera punch. Pre-hit contraction follows the soundtrack's 900ms risers. Bass kicks and plucks have separate, smaller pulse envelopes; they are no longer approximated by a continuous cosine. Controls and text remain steady. There are no full-screen white impact flashes.
 
+## Scene sizing and separation
+
+Each phase now owns its geometry. The opening starfield, ground grid and orbital schematics end before phase 2; assembly shows only its six interface models and current musical effects, without the old rings or ghost core underneath. Ignition, machinery, network, transit and identity likewise no longer accumulate previous-phase backgrounds. The poster remains a separate composition and the title is intentionally shared across identity/handoff.
+
+`intro/scene-layout.js` fits each scene's primary objects into artwork bounds measured from the actual controls, caption and footer. Short landscape uses a right-hand artwork region alongside the caption; portrait uses the space above it. Scene-specific scale budgets account for object extents and perspective, including the assembly's elliptical shape, while the title fits available width. Short embedded portrait views use tighter caption spacing to retain useful object sizes without reducing touch targets. Artwork is clipped away from controls/copy, and the handoff camera advance is restrained so the title remains legible. The soundtrack, 34-second timing and app-loading controller are unchanged.
+
 Perspective projection, face fills, front/back edges, independent rotations and depth positioning are calculated locally with Canvas 2D. No Three.js/CDN runtime, video download, Marvel assets or third-party music is required. The restrained cyan/amber spatial artwork is original.
 
 ## Sound and controls
@@ -31,7 +37,7 @@ The hidden app stays inert during the cinematic. Successful page loading, not a 
 
 ## Sources and builds
 
-- Edit `intro/shell.html`, `intro/sp1der-intro.css`, `intro/sp1der-intro.js`, `intro/timing.js` and `intro/sequence.json`.
+- Edit `intro/shell.html`, `intro/sp1der-intro.css`, `intro/sp1der-intro.js`, `intro/timing.js`, `intro/scene-layout.js` and `intro/sequence.json`.
 - Run `node scripts/build-sp1der-intro.cjs` to regenerate the standalone `sp1der-intro.html`.
 - Run `node scripts/compose-sp1der-intro.cjs` after musical/timing changes. Requires Node.js and ffmpeg with libmp3lame.
 - Run `node scripts/build-sp1der-intro.cjs --check` and `node --test tests/*.test.cjs` before committing.
@@ -42,9 +48,13 @@ On normal HTTP hosting the wrapper fetch-verifies and opens the existing `sp1der
 
 ## Verification
 
-All 63 Node regression tests pass, covering the existing phone and repaired Arcade loaders plus generation, catalog separation, eight scored phases, exact hit onset/decay, the shared musical grid, risers, six title locks, motion suppression, media clocks, pause/resume, buffering, mute, background pause, skip, failure/retry, timeout and keyboard viewport forwarding. A regression explicitly prevents the new intro from handing off at the old 22-second endpoint.
+The intro regressions cover generation, catalog separation, eight scored phases, exact hit onset/decay, the shared musical grid, risers, six title locks, motion suppression, media clocks, pause/resume, buffering, mute, background pause, skip, failure/retry, timeout and keyboard viewport forwarding. Regressions explicitly prevent the new intro from handing off at the old 22-second endpoint and ensure phase-2 isolation, exclusive scene ownership, stable reduced-motion layers, fitting across narrow/embedded/desktop viewports, useful compact assembly sizing and clipping away from UI.
+
+All 70 repository tests passed before integration with concurrent upstream changes. On the newer catalog/Resources revision, 68 of 70 pass, including every intro test. Two existing phone-bundle checks still expect the former generated phone implementation in `sp1der.html`; upstream now supplies a different mobile implementation. These same checks fail on upstream without this intro patch. The intro's catalog test now checks unique IDs and preservation of the original entries rather than assuming no additional games can be added. No current application, catalog or mobile implementation was replaced to satisfy an outdated generator check.
 
 The expanded version was replayed naturally with real sound at 1440×900 and 390×844 through all eight stages to original-app reveal and focus handoff. A complete reduced-motion run at 320px, rotated during its paused title, also reaches the app at 34 seconds. Identical canvas frames were checked within both assembly and final handoff phases, including the last second. Screenshots cover impact wavefronts, machinery, network, warp and title, with the title fitting 320px portrait and 667px landscape.
+
+The sizing revision was replayed through all eight scenes with real sound at 1440×900 and compact 320×506, both reaching the original app without page errors. Visual inspection includes the isolated phase-2 view, full title, 667×315 short landscape and the actual Arcade's nested 667×262 intro viewport. Live paused resizing preserves the clock; reduced-motion assembly pixels remain identical across more than 650ms of advancing playback. Browser checks also replayed audio failure to silent fallback, app failure/retry, Skip/Escape, sound/motion toggles, phone/desktop catalog launches and separate normal Sp1der guest navigation.
 
 Additional interactive Chromium checks cover pause/resume, mute, live rotation without a playback-time jump, Skip/Escape, failed audio fallback, failed app load and successful retry, simulated background pause, and a simulated 280px keyboard viewport with restoration. Visible controls remain at least 44px high and within the viewport at 320×568, 375×667, 390×844, 430×932, 667×375, 844×390 and 932×430, with no horizontal document overflow. ffprobe reports exactly 34 seconds; decoded MP3 peak is -1.5 dBFS and mean is -18.9 dBFS. Listening reviews found clear transients, no harsh clipping, a clean ending without abrupt cutoff, and no severe balance problem; mild low-mid density was noted near the final impacts.
 
