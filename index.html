@@ -1893,6 +1893,7 @@ window.addEventListener("pagehide", function () {
 async function launchSp1dercraft() {
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
+  if (window.fishesRememberLaunch) window.fishesRememberLaunch("spidercraft");
   trackGameWindow(win, "spidercraft");
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
@@ -2204,6 +2205,7 @@ function releasePhoneTracking() {
 }
 
 async function launchPhoneApp(id) {
+  if (window.fishesRememberLaunch) window.fishesRememberLaunch(id);
   const player = document.getElementById("mobilePlayer"), frame = document.getElementById("playerFrame");
   if (phoneLaunch) { phoneLaunch.controller.abort(); releasePhoneTracking(); }
   const sequence = ++phoneLaunchNumber, controller = new AbortController();
@@ -2428,6 +2430,7 @@ async function launchRepoApp(appId) {
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
   if (appId !== "sp1der" && appId !== "sp1der-intro" && appId !== "tiers") trackGameWindow(win, appId); // Sp1der entries are apps, not games.
+  if (window.fishesRememberLaunch) window.fishesRememberLaunch(appId);
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
   d.open(); d.write(appSplashHtml(label)); d.close();
@@ -2720,5 +2723,47 @@ function summonSebass() {
 window.__mantleBooted = true;
 console.info("[Fishes Arcade] hub ready · sp1dercraft edition");
 </script>
+
+<!-- Fishes Arcade community feedback update -->
+<style>
+.fx-panel{margin:0 0 18px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px}.fx-panel h2{font-size:16px;margin:0 0 10px}.fx-panel p{font-size:13px;color:var(--text-2)}.fx-actions{display:flex;flex-wrap:wrap;gap:8px}.fx-btn,#fx-feedback input,#fx-feedback select,#fx-feedback textarea{font:inherit;color:var(--text-1);background:#202023;border:1px solid #ffffff25;border-radius:8px;padding:10px;min-height:44px}.fx-btn{cursor:pointer}.fx-btn[aria-pressed=true]{color:#f5b83d;border-color:#f5b83d}.fx-btn:focus-visible,#fx-feedback :focus-visible{outline:2px solid #f5b83d;outline-offset:3px}#fx-feedback{width:min(620px,calc(100% - 24px));max-height:85dvh;overflow:auto;background:var(--surface);color:var(--text-1);border:1px solid #ffffff30;border-radius:16px;padding:22px}#fx-feedback::backdrop{background:#000b}#fx-feedback h2{font-size:20px;margin:0}#fx-feedback label{display:block;margin:12px 0}#fx-feedback input,#fx-feedback select,#fx-feedback textarea{display:block;width:100%;margin-top:5px;user-select:text;-webkit-user-select:text}#fx-feedback textarea{min-height:120px;resize:vertical}#fx-feedback p{font-size:13px;color:var(--text-2)}#fx-feedback [hidden]{display:none!important}#fx-status{min-height:24px;white-space:pre-wrap}
+</style>
+<script>
+(function(){
+'use strict';
+const rows=Array.from(document.querySelectorAll('#applications > .row[data-launch]'));
+const catalog=new Map(rows.map(r=>[r.dataset.launch,r]));
+const title=id=>catalog.get(id)?.querySelector('.row-name')?.textContent.trim()||id;
+const KEY='fishes.community.arcade.';let storageOK=true;
+function read(k,def){try{return JSON.parse(localStorage.getItem(KEY+k))??def;}catch(e){storageOK=false;return def;}}
+function write(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));return true;}catch(e){storageOK=false;return false;}}
+function ids(k){const a=read(k,[]);return Array.isArray(a)?[...new Set(a.filter(x=>catalog.has(x)))]:[];}
+let favorites=ids('favorites'),recent=ids('recent');
+function el(tag,text){const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x;}
+function btn(text,fn){const b=el('button',text);b.type='button';b.className='fx-btn';b.onclick=fn;return b;}
+const apps=document.getElementById('applications'),tools=el('section'),shelves=el('section');tools.className='fx-panel fx-actions';tools.setAttribute('aria-label','Personal arcade and feedback');apps.before(tools,shelves);
+function render(){shelves.replaceChildren();[['Favorites',favorites],['Recently opened',recent.slice(0,8)]].forEach(([heading,list])=>{const section=el('section');section.className='fx-panel';section.append(el('h2',heading));const items=el('div');items.className='fx-actions';list.forEach(id=>{if(!catalog.has(id))return;items.append(btn(title(id),()=>catalog.get(id).click()));});if(!items.childElementCount)section.append(el('p',heading==='Favorites'?'Use Manage favorites to pin games and apps.':'Your recently opened games and apps will appear here.'));section.append(items);shelves.append(section);});if(!storageOK)shelves.append(el('p','Browser storage is unavailable. Favorites, history and drafts may not persist.'));}
+window.fishesRememberLaunch=function(id){if(!catalog.has(id))return;recent=[id,...recent.filter(x=>x!==id)].slice(0,30);write('recent',recent);render();};
+const dialog=el('dialog');dialog.id='fx-feedback';dialog.setAttribute('aria-labelledby','fx-title');dialog.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h2 id="fx-title">Arcade feedback</h2><button type="button" class="fx-btn" id="fx-close">Close</button></div><div id="fx-content"></div><p id="fx-status" role="status" aria-live="polite"></p>';document.body.append(dialog);
+const content=dialog.querySelector('#fx-content'),status=dialog.querySelector('#fx-status');dialog.querySelector('#fx-close').onclick=()=>dialog.close();
+function open(name){content.replaceChildren();status.textContent='';dialog.querySelector('h2').textContent=name;if(!dialog.open)dialog.showModal();}
+tools.append(btn('Manage favorites',()=>{open('Manage favorites');const items=el('div');items.className='fx-actions';rows.forEach(row=>{const id=row.dataset.launch;const b=btn('',()=>{favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];write('favorites',favorites);update();render();});function update(){b.textContent=(favorites.includes(id)?'★ ':'☆ ')+title(id);b.setAttribute('aria-pressed',favorites.includes(id));}update();items.append(b);});content.append(items);}),btn('Clear recent history',()=>{if(confirm('Clear recently opened history on this browser?')){recent=[];write('recent',recent);render();}}));
+let pending=null;
+window.addEventListener('message',e=>{if(e.source!==window.opener||!pending||!e.data||e.data.type!=='FISHES_ARCADE_FEEDBACK_RESULT'||e.data.requestId!==pending.id)return;const p=pending;pending=null;clearTimeout(p.timer);if(e.data.ok)p.resolve(e.data);else p.reject(Error(e.data.error||'Sp1der could not save this report.'));});
+function send(report){return new Promise((resolve,reject)=>{if(!window.opener||window.opener.closed)return reject(Error('Open the arcade from your signed-in sp1der community to send feedback.'));if(pending)return reject(Error('Another report is still being submitted.'));const timer=setTimeout(()=>{pending=null;reject(Error('No save confirmation from sp1der. Keep the draft and retry. Sp1der needs the feedback patch and database permissions.'));},15000);pending={id:report.id,resolve,reject,timer};window.opener.postMessage({type:'FISHES_ARCADE_FEEDBACK',requestId:report.id,report},'*');});}
+function newId(){const b=new Uint8Array(16);crypto.getRandomValues(b);return Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');}
+function feedback(){open('Suggest a game or report a problem');const form=el('form');form.innerHTML='<p>Reports and suggestions will be visible to all signed-in community members on sp1der’s Arcade Feedback page. Do not include private information.</p><label>Category<select name="category" required></select></label><label>Game or application<select name="game"></select></label><label id="fx-issue">Problem type<select name="issue"><option>Won’t load</option><option>Controls</option><option>Sound</option><option>Save/progress</option><option>Display</option><option>Other</option></select></label><label>Suggested game title<input name="suggestion" maxlength="160"></label><label>Link (optional)<input name="link" type="url" maxlength="1000" placeholder="https://"></label><label>Description / steps to reproduce<textarea name="description" required minlength="10" maxlength="5000"></textarea></label><button type="submit" class="fx-btn">Submit public feedback</button> ';
+['Broken game','Game recommendation','Arcade or application problem','Feature suggestion','Other feedback'].forEach(x=>form.elements.category.add(new Option(x,x)));form.elements.game.add(new Option('General / not listed',''));rows.forEach(r=>form.elements.game.add(new Option(title(r.dataset.launch),r.dataset.launch)));
+const draft=read('draft',{});for(const [k,v]of Object.entries(draft&&typeof draft==='object'?draft:{})){if(form.elements[k]&&typeof v==='string')form.elements[k].value=v;}
+let reportId=typeof draft?.id==='string'&&/^[a-f0-9]{32}$/.test(draft.id)?draft.id:newId();
+function values(){return {...Object.fromEntries(new FormData(form)),id:reportId};}function update(){form.querySelector('#fx-issue').hidden=form.elements.category.value!=='Broken game';form.elements.suggestion.required=form.elements.category.value==='Game recommendation';}
+form.oninput=()=>{reportId=newId();write('draft',values());update();};form.onchange=form.oninput;update();
+form.append(btn('Save draft',()=>{status.textContent=write('draft',values())?'Draft saved on this browser. Not submitted.':'Could not save the draft because browser storage is unavailable.';}));
+form.onsubmit=async e=>{e.preventDefault();const data=values();data.gameLabel=data.game?title(data.game):'';if(data.category!=='Broken game')data.issue='';write('draft',values());const controls=Array.from(form.elements);controls.forEach(x=>x.disabled=true);status.textContent='Waiting for sp1der to save your report…';try{await send(data);write('draft',{});form.reset();reportId=newId();update();status.textContent='Submitted! All members can view it on sp1der’s Arcade Feedback page. Report ID: '+data.id;}catch(err){status.textContent='Delivery not confirmed. Your draft has not been cleared. '+err.message;}finally{controls.forEach(x=>x.disabled=false);}};content.append(form);}
+tools.append(btn('Suggest a game or report a problem',feedback));
+window.addEventListener('storage',e=>{if(e.key===KEY+'favorites'||e.key===KEY+'recent'){favorites=ids('favorites');recent=ids('recent');render();}});render();
+})();
+</script>
+
 </body>
 </html>
