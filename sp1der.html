@@ -3368,6 +3368,9 @@ input,textarea,select{font-size:16px!important;max-width:100%;box-sizing:border-
         const isOwner = () => !!currentAdminUser || ['owner','developer','founder','aegis'].includes(getRole());
         /* v4.6.1: the AI account (Aegis) is recognized from the account itself, not just the
            saved profile, so its ban / kick commands work even if the profile role is missing. */
+        function roleLabel(role, chatTag = false) {
+            return String(role || '').trim().toLowerCase() === 'developer' ? (chatTag ? 'Dev' : 'Developer') : (role || 'member');
+        }
         const getRole = () => String((userProfile && userProfile.role) || '').toLowerCase() === 'developer' ? 'developer' : currentUser && isOwnerEmail(currentUser.email) ? 'owner' : (currentUser && String(currentUser.email || '').toLowerCase() === AI_EMAIL ? 'aegis' : String((userProfile && userProfile.role) || 'member').toLowerCase());
         const isStaffUser = () => ['owner','developer','founder','aegis','admin','administrator','watchdog','moderator','mod'].includes(getRole());
         const canUseOwnerCmds = () => !!currentAdminUser || ['owner','developer','founder','aegis','admin','administrator'].includes(getRole());
@@ -4772,7 +4775,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 roleBadge = '<div style="display:inline-block;font-size:0.6rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:4px;background:linear-gradient(135deg,#4a00e0,#00d4ff);color:#e8fbff;margin-top:4px;">AEGIS AI</div>';
             } else {
                 headerStyle = 'background:' + bg + ';border:2px solid ' + border + ';border-radius:var(--radius);padding:24px 16px;margin-bottom:16px;';
-                roleBadge = String(role).toLowerCase() === 'developer' ? '<span class="role-badge role-developer" style="margin-top:4px;">Dev</span>' : '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">' + role + '</div>';
+                roleBadge = '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">' + roleLabel(role) + '</div>';
             }
             if (isFurballUser() || hasFurryTitle()) roleBadge += '<span class="role-badge title-furry">Furry</span>';
             var uploadBtn = '<input type="file" id="profilePicInput" accept="image/*" style="display:none;" onchange="handleProfilePicUpload(event)"><button class="composer-btn" onclick="document.getElementById(\'profilePicInput\').click()" style="display:block;margin:8px auto 0;padding:4px 12px;font-size:0.72rem;">' + (profilePic ? 'Change Picture' : 'Set Picture') + '</button>';
@@ -5199,7 +5202,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 } else avatar.textContent = (name[0] || '?').toUpperCase();
                 const heading = document.createElement('h2'); heading.textContent = name;
                 heading.style.color = p.usernameColor || 'var(--text)';
-                const role = document.createElement('div'); role.className = 'role-badge' + (String(p.role || '').toLowerCase() === 'developer' ? ' role-developer' : ''); role.textContent = String(p.role || '').toLowerCase() === 'developer' ? 'Dev' : p.role || 'member';
+                const role = document.createElement('div'); role.className = 'role-badge'; role.textContent = roleLabel(p.role);
                 const title = document.createElement('p'); title.textContent = p.profileTitle || '';
                 const bio = document.createElement('p'); bio.textContent = p.profileBio || 'No bio set.';
                 bio.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px;';
@@ -5298,7 +5301,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             header.appendChild(nameSpan);
             const timeSpan = document.createElement('span'); timeSpan.className = 'message-time'; timeSpan.textContent = shortTime(msg.timestamp); header.appendChild(timeSpan);
             if (msg.edited) { const ed = document.createElement('span'); ed.className = 'message-time'; ed.style.cssText = 'font-style:italic;opacity:0.75;'; ed.textContent = msg.editedByStaff ? '(edited by staff)' : '(edited)'; if (msg.editedByName && msg.spoofed !== true) ed.title = 'Edited by ' + msg.editedByName; header.appendChild(ed); }
-            if (senderRole !== 'member' || msg.spoofed === true) { const badge = document.createElement('span'); badge.className = 'role-badge role-' + String(senderRole).toLowerCase(); badge.textContent = String(senderRole).toLowerCase() === 'developer' ? 'Dev' : senderRole; header.appendChild(badge); }
+            if (senderRole !== 'member' || msg.spoofed === true) { const badge = document.createElement('span'); badge.className = 'role-badge role-' + String(senderRole).toLowerCase(); badge.textContent = roleLabel(senderRole, true); header.appendChild(badge); }
             syncSpoofedBadge(header, msg);
             if (senderRole !== 'system' && (msg.cosmeticTitle === 'furry' || isFurballEmail(senderProfile.email) || senderProfile.cosmeticTitle === 'furry')) {
                 const furryBadge = document.createElement('span');
@@ -6141,7 +6144,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const option = document.createElement('option'); option.value = u.uid;
                 const name = u.displayName || u.username || 'Unknown member';
                 const username = u.username && u.username !== name ? ' (' + u.username + ')' : '';
-                option.textContent = name + username + ' · ' + (u.role || 'member') + (u.email ? ' · ' + u.email : '');
+                option.textContent = name + username + ' · ' + roleLabel(u.role) + (u.email ? ' · ' + u.email : '');
                 select.appendChild(option);
             });
             select.value = matches.some(u => u.uid === previous) ? previous : '';
@@ -6351,7 +6354,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 row.style.cssText = 'padding:6px 8px;border-bottom:1px solid var(--border);font-size:0.78rem;line-height:1.45;';
                 const head = document.createElement('div');
                 head.style.cssText = 'color:var(--text-dim);font-size:0.7rem;display:flex;gap:8px;flex-wrap:wrap;';
-                const who = document.createElement('strong'); who.style.color = 'var(--text)'; who.textContent = (e.username || e.uid || 'unknown') + (e.role && e.role !== 'member' ? ' [' + e.role + ']' : '');
+                const who = document.createElement('strong'); who.style.color = 'var(--text)'; who.textContent = (e.username || e.uid || 'unknown') + (e.role && e.role !== 'member' ? ' [' + roleLabel(e.role) + ']' : '');
                 const meta = document.createElement('span'); meta.textContent = msgLogTime(e) + ' · ' + msgLogChannelLabel(e) + ' · DB-' + ((e.dbIndex || 0) + 1);
                 head.appendChild(who); head.appendChild(meta);
                 if (e.deleted) { const b = document.createElement('span'); b.textContent = 'DELETED'; b.style.color = 'var(--danger)'; head.appendChild(b); }
@@ -7651,7 +7654,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'clear': if (feed) { feed.innerHTML = '<div class="chat-empty">Aegis chat cleared.</div>'; } toast('Aegis chat cleared'); return true;
                 case 'mute': toast('This chat has been muted'); if (feed) { feed.style.opacity = '0.4'; } return true;
                 case 'unmute': toast('This chat has been unmuted'); if (feed) { feed.style.opacity = '1'; } return true;
-                case 'stats': toast('Online: ' + Object.keys(onlineUsers).length + ' | Role: ' + getRole() + ' | DB: DB-' + (DB_MANAGER.currentMsgDbIndex + 1)); return true;
+                case 'stats': toast('Online: ' + Object.keys(onlineUsers).length + ' | Role: ' + roleLabel(getRole()) + ' | DB: DB-' + (DB_MANAGER.currentMsgDbIndex + 1)); return true;
                 case 'ping': toast('Pong! Latency: ' + Math.floor(Math.random() * 50 + 10) + 'ms'); return true;
                 case 'blank': case 'aboutblank': openInAboutBlank(); return true;
                 case 'theme': settings.theme = settings.theme === 'arcane' ? 'dark' : 'arcane'; applyTheme(); saveSettingsInstant(); toast('Theme: ' + settings.theme); return true;
@@ -8167,7 +8170,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                     if (previousServerRole !== null && previousServerRole !== serverRole && userProfile && currentUser && currentUser.uid === uid) {
                         userProfile.role = serverRole;
                         saveLocalProfile(userProfile);
-                        if ($('sidebarUserStatus')) $('sidebarUserStatus').textContent = getRole();
+                        if ($('sidebarUserStatus')) $('sidebarUserStatus').textContent = roleLabel(getRole());
                         channelProfilesCache[uid] = Object.assign({}, channelProfilesCache[uid] || {}, userProfile);
                         if (selectedChannelId && !canReadConversation(myChannels[selectedChannelId])) resetConversationAccess();
                         updateAdminNav();
@@ -8289,7 +8292,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             const head = document.createElement('div'); head.className = 'admin-user-head';
             const name = document.createElement('div'); name.className = 'admin-user-name';
             const n = document.createElement('div'); n.textContent = adminUName(u) + (currentUser && u.uid === currentUser.uid ? ' (you)' : '');
-            const s = document.createElement('div'); s.className = 'admin-sub'; s.textContent = (u.role || 'member') + (u.presenceState ? ' \u00b7 ' + (u.presenceState === 'away' ? 'Away' : 'Active') : '') + (u.email ? ' \u00b7 ' + u.email : '');
+            const s = document.createElement('div'); s.className = 'admin-sub'; s.textContent = roleLabel(u.role) + (u.presenceState ? ' \u00b7 ' + (u.presenceState === 'away' ? 'Away' : 'Active') : '') + (u.email ? ' \u00b7 ' + u.email : '');
             name.appendChild(n); name.appendChild(s); head.appendChild(name);
             if (u.banned) head.appendChild(adminChip('BANNED', 'ban'));
             if (isMutedNow(u)) head.appendChild(adminChip('MUTED', 'mute'));
@@ -8318,7 +8321,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             if (!$('panel-admin')) return;
             if (!canAccessAdminPanel()) { if (document.querySelector('#panel-admin.active')) showView('home'); return; }
             $('adminWho').textContent = (userProfile && userProfile.username) || (currentUser && (currentUser.displayName || currentUser.email)) || '-';
-            $('adminRolePill').textContent = currentAdminUser ? 'owner' : getRole();
+            $('adminRolePill').textContent = roleLabel(getRole() === 'developer' ? 'developer' : currentAdminUser ? 'owner' : getRole());
             document.querySelectorAll('#panel-admin [data-need="admin"]').forEach(b => { b.style.display = canUseOwnerCmds() ? '' : 'none'; });
             document.querySelectorAll('#panel-admin [data-need="owner"]').forEach(b => { b.style.display = canViewMessageLog() ? '' : 'none'; });
             const list = Object.values(onlineUsers).filter(u => u.online);
@@ -8848,7 +8851,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             filtered.forEach(function(u) {
                 const uName = escapeHtml(u.username || u.displayName || 'Unknown');
                 const uEmail = escapeHtml(u.email || (u.uid ? u.uid.substring(0, 8) + '...' : ''));
-                const uRole = escapeHtml(u.role || 'member');
+                const uRole = escapeHtml(roleLabel(u.role || 'member'));
                 const isBanned = u.banned;
                 const banLabel = isBanned ? 'Unban' : 'Ban';
                 h += '<tr><td style="padding:6px;border-bottom:1px solid var(--border);">' + uName + (isBanned ? ' <span style="color:var(--danger);font-size:0.65rem;">[BANNED]</span>' : '') + '</td><td style="padding:6px;border-bottom:1px solid var(--border);font-size:0.75rem;color:var(--text-dim);">' + uEmail + '</td><td style="padding:6px;border-bottom:1px solid var(--border);">' + uRole + '</td><td style="padding:6px;border-bottom:1px solid var(--border);"><div style="display:flex;gap:4px;flex-wrap:wrap;"><button class="composer-btn" onclick="mgmtToggleBan(\'' + u.uid + '\')" style="padding:3px 8px;font-size:0.68rem;' + (isBanned ? '' : 'color:var(--danger);border-color:var(--danger);') + '">' + banLabel + '</button><select onchange="mgmtSetUserRole(\'' + u.uid + '\', this.value)" style="padding:3px 6px;font-size:0.68rem;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:4px;"><option value="" disabled selected>Set Role</option><option value="member">Member</option><option value="moderator">Moderator</option><option value="admin">Admin</option><option value="owner">Owner</option><option value="aegis">Aegis</option></select><button class="composer-btn" onclick="mgmtAddToStaff(\'' + u.uid + '\', \'' + uName + '\')" style="padding:3px 8px;font-size:0.68rem;color:var(--accent);border-color:var(--accent);">+ Staff</button></div></td></tr>';
@@ -9148,7 +9151,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             staffData = staffData.map(function(s, i) {
                 const user = users.find(function(u) { return u.uid === s.uid; });
                 return Object.assign({}, s, {
-                    role: (staffRoleOverride(s, user) || {}).role || s.role,
+                    role: String((user && user.role) || s.role || '').toLowerCase() === 'developer' ? 'Developer' : (staffRoleOverride(s, user) || {}).role || s.role,
                     name: (staffRoleOverride(s, user) || {}).name || s.name,
                     description: (staffRoleOverride(s, user) || {}).description || s.description,
                     id: s.id || ('staff_' + i),
@@ -9177,7 +9180,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     actionsHtml += '<button class="composer-btn" onclick="editStaffDesc(\'' + escapeHtml(staff.id) + '\')">Edit My Desc</button>';
                     actionsHtml += '<select class="composer-btn" onchange="setStaffStatus(\'' + escapeHtml(staff.id) + '\', this.value)" style="padding:6px 10px;font-size:0.72rem;"><option value="online">Online</option><option value="away">Away</option><option value="break">On Break</option><option value="left">Left</option><option value="offline">Offline</option></select>';
                 }
-                card.innerHTML = '<div class="staff-card-header"><div class="staff-avatar" style="background:' + escapeHtml(staff.avatarColor || '#a020f0') + '">' + avatarHtml + '</div><div class="staff-info"><div class="staff-name">' + escapeHtml(staff.name || 'Staff') + '</div><div class="staff-role">' + escapeHtml(staff.role || 'Staff') + '</div></div><span class="staff-status ' + statusClass + '">' + escapeHtml(statusText) + '</span></div><div class="staff-body"><div class="staff-desc" id="staffDesc-' + escapeHtml(staff.id) + '">' + escapeHtml(staff.description || 'No description set.') + '</div><div class="staff-actions">' + actionsHtml + '</div></div>';
+                card.innerHTML = '<div class="staff-card-header"><div class="staff-avatar" style="background:' + escapeHtml(staff.avatarColor || '#a020f0') + '">' + avatarHtml + '</div><div class="staff-info"><div class="staff-name">' + escapeHtml(staff.name || 'Staff') + '</div><div class="staff-role">' + escapeHtml(roleLabel(staff.role || 'Staff')) + '</div></div><span class="staff-status ' + statusClass + '">' + escapeHtml(statusText) + '</span></div><div class="staff-body"><div class="staff-desc" id="staffDesc-' + escapeHtml(staff.id) + '">' + escapeHtml(staff.description || 'No description set.') + '</div><div class="staff-actions">' + actionsHtml + '</div></div>';
                 grid.appendChild(card);
             });
         }
@@ -9308,9 +9311,15 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 staffData = list;
             } catch(e) {}
             if (!staffData.length) { el.innerHTML = '<div style="padding:12px;color:var(--text-dim);">No staff yet. Add staff using the form above.</div>'; return; }
+            let staffUsers = [];
+            try { staffUsers = await fetchUsersList(300); } catch (e) {}
+            staffData = staffData.map(function(staff) {
+                const user = staffUsers.find(function(user) { return user.uid === staff.uid; });
+                return String((user && user.role) || staff.role || '').toLowerCase() === 'developer' ? Object.assign({}, staff, { role: 'Developer' }) : staff;
+            });
             let html = '';
             staffData.forEach(function(staff) {
-                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid var(--border);"><div><div style="font-weight:600;font-size:0.82rem;">' + escapeHtml(staff.name || 'Unknown') + '</div><div style="font-size:0.7rem;color:var(--text-dim);">' + escapeHtml(staff.role || 'Staff') + ' | ' + escapeHtml(staff.statusText || staff.status || 'online') + '</div></div><button class="composer-btn" onclick="mgmtRemoveStaff(\'' + escapeHtml(staff.id) + '\')" style="padding:4px 10px;font-size:0.75rem;color:var(--danger);border-color:var(--danger);">Remove</button></div>';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid var(--border);"><div><div style="font-weight:600;font-size:0.82rem;">' + escapeHtml(staff.name || 'Unknown') + '</div><div style="font-size:0.7rem;color:var(--text-dim);">' + escapeHtml(roleLabel(staff.role || 'Staff')) + ' | ' + escapeHtml(staff.statusText || staff.status || 'online') + '</div></div><button class="composer-btn" onclick="mgmtRemoveStaff(\'' + escapeHtml(staff.id) + '\')" style="padding:4px 10px;font-size:0.75rem;color:var(--danger);border-color:var(--danger);">Remove</button></div>';
             });
             el.innerHTML = html;
         }
@@ -9504,7 +9513,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     // Apply Aegis account if this is the Aegis email
                     applyAegisAccountProfile();
                     $('sidebarUserName').textContent = userProfile.username || user.displayName || user.email.split('@')[0];
-                    $('sidebarUserStatus').textContent = userProfile.role || 'member';
+                    $('sidebarUserStatus').textContent = roleLabel(userProfile.role);
                     if (isFurballUser() || (hasFurryTitle() && !isStaffUser())) {
                         $('sidebarUserStatus').textContent = 'Furry';
                         $('sidebarUserStatus').classList.add('title-furry');
