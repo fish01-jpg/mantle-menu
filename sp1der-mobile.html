@@ -9994,7 +9994,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 'use strict';
 function init(){
  const mq=matchMedia('(max-width:900px)'),sidebar=document.getElementById('sidebar'),menu=document.getElementById('menuBtn');
- const shade=document.createElement('button');shade.id='mobileNavShade';shade.type='button';shade.setAttribute('aria-label','Close navigation');document.body.appendChild(shade);
+ const shade=document.createElement('button');shade.id='mobileNavShade';shade.type='button';shade.setAttribute('aria-label','Close navigation');(document.getElementById('appShell') || document.body).appendChild(shade);
  function syncNav(){const open=mq.matches&&sidebar&&!sidebar.classList.contains('collapsed');shade.classList.toggle('show',!!open);if(menu){menu.setAttribute('aria-expanded',String(!!open));menu.setAttribute('aria-controls','sidebar')}}
  function closeNav(){if(sidebar)sidebar.classList.add('collapsed');syncNav()}
  shade.onclick=closeNav;
