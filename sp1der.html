@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Project Sp1der — 4.6.6</title>
+    <title>Project Sp1der — 4.7.2</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -3223,6 +3223,14 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         </div>
     </div>
 
+    <div class="modal-overlay" id="tierModal" role="dialog" aria-modal="true">
+        <div class="modal-card" style="max-width:600px;text-align:left;max-height:86vh;overflow:auto;">
+            <h2 id="tierModalTitle" style="text-align:center;">Server Tiers</h2>
+            <div id="tierModalBody"></div>
+            <div style="text-align:center;margin-top:10px;"><button class="composer-btn" onclick="closeTierModal()">Close</button></div>
+        </div>
+    </div>
+
     <!-- SPOOF MODAL -->
     <div class="modal-overlay" id="furballHelpModal" role="dialog" aria-modal="true" aria-labelledby="furballHelpTitle">
         <div class="modal-card" style="max-width:680px;text-align:left;max-height:90vh;overflow-y:auto;">
@@ -6099,6 +6107,10 @@ Furball found a sunbeam and is not moving for anyone.`;
             const timeSpan = document.createElement('span'); timeSpan.className = 'message-time'; timeSpan.textContent = shortTime(msg.timestamp); header.appendChild(timeSpan);
             if (msg.edited) { const ed = document.createElement('span'); ed.className = 'message-time'; ed.style.cssText = 'font-style:italic;opacity:0.75;'; ed.textContent = msg.editedByStaff ? '(edited by staff)' : '(edited)'; if (msg.editedByName && msg.spoofed !== true) ed.title = 'Edited by ' + msg.editedByName; header.appendChild(ed); }
             if (senderRole !== 'member' || msg.spoofed === true) { const badge = document.createElement('span'); badge.className = 'role-badge role-' + String(senderRole).toLowerCase(); badge.textContent = roleLabel(senderRole, true); header.appendChild(badge); }
+            { /* v4.7.2: paid tier chip next to the name — from the message itself or the roster cache */
+                const msgTier = (msg.tier === 'pro' || msg.tier === 'ultra') ? msg.tier : tierRosterGet(displayUid);
+                if (msgTier) { const chip = document.createElement('span'); chip.textContent = msgTier.toUpperCase(); chip.style.cssText = 'font-size:0.6rem;font-weight:800;letter-spacing:1px;padding:2px 7px;border-radius:999px;margin-left:2px;vertical-align:middle;' + (msgTier === 'ultra' ? 'background:rgba(245,184,61,0.15);color:#f5b83d;border:1px solid #f5b83d;' : 'background:rgba(160,32,240,0.15);color:#c77dff;border:1px solid #a020f0;'); chip.title = msgTier + ' tier — thanks for supporting the servers'; header.appendChild(chip); }
+            }
             syncSpoofedBadge(header, msg);
             if (senderRole !== 'system' && (msg.cosmeticTitle === 'furry' || isFurballEmail(senderProfile.email) || senderProfile.cosmeticTitle === 'furry')) {
                 const furryBadge = document.createElement('span');
@@ -6282,7 +6294,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             const ch = myChannels[selectedChannelId]; if (!ch) return;
             const msgDb = getMsgDbForCh(selectedChannelId);
             const senderName = (getRole() === 'aegis') ? 'Aegis AI' : ((userProfile && userProfile.username) || currentUser.displayName || currentUser.email.split('@')[0]);
-            const msg = { channelId: selectedChannelId, uid: currentUser.uid, username: senderName, displayName: senderName, role: getRole(), content: content, timestamp: sv(), imageUrl: currentImageUrl || null, videoUrl: currentVideoUrl || null, isAnnouncement: !!isAnnouncement, usernameColor: (userProfile && userProfile.usernameColor) || '#f2ecff', usernameGlow: (userProfile && userProfile.usernameGlow) || (userProfile && userProfile.glow) || 'none', usernameStyle: (userProfile && userProfile.usernameStyle) || 'normal', background: (userProfile && userProfile.background) || '#0f0823', border: (userProfile && userProfile.border) || '#a020f0', profilePic: getProfilePic() || null };
+            const msg = { channelId: selectedChannelId, uid: currentUser.uid, username: senderName, displayName: senderName, role: getRole(), tier: tierCurrent(), content: content, timestamp: sv(), imageUrl: currentImageUrl || null, videoUrl: currentVideoUrl || null, isAnnouncement: !!isAnnouncement, usernameColor: (userProfile && userProfile.usernameColor) || '#f2ecff', usernameGlow: (userProfile && userProfile.usernameGlow) || (userProfile && userProfile.glow) || 'none', usernameStyle: (userProfile && userProfile.usernameStyle) || 'normal', background: (userProfile && userProfile.background) || '#0f0823', border: (userProfile && userProfile.border) || '#a020f0', profilePic: getProfilePic() || null };
             // Furball accounts and Furry title holders carry the cosmetic title on their messages;
             // the title grants ONLY the Furry bonus commands, never staff powers
             if (currentUser && auth.currentUser && currentUser.uid === auth.currentUser.uid && (isFurballEmail(auth.currentUser.email) || (userProfile && userProfile.cosmeticTitle === 'furry'))) msg.cosmeticTitle = 'furry';
@@ -7504,6 +7516,10 @@ Furball found a sunbeam and is not moving for anyone.`;
                     } catch (e) { toast('Failed: ' + (e.message || e)); }
                     return true;
                 }
+                case 'mytier': case 'myusage': case 'tierstatus': { openTierStatusModal(); return true; }
+                case 'tierlist': { openTierListModal(); return true; }
+                case 'claimtier': { if (!args.length) { toast('Usage: /claimtier <Square order number> — buy a tier item from the shop first (see /mytier).'); return true; } await submitTierClaim(args[0]); return true; }
+                case 'devmanagetier': { openDevManageTier(); return true; }
                 case 'tier': {
                     if (!canUseOwnerCmds()) { toast('Owner only.'); return true; }
                     if (args.length < 2) { toast('Usage: /tier @user <free|pro|ultra>'); return true; }
@@ -7512,9 +7528,10 @@ Furball found a sunbeam and is not moving for anyone.`;
                     const targetUid = await resolveTargetUid(args[0]);
                     if (!targetUid) { toast('No user found named "' + args[0].replace('@', '') + '".'); return true; }
                     try {
-                        await db.collection('users').doc(targetUid).set({ tier: wanted }, { merge: true });
-                        toast('Set ' + args[0] + ' to the ' + SERVER_TIERS[wanted].label + ' tier.');
-                    } catch (e) { toast('Failed: ' + (e.message || e)); }
+                        await tierWithTimeout(db.collection('users').doc(targetUid).set({ tier: wanted }, { merge: true }), 8000);
+                    } catch (e) { /* main database may be at its limit — the roster below still applies */ }
+                    tierGrant(targetUid, wanted, { username: args[0].replace('@', ''), by: (userProfile && userProfile.username) || 'staff' });
+                    toast('Set ' + args[0] + ' to the ' + SERVER_TIERS[wanted].label + ' tier.');
                     return true;
                 }
                 case 'arcadegames': {
@@ -8697,6 +8714,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.7.2', date: '2026-11-09', author: 'fish01-jpg', title: 'Chat Fixed on Full Servers + Square Shop Tiers, /devmanagetier, Anti-Alt', changes: ["Fixed - chat sends were freezing when servers hit their daily limit:", "The daily message counter waited on the main account database, which had hit its quota - and Firebase silently retries quota errors forever, so every send hung before the message was written", "The counter is now local-first and instant; cloud sync runs in the background and never blocks a send", "Sends now have an 8-second timeout: a stuck write is cancelled and cleaned up instead of hanging forever, so it can never appear later as a duplicate", "The write/read limit popups now count down from 6 seconds and auto-switch chat to the next server that is not maxed, then re-send your message; Close cancels the switch and the manual buttons still work", "Full servers are remembered for the day (until the midnight Pacific reset): chat starts on a healthy server and skips known-full servers when switching", "Server tiers are now bought through the Fitz's 3D Printing Square shop - the price of the item you buy decides your tier (Pro is a $6.00 item, Ultra is a $12.00 item); each purchase is split 4 equal ways between server costs, the owner and the two developers", "New /mytier command shows your tier, today's usage and how to upgrade with direct links to the shop items", "New /tierlist command shows everyone's tier, and PRO/ULTRA chips now show next to names in chat", "New /claimtier <order number> command sends your Square order to staff for verification - each order number can only be claimed once, so one purchase grants one account", "New /devmanagetier command for staff: email-verified login with password confirmation, then grant/remove tiers, approve or deny purchase claims and see the roster; the old /tier command still works and now keeps the public roster in sync", "Anti-alt protection: free-tier daily allowances are shared per browser device, so making alt accounts no longer resets the free chat limit", "The tiers page now explains the shop purchase flow, prices and the split"] },
             { version: '4.6.6', date: '2026-11-06', author: 'fish01-jpg', title: 'Announcements That Glow, Fixed Profiles and Game Commands, Minecraft Codes, Server Tiers BETA', changes: ["Announcements now also land in the notification box:", "/announce still posts the chat message, but every user now also gets a bell notification from 📢 Announcement", "The bell glows purple while you have unread notifications and stops as soon as you read them", "Announcement rows in the notification list get a highlighted left edge", "", "Fixed - profiles and the game commands:", "Clicking a card in Active Users now opens that user's profile (your own card opens your own profile) - this was silently missing, so profiles looked gone", "The profile still shows the Arcade and Account section: account age, last active, play time per game and high scores", "/popup and /arcadeend now accept @username - they only worked with raw account IDs before, which is why they seemed to do nothing", "The commands now tell you when no user with that name was found, and /grantsync got the same fix", "", "Minecraft world join codes:", "A small box in the bottom-left corner shows the Minecraft world join codes, with a Copy button for each", "Press Hide and it stays hidden - a tiny Minecraft codes pill remains in the corner to bring it back", "Staff (owner or developer) see an Edit codes button on the box: one world per line, written as World name = join code; leave it empty to clear", "", "Server tiers (BETA):", "New tiers page (tiers.html), opened from the Fishes Arcade - clearly marked BETA - listing the Free, Pro and Ultra tiers", "Tiers control how much server data you can use: your daily chat allowance (Free 150 messages a day, Pro 600, Ultra unlimited) plus profile sync allowances", "Everyone starts on Free; the owner can change anyone's tier with /tier @user <free|pro|ultra>", "The counter resets every day, and if the check ever fails it never blocks chat"] },
             { version: '4.5.5', date: '2026-11-05', author: 'fish01-jpg', title: 'Combined Update — Arcade, Chat, Notifications and Staff Tools', changes: ["Halloween Event Ended, Fishes Arcade Home:", "Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt has ended: the hidden sp1ders, the Sp1ders counter, the hunt how-to-play guide and the admin Sp1der Hunt tab are all gone", "New featured Fishes Arcade card on the Resources page - bigger than the other games, it opens the Fishes Arcade in its own window", "", "Featured Card Opens the Fishes Arcade:", "The featured card on the Resources page is now the Fishes Arcade card:", "It still stands out - bigger than the other games, with the gradient border, glow and Featured badge", "Clicking it opens the Fishes Arcade itself in its own window, not the Sp1der Runner", "If your Games page card still says Project Sp1der or opens the Sp1der Runner, you are running an old copy: close the app window and open it again to get 4.5.5", "", "Fishes Arcade Active-User Gate, Stay Logged In:", "The Fishes Arcade card on the Resources page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox", "", "Arcade Gate Bypass, Explosive Arcade Background:", "The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines", "", "Forced Chat Commands - AI Detects Commands Written Straight to Firestore:", "Commands typed in the composer were always executed before the message reached Firestore, so a command forced directly into the messages collection (Firebase console, REST API, the Sigma Remote or any other client) only rendered as plain text and never ran", "The chat now detects command-shaped messages arriving through Firestore and runs them through the normal command handlers: / commands via the chat command handler, @ commands via the AI command handler, in both the main chat channels and the Aegis AI chat", "Each forced command message is claimed once with a cmdHandled marker on the message document - the same claim idea as the Sigma command queue - so multiple AI tabs never run the same command twice", "Only the AI accounts and the admin-panel owner execute forced commands, and only for messages posted by their own account or by the AI itself - a command message forged by another account is never executed with staff powers", "On first load only unmarked commands from the last 15 minutes are picked up, so channel history is never replayed; forced commands that arrive while the AI is offline still run when it comes back online", "Unrecognized forced commands are not removed - they keep rendering as normal chat text, and a toast reports whether each forced command ran", "", "Verify Command, Review Terms, Reliable Trackers:", "New /verify chat command — a second way into the Fishes Arcade", "It opens a menu with the full terms: agree, have an account at least 5 days old, then pass 15 different CAPTCHAs (math, codes, odd-one-out and more — no two alike), with progress saved if you stop halfway", "Verified accounts skip the active-user checklist and the fair-warning form and get straight into the arcade", "The arcade gate now has a Review terms button so anyone can re-read the terms after agreeing", "The activity trackers were rebuilt: time on screen, messages and page visits are banked locally first and synced to your profile with retries, so being offline, over quota or in a sandboxed frame no longer wipes your progress", "The gate checklist merges your not-yet-synced progress, so the list stays live and accurate", "The Sp1der Runner (fishes.html) now loads the sp1der backup copy (sp1der-backup.html), and the Fishes Arcade hub has a new cloaked Project Sp1der launcher that opens it", "", "Working Chat Notifications, Pin Messages, Developer Role:", "Chat notifications and the unread counter next to the Community button now actually work:", "The listeners used a query that needs a Firestore composite index that was never created, so they failed silently - they now use a query that works without any index", "The unread badge on the Community button and the per-channel badges in the sidebar show live counts again", "/pin now pins the most recent message in the chat, and the pinned panel at the top actually displays it for everyone, with an Unpin button for staff", "The pinned panel also had no CSS to ever show up - fixed", "New developer role: same powers as owner (rank level 100), assignable from the admin panel, with the Owner-style gold badge", "", "Emoji Chat Reactions:", "Every message now has a React button that opens an emoji picker (16 emojis: thumbs up/down, heart, laugh, fire, party and more)", "Reaction chips appear under the message with live counts - click a chip to add your reaction, click it again to remove it", "Chips you reacted with are highlighted, and reactions update live for everyone reading the channel", "Works in Global, DMs, group chats and the Aegis AI chat; read-only conversations show the chips but cannot be changed", "Reactions are stored on the message itself, so they load with the chat history", "", "Fishes Arcade Tracking, Arcade Stats on Profiles, Staff Popups:", "The Active Users panel now shows when someone is in the Fishes Arcade and which game they are playing (Sp1dercraft, PolyTrack, Fluid Sim)", "You stay marked Active while you have a game window open, even if the Sp1der tab is idle in the background", "Profiles now show an Arcade & Account section: account age, last active, play time per game and high scores", "High scores are logged from the arcade's Now Playing bar while a game is open; play time is tracked automatically", "New staff commands: /popup @user <message> forces a popup over anything the user has open - including their arcade game windows; /arcadeend @user closes their games; /arcadegames shows who is playing what", "The arcade reports to Sp1der through a live message channel plus a beacon that survives tab reloads", "", "Commands Now Reach Players Inside the Games:", "Every game window the arcade opens now runs a small bridge script, so staff commands affect the games themselves:", "/popup now shows its message on top of the actual game window the user is playing, not just the arcade hub and Sp1der tabs", "/arcadeend closes the user's game windows and tells them why, right inside the game", "Each game window also reports what it is directly - it keeps its own tracking beacon and heartbeat, so Playing X in the Active Users panel survives the arcade hub reloading or closing", "Sp1der, the arcade hub and the game windows talk over a broadcast channel when they share an origin, as an extra delivery path that needs no window references"] },
             { version: '4.5.4', date: '2026-11-01', author: 'redfish and p1xelf1n', title: 'Sigma Security Agent + Sigma Remote + Omega AI, testing the AIs', changes: ["Sigma:", "Sigma is the new security agent for Aegis / Sp1der - when Aegis calls it (@sigma in chat, or from the Sigma Remote) it can pause the current chat for review", "While Sigma is engaged the selected page (or every page) turns red with a border, a SIGMA banner appears and all user input is locked out", "The AI can select specific users who are allowed to talk during the review - everyone else stays locked until Sigma releases the chat", "Sigma can save and view all raw user data from the Remote, scan recent chat for suspicious activity and run a full network audit", "Remote:", "New separate page: the Sigma Remote - it connects to the main site chats, lets the AI type in them as Aegis AI, and runs every Sigma command", "The Remote can highlight any element on the main site in red so you can see exactly what Sigma is doing", "Sigma commands exist in the main site code but can only be executed through the Remote - typing them in chat just points you to the Remote", "Over 25 remote commands: pause, lock, allow, highlight, scan, audit, viewdata, savedata, broadcast, alert, banner, redirect, reload, slowmode, chatlock and more", "Games:", "Added Polytrack Education to the Games panel; clicking the card redirects to https://education.framer.photos in the current tab.", "Card description: Play Polytrack Education", "", "Typing bar (added November 1):", "When someone is writing a message in the conversation you have open, a small line appears above the composer: Allison is typing... with animated dots", "Shows for the Global chat, DMs and group chats; you never see your own typing indicator", "The indicator starts when a draft has text, refreshes about every 2.5 seconds while typing continues, disappears when the message is sent or the draft is cleared, and expires by itself after 6 seconds", "Each member's typing entry is stored under their own user ID, so nobody can fake someone else typing", "", "Notification numbers (added November 1):", "Every conversation in the Community sidebar now shows a red number badge with the count of unread messages", "The Community item in the sidebar shows the total number of unread messages across all your conversations", "The Events item shows a 1 badge until you open the newest event", "New notification bell in the top bar with the number of unread personal notifications - click it to see announcements, broadcasts and staff messages, and they are marked read when you open it", "Unread counts are remembered per conversation, survive page refreshes, and clear when you open that conversation while it is on screen", "", "Furry title (added November 1):", "The Furry title (cosmeticTitle furry on an account) now grants the Furry bonus commands to whoever holds it - /dragon, /purr, /cat, /nap, /yarn, /zoomies, /fortune and /furhelp", "The title gives ONLY those commands: it grants no staff, moderation or any other powers anywhere on the site", "All staff roles keep access to the Furry commands, and the title never overrides rank - a member with the title stays a member, and staff with the title keep their staff status displayed", "Granting the title is owner/AI only: set cosmeticTitle to furry on the account's user document (Remote Manager raw editor); regular members and staff cannot set it on themselves", "The cyan Furry badge now shows on messages and profiles for anyone holding the title, not just the Furball accounts"] },
@@ -10312,11 +10330,92 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         /* v4.7.1: the counter used to await reads/writes on the main cf-minecraft database. When that database
            is at its quota those calls hang, which froze every chat send. The count now lives locally (instant),
            the tier is read from the already-loaded profile, and Firestore is only synced in the background. */
-        const TIER_SYNC_MS = 60000; let tierLastSync = 0, tierRemote = { uid: null, tier: null };
-        function tierCurrent() {
-            const t = (userProfile && SERVER_TIERS[userProfile.tier]) ? userProfile.tier : (tierRemote.uid === (currentUser && currentUser.uid) && SERVER_TIERS[tierRemote.tier] ? tierRemote.tier : 'free');
-            return t;
+        /* ===== v4.7.2: PAID TIERS VIA THE FITZ'S 3D PRINTING SQUARE SHOP =====
+           Users buy a shop item; the price paid decides the tier (items are random, price is what matters).
+           Pro = a $6.00 item, Ultra = a $10.00+ item ($12.00 name plate). Every purchase is split
+           4 equal ways: server costs, the owner and the two developers. Staff grant the tier after
+           checking the Square order number with /devmanagetier (email-verified staff login). */
+        const TIER_SHOP = {
+            shopUrl: 'https://fitzs-3d-printing.square.site/s/shop',
+            pro: { price: 6.00, item: 'Mini Octopus ($6.00)', url: 'https://fitzs-3d-printing.square.site/product/mini-octopus/7?cp=true&sa=true&sbp=false&q=false' },
+            ultra: { price: 12.00, item: 'name plate ($12.00)', url: 'https://fitzs-3d-printing.square.site/product/Fitzs_nameplate/1?cp=true&sa=true&sbp=false&q=false' },
+            splitNote: 'Each purchase is split 4 equal ways: server costs, the owner and the two developers.',
+            tierForAmount: function (amt) { const a = Math.round(parseFloat(amt) * 100) / 100; if (isNaN(a) || a < 6) return null; return a >= 10 ? 'ultra' : 'pro'; }
+        };
+        /* Stable per-browser device id — used so alts on the same device cannot farm free allowances. */
+        function sp1derDeviceId() {
+            try {
+                let id = localStorage.getItem('sp1der_device_id');
+                if (!id) { id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'dev' + Date.now() + Math.random().toString(36).slice(2, 10); localStorage.setItem('sp1der_device_id', id); }
+                return id;
+            } catch (e) { return 'no-storage'; }
         }
+        /* Public tier roster: cloud copy on the sp1der database + local cache so badges work even while a server is at its limit. */
+        function tierRosterCache() { try { return JSON.parse(localStorage.getItem('sp1der_tier_roster') || '{}') || {}; } catch (e) { return {}; } }
+        function tierRosterGet(uid) { const m = tierRosterCache()[String(uid)]; return (m && (m.tier === 'pro' || m.tier === 'ultra')) ? m.tier : null; }
+        function tierRosterSetLocal(uid, entry) {
+            const m = tierRosterCache();
+            if (entry) m[String(uid)] = entry; else delete m[String(uid)];
+            try { localStorage.setItem('sp1der_tier_roster', JSON.stringify(m)); } catch (e) {}
+            if (currentUser && String(uid) === String(currentUser.uid)) { try { localStorage.setItem('sp1der_my_tier', entry ? entry.tier : ''); } catch (e) {} }
+        }
+        function tierWithTimeout(pr, ms) { return Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('server busy (daily limit?)')), ms || 8000))]); }
+        async function tierRosterCloud() {
+            const out = {};
+            try {
+                const snap = await tierWithTimeout(sp1derDb.collection('tierRoster').limit(500).get());
+                snap.forEach(d => { const v = d.data() || {}; if (v.tier === 'pro' || v.tier === 'ultra') out[d.id] = Object.assign({ uid: d.id }, v); });
+            } catch (e) { /* server busy — local cache still works */ }
+            return out;
+        }
+        async function tierRosterRefresh() {
+            const cloud = await tierRosterCloud();
+            if (Object.keys(cloud).length) {
+                const m = tierRosterCache();
+                Object.keys(cloud).forEach(uid => { m[uid] = cloud[uid]; });
+                try { localStorage.setItem('sp1der_tier_roster', JSON.stringify(m)); } catch (e) {}
+            }
+            return cloud;
+        }
+        /* Order numbers can only be used once — one purchase grants one account (anti-alt). */
+        async function tierOrderRefUsed(orderRef, exceptUid) {
+            const ref = String(orderRef || '').trim(); if (!ref) return null;
+            try {
+                const snap = await tierWithTimeout(sp1derDb.collection('tierRoster').where('orderRef', '==', ref).limit(5).get());
+                let hit = null; snap.forEach(d => { if (d.id !== String(exceptUid)) hit = Object.assign({ uid: d.id }, d.data()); });
+                if (hit) return hit;
+            } catch (e) {}
+            const m = tierRosterCache();
+            for (const uid in m) if (uid !== String(exceptUid) && String(m[uid].orderRef || '') === ref) return m[uid];
+            return null;
+        }
+        /* Grant / revoke a tier. Fire-and-forget cloud writes: if a database is at its daily limit the
+           SDK queues the write and flushes it at the reset, and the local cache applies instantly. */
+        function tierGrant(targetUid, tier, meta) {
+            meta = meta || {};
+            const entry = (tier === 'pro' || tier === 'ultra') ? {
+                uid: String(targetUid), tier: tier, username: meta.username || '',
+                orderRef: String(meta.orderRef || ''), amount: meta.amount || null,
+                since: new Date().toISOString(), by: meta.by || '', devices: meta.devices || []
+            } : null;
+            tierRosterSetLocal(targetUid, entry);
+            try { db.collection('users').doc(targetUid).set({ tier: tier, tierDay: tierToday(), tierMsgs: 0, tierGrantedBy: meta.by || '', tierOrderRef: String(meta.orderRef || '') }, { merge: true }).catch(() => {}); } catch (e) {}
+            try {
+                if (entry) sp1derDb.collection('tierRoster').doc(String(targetUid)).set(entry, { merge: true }).catch(() => {});
+                else sp1derDb.collection('tierRoster').doc(String(targetUid)).delete().catch(() => {});
+            } catch (e) {}
+        }
+
+        /* ===== v4.7.1/4.7.2: instant local tier quota (never waits on a quota-exhausted database) ===== */
+        function tierCurrent() {
+            const rosterTier = (currentUser && tierRosterGet(currentUser.uid)) || null;
+            const local = (() => { try { const v = localStorage.getItem('sp1der_my_tier'); return (v === 'pro' || v === 'ultra') ? v : null; } catch (e) { return null; } })();
+            if (userProfile && SERVER_TIERS[userProfile.tier]) return userProfile.tier;
+            if (rosterTier) return rosterTier;
+            if (local) return local;
+            return (tierRemote.uid === (currentUser && currentUser.uid) && SERVER_TIERS[tierRemote.tier]) ? tierRemote.tier : 'free';
+        }
+        const TIER_SYNC_MS = 60000; let tierLastSync = 0, tierRemote = { uid: null, tier: null };
         async function tierConsumeQuota() {
             /* Returns true if the message may be sent (quota consumed). Never waits on the network. */
             if (!currentUser) return true;
@@ -10325,18 +10424,222 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 let use = {}; try { use = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) {}
                 if (use.day !== day) use = { day: day, msgs: 0 };
                 const tier = tierCurrent(), limit = SERVER_TIERS[tier].dailyMessages;
+                /* Anti-alt: free-tier accounts on the same device (same browser) share one daily allowance,
+                   so making alt accounts does not reset the free limit. */
+                let dkey = null, devUse = null;
+                if (tier === 'free') {
+                    dkey = 'sp1der_tier_use_dev_' + sp1derDeviceId();
+                    try { devUse = JSON.parse(localStorage.getItem(dkey) || '{}') || {}; if (devUse.day !== day) devUse = { day: day, msgs: 0 }; if ((devUse.msgs || 0) > (use.msgs || 0)) use.msgs = devUse.msgs; } catch (e) { devUse = null; }
+                }
                 if (use.msgs >= limit) { toast('Daily ' + SERVER_TIERS[tier].label + ' message limit reached (' + limit + '/day). Your allowance resets tomorrow. (BETA)'); return false; }
                 use.msgs++; localStorage.setItem(key, JSON.stringify(use));
+                if (devUse) { devUse.msgs = Math.max((devUse.msgs || 0) + 1, use.msgs); localStorage.setItem(dkey, JSON.stringify(devUse)); }
                 if (Date.now() - tierLastSync > TIER_SYNC_MS) { /* background sync, throttled, never awaited */
                     tierLastSync = Date.now();
                     try {
                         const ref = db.collection('users').doc(uid);
-                        ref.get().then(d => { const x = d.exists ? (d.data() || {}) : {}; if (SERVER_TIERS[x.tier]) tierRemote = { uid: uid, tier: x.tier }; }).catch(() => {});
+                        ref.get().then(d => { const x = d.exists ? (d.data() || {}) : {}; if (SERVER_TIERS[x.tier]) { tierRemote = { uid: uid, tier: x.tier }; if (x.tier === 'pro' || x.tier === 'ultra') tierRosterSetLocal(uid, { uid: uid, tier: x.tier, username: (userProfile && userProfile.username) || '', since: new Date().toISOString(), by: 'sync', orderRef: '' }); } }).catch(() => {});
                         ref.set({ tier: tier, tierDay: day, tierMsgs: use.msgs }, { merge: true }).catch(() => {});
                     } catch (e) {}
                 }
                 return true;
             } catch (e) { return true; /* never block chat on a beta counter failure */ }
+        }
+
+        /* ===== v4.7.2: TIER UI (status, roster, claim, staff manager) ===== */
+        function closeTierModal() { const m = $('tierModal'); if (m) m.classList.remove('active'); }
+        function openTierModal(title) { const m = $('tierModal'); if (!$('tierModal') || !currentUser) { if (!currentUser) toast('Sign in first.'); return false; } $('tierModalTitle').textContent = title || 'Server Tiers'; m.classList.add('active'); return $('tierModalBody'); }
+        function tmRow(label, value) { return '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.85rem;"><span style="color:var(--text-dim);">' + label + '</span><b style="text-align:right;">' + value + '</b></div>'; }
+        function tierUsageToday() { try { const uid = currentUser.uid, day = tierToday(); let use = JSON.parse(localStorage.getItem('sp1der_tier_use_' + uid) || '{}') || {}; if (use.day !== day) use = { day: day, msgs: 0 }; let devUse = JSON.parse(localStorage.getItem('sp1der_tier_use_dev_' + sp1derDeviceId()) || '{}') || {}; if (devUse.day !== day) devUse = { day: day, msgs: 0 }; return Math.max(use.msgs || 0, devUse.msgs || 0); } catch (e) { return 0; } }
+        function openTierStatusModal() {
+            const body = openTierModal('My Tier'); if (!body) return;
+            const tier = tierCurrent(), cfg = SERVER_TIERS[tier], used = tierUsageToday(), limit = cfg.dailyMessages;
+            const left = limit === Infinity ? 'Unlimited' : String(Math.max(0, limit - used));
+            body.innerHTML = ''
+                + tmRow('Current tier', '<span style="color:' + (tier === 'ultra' ? '#f5b83d' : tier === 'pro' ? 'var(--primary)' : 'var(--text-dim)') + ';">' + cfg.label + '</span>')
+                + tmRow('Chat messages today', used + ' / ' + (limit === Infinity ? '∞' : limit))
+                + tmRow('Messages left today', left)
+                + tmRow('Profile syncs today', (cfg.syncs === Infinity ? '∞' : cfg.syncs))
+                + tmRow('Resets', 'Every day (midnight Pacific)')
+                + '<p style="font-size:0.8rem;color:var(--text-dim);margin:12px 0 8px;line-height:1.5;">Upgrade by buying an item from the Fitz\'s 3D Printing Square shop — the price decides the tier. ' + TIER_SHOP.splitNote + '</p>'
+                + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+                + '<a class="composer-btn primary" href="' + TIER_SHOP.pro.url + '" target="_blank" rel="noopener" style="text-decoration:none;">Get Pro — $6.00 item</a>'
+                + '<a class="composer-btn" href="' + TIER_SHOP.ultra.url + '" target="_blank" rel="noopener" style="text-decoration:none;">Get Ultra — $12.00 item</a>'
+                + '</div>'
+                + '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">'
+                + '<input id="tierClaimInput" placeholder="Square order number" style="flex:1;min-width:140px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.85rem;">'
+                + '<button class="composer-btn primary" onclick="submitTierClaim(document.getElementById(\'tierClaimInput\').value);">Claim a purchase</button>'
+                + '</div>'
+                + '<p style="font-size:0.72rem;color:var(--text-faint);margin-top:10px;">After buying, run <b>/claimtier <order number></b> and staff will verify the order. Everyone can see tier badges next to names in chat; run <b>/tierlist</b> to see who holds which tier.</p>';
+        }
+        async function openTierListModal() {
+            const body = openTierModal('Who Has Which Tier'); if (!body) return;
+            body.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Loading the tier roster...</p>';
+            const cloud = await tierRosterRefresh();
+            const roster = tierRosterCache();
+            const entries = Object.keys(roster).map(uid => Object.assign({ uid: uid }, roster[uid])).filter(e => e.tier === 'pro' || e.tier === 'ultra');
+            entries.sort((a, b) => (a.tier === b.tier ? String(a.username).localeCompare(String(b.username)) : (a.tier === 'ultra' ? -1 : 1)));
+            if (!entries.length) { body.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Nobody has a paid tier yet. Be the first — see the Tiers page or run /mytier.</p>'; return; }
+            body.innerHTML = entries.map(e =>
+                '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">'
+                + '<span>' + String(e.username || e.uid).replace(/[<>&]/g, '') + '</span>'
+                + '<span style="font-weight:700;color:' + (e.tier === 'ultra' ? '#f5b83d' : 'var(--primary)') + ';">' + e.tier.toUpperCase() + '</span></div>'
+            ).join('') + '<p style="font-size:0.72rem;color:var(--text-faint);margin-top:10px;">' + (Object.keys(cloud).length ? '' : 'Showing the locally saved roster (roster server busy). ') + 'Paid tiers also show as chips next to names in chat.</p>';
+        }
+        async function submitTierClaim(orderRef) {
+            if (!currentUser) { toast('Sign in first.'); return; }
+            const ref = String(orderRef || '').trim();
+            if (!ref) { toast('Usage: /claimtier <Square order number>'); return; }
+            const dup = await tierOrderRefUsed(ref, currentUser.uid);
+            if (dup) { toast('That order number was already claimed by another account. One purchase grants one account.'); return; }
+            const claim = { uid: currentUser.uid, username: (userProfile && userProfile.username) || (currentUser.email || '').split('@')[0], email: currentUser.email || '', orderRef: ref, devices: [sp1derDeviceId()], status: 'pending', at: new Date().toISOString() };
+            try {
+                await tierWithTimeout(sp1derDb.collection('tierClaims').add(claim));
+                toast('Claim sent. Staff will verify your Square order and set your tier — you can also message an owner.');
+            } catch (e) {
+                try { localStorage.setItem('sp1der_pending_claim', JSON.stringify(claim)); } catch (x) {}
+                toast('The claim server is busy (daily limit). Your claim is saved locally — run /claimtier again later, or message an owner with your order number.');
+            }
+        }
+        /* ===== /devmanagetier: staff tier manager behind an email-verified login ===== */
+        let devTierAuthed = false, devTierAuthAt = 0;
+        function openDevManageTier() {
+            if (!currentUser) { toast('Sign in first.'); return; }
+            if (!canUseStaffCmds()) { toast('Staff only.'); return; }
+            const body = openTierModal('Dev Tier Manager'); if (!body) return;
+            if (!currentUser.emailVerified) { devTierManageRenderVerify(body); return; }
+            if (!devTierAuthed || (Date.now() - devTierAuthAt) > 10 * 60 * 1000) { devTierManageRenderPassword(body); return; }
+            devTierManageRenderPanel(body);
+        }
+        function devTierManageRenderVerify(body) {
+            body.innerHTML = '';
+            const status = document.createElement('div');
+            status.style.cssText = 'text-align:center;font-size:0.85rem;font-weight:700;margin-bottom:12px;color:var(--danger,#ff0055);';
+            status.textContent = 'Email NOT verified: ' + (currentUser.email || '');
+            const note = document.createElement('p');
+            note.style.cssText = 'font-size:0.8rem;color:var(--text-dim);line-height:1.5;text-align:center;margin:0 0 12px;';
+            note.textContent = 'Tier management needs a verified staff email. Open the verification email Firebase sent when you signed up, or resend it below.';
+            const send = document.createElement('button'); send.className = 'composer-btn primary'; send.style.width = '100%';
+            send.textContent = 'Resend verification email';
+            send.onclick = async function () { send.disabled = true; send.textContent = 'Sending...'; try { await currentUser.sendEmailVerification(); toast('Verification email sent to ' + currentUser.email); send.textContent = 'Email sent — check your inbox'; } catch (e) { toast('Failed: ' + (e.message || e)); send.disabled = false; send.textContent = 'Resend verification email'; } };
+            const recheck = document.createElement('button'); recheck.className = 'composer-btn'; recheck.style.width = '100%';
+            recheck.textContent = "I've verified — check again";
+            recheck.onclick = async function () { recheck.disabled = true; recheck.textContent = 'Checking...'; try { await currentUser.reload(); } catch (e) {} recheck.disabled = false; recheck.textContent = "I've verified — check again"; openDevManageTier(); };
+            body.append(status, note, send, recheck);
+        }
+        function devTierManageRenderPassword(body) {
+            body.innerHTML = '';
+            const label = document.createElement('div'); label.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-bottom:6px;';
+            label.textContent = 'Verified email: ' + currentUser.email + '. Confirm your password to open tier management:';
+            const input = document.createElement('input'); input.type = 'password'; input.autocomplete = 'current-password'; input.placeholder = 'Password';
+            input.style.cssText = 'width:100%;box-sizing:border-box;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.9rem;margin:8px 0;';
+            const err = document.createElement('div'); err.style.cssText = 'min-height:16px;font-size:0.78rem;color:var(--danger,#ff0055);margin-bottom:8px;';
+            const go = document.createElement('button'); go.className = 'composer-btn primary'; go.style.width = '100%'; go.textContent = 'Unlock tier management';
+            const submit = async function () {
+                if (!input.value) { err.textContent = 'Enter your password.'; return; }
+                go.disabled = true; go.textContent = 'Checking...'; err.textContent = '';
+                try {
+                    const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, input.value);
+                    await currentUser.reauthenticateWithCredential(cred);
+                    devTierAuthed = true; devTierAuthAt = Date.now(); input.value = '';
+                    devTierManageRenderPanel(body);
+                } catch (e) { err.textContent = (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential')) ? 'Wrong password.' : ((e && e.message) || 'Sign-in failed.'); }
+                go.disabled = false; go.textContent = 'Unlock tier management';
+            };
+            go.onclick = submit;
+            input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submit(); });
+            body.append(label, input, err, go);
+        }
+        function devTierManageRenderPanel(body) {
+            body.innerHTML = ''
+                + '<div style="background:var(--bg-2);border-radius:10px;padding:12px;margin-bottom:12px;">'
+                + '<div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;">Grant or remove a tier</div>'
+                + '<input id="devTierUser" placeholder="@username or account id" style="width:100%;box-sizing:border-box;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.85rem;margin-bottom:6px;">'
+                + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'
+                + '<select id="devTierLevel" style="flex:1;min-width:110px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.85rem;"><option value="pro">Pro</option><option value="ultra">Ultra</option><option value="free">Free (remove)</option></select>'
+                + '<input id="devTierOrder" placeholder="Square order #" style="flex:1;min-width:110px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.85rem;">'
+                + '<input id="devTierAmount" placeholder="$ paid (optional)" style="flex:1;min-width:110px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.85rem;">'
+                + '</div>'
+                + '<button class="composer-btn primary" id="devTierGo" style="width:100%;">Apply</button>'
+                + '<div id="devTierMsg" style="min-height:16px;font-size:0.75rem;color:var(--text-dim);margin-top:6px;"></div></div>'
+                + '<div style="background:var(--bg-2);border-radius:10px;padding:12px;margin-bottom:12px;">'
+                + '<div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;">Pending purchase claims</div>'
+                + '<div id="devTierClaims"><p style="font-size:0.8rem;color:var(--text-dim);">Loading claims...</p></div></div>'
+                + '<div style="background:var(--bg-2);border-radius:10px;padding:12px;">'
+                + '<div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;">Current paid-tier roster</div>'
+                + '<div id="devTierRoster"><p style="font-size:0.8rem;color:var(--text-dim);">Loading roster...</p></div></div>';
+            const msg = $('devTierMsg');
+            $('devTierGo').onclick = async function () {
+                const btn = this; btn.disabled = true; btn.textContent = 'Working...'; msg.textContent = '';
+                try {
+                    const term = ($('devTierUser').value || '').trim(); if (!term) { msg.textContent = 'Enter a user.'; return; }
+                    const uid = await resolveTargetUid(term);
+                    if (!uid) { msg.textContent = 'No user found named "' + term.replace('@', '') + '".'; return; }
+                    const wanted = $('devTierLevel').value, order = ($('devTierOrder').value || '').trim(), amount = ($('devTierAmount').value || '').trim();
+                    if (order) {
+                        const dup = await tierOrderRefUsed(order, uid);
+                        if (dup) { msg.textContent = 'Order #' + order + ' was already used by ' + (dup.username || dup.uid) + '. One purchase grants one account — double-check the order.'; return; }
+                    }
+                    if (wanted !== 'free' && amount) {
+                        const suggest = TIER_SHOP.tierForAmount(amount);
+                        if (suggest && suggest !== wanted) { msg.textContent = '$' + amount + ' suggests the ' + suggest.toUpperCase() + ' tier, but ' + wanted.toUpperCase() + ' is selected. Applying ' + wanted.toUpperCase() + ' anyway — make sure that is right.'; }
+                    }
+                    tierGrant(uid, wanted, { username: term.replace('@', ''), orderRef: order, amount: amount || null, by: (userProfile && userProfile.username) || 'staff' });
+                    msg.textContent = 'Set ' + term.replace('@', '') + ' to ' + wanted + (order ? ' (order #' + order + ')' : '') + '. Cloud saves apply instantly when the servers are available; the local roster is updated now.';
+                    $('devTierUser').value = ''; $('devTierOrder').value = ''; $('devTierAmount').value = '';
+                    devTierLoadRoster();
+                } catch (e) { msg.textContent = 'Failed: ' + (e.message || e); }
+                btn.disabled = false; btn.textContent = 'Apply';
+            };
+            devTierLoadClaims(); devTierLoadRoster();
+        }
+        async function devTierLoadClaims() {
+            const host = $('devTierClaims'); if (!host) return;
+            try {
+                const snap = await tierWithTimeout(sp1derDb.collection('tierClaims').where('status', '==', 'pending').limit(25).get());
+                if (!snap.size) { host.innerHTML = '<p style="font-size:0.8rem;color:var(--text-dim);">No pending claims.</p>'; return; }
+                host.innerHTML = '';
+                snap.forEach(d => {
+                    const c = d.data() || {};
+                    const row = document.createElement('div');
+                    row.style.cssText = 'padding:8px 0;border-bottom:1px solid var(--border);font-size:0.8rem;';
+                    row.innerHTML = '<b>' + String(c.username || c.uid).replace(/[<>&]/g, '') + '</b> claimed order #' + String(c.orderRef || '').replace(/[<>&]/g, '') + ' — check it in the Square dashboard, then approve with the price they paid:';
+                    const amt = document.createElement('input'); amt.placeholder = '$ paid'; amt.style.cssText = 'width:80px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px;font-size:0.8rem;margin:6px 4px 0 0;';
+                    const ok = document.createElement('button'); ok.className = 'composer-btn primary'; ok.textContent = 'Approve'; ok.style.cssText = 'margin-top:6px;';
+                    const no = document.createElement('button'); no.className = 'composer-btn'; no.textContent = 'Deny'; no.style.cssText = 'margin-top:6px;';
+                    ok.onclick = async function () {
+                        const t = TIER_SHOP.tierForAmount(amt.value);
+                        if (!t) { toast('Enter the $ amount paid first (must be $6+ for Pro, $10+ for Ultra).'); return; }
+                        tierGrant(c.uid, t, { username: c.username, orderRef: c.orderRef, amount: amt.value, by: (userProfile && userProfile.username) || 'staff', devices: c.devices || [] });
+                        try { sp1derDb.collection('tierClaims').doc(d.id).set({ status: 'granted', tier: t }, { merge: true }).catch(() => {}); } catch (e) {}
+                        row.remove(); toast('Granted ' + t.toUpperCase() + ' to ' + (c.username || c.uid) + '.');
+                        devTierLoadRoster();
+                    };
+                    no.onclick = function () { try { sp1derDb.collection('tierClaims').doc(d.id).set({ status: 'denied' }, { merge: true }).catch(() => {}); } catch (e) {} row.remove(); };
+                    row.append(amt, ok, no); host.appendChild(row);
+                });
+            } catch (e) { host.innerHTML = '<p style="font-size:0.8rem;color:var(--text-dim);">Claims server busy (daily limit) — try again later. You can still grant tiers manually below with the order number.</p>'; }
+        }
+        async function devTierLoadRoster() {
+            const host = $('devTierRoster'); if (!host) return;
+            const roster = tierRosterCache();
+            let entries = Object.keys(roster).map(uid => Object.assign({ uid: uid }, roster[uid])).filter(e => e.tier === 'pro' || e.tier === 'ultra');
+            try {
+                const cloud = await tierRosterRefresh();
+                entries = Object.keys(cloud).map(uid => cloud[uid]).filter(e => e.tier === 'pro' || e.tier === 'ultra');
+            } catch (e) {}
+            if (!entries.length) { host.innerHTML = '<p style="font-size:0.8rem;color:var(--text-dim);">Nobody has a paid tier yet.</p>'; return; }
+            entries.sort((a, b) => (a.tier === b.tier ? String(a.username).localeCompare(String(b.username)) : (a.tier === 'ultra' ? -1 : 1)));
+            host.innerHTML = '';
+            entries.forEach(e => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;';
+                const left = document.createElement('span');
+                left.innerHTML = '<b>' + String(e.username || e.uid).replace(/[<>&]/g, '') + '</b> — ' + e.tier.toUpperCase() + (e.orderRef ? ' (order #' + String(e.orderRef).replace(/[<>&]/g, '') + ')' : '') + (e.by ? ' by ' + String(e.by).replace(/[<>&]/g, '') : '');
+                const rm = document.createElement('button'); rm.className = 'composer-btn'; rm.textContent = 'Set free';
+                rm.onclick = function () { tierGrant(e.uid, 'free', { by: (userProfile && userProfile.username) || 'staff' }); toast('Set ' + (e.username || e.uid) + ' back to Free.'); devTierLoadRoster(); };
+                row.append(left, rm); host.appendChild(row);
+            });
         }
         async function adminEffect(type) {
             if (!canUseStaffCmds()) { toast('Staff only'); return; }

@@ -69,7 +69,7 @@
 <body>
     <div class="beta-banner"><span class="dot"></span> BETA — things may change or break</div>
     <h1>Server <span>Tiers</span></h1>
-    <p class="sub">Tiers control how much server data each account can use. Every account starts on <b>Free</b>. The owner can upgrade anyone at any time, and every allowance resets each day.</p>
+    <p class="sub">Tiers control how much server data each account can use. Every account starts on <b>Free</b>. Upgrade by buying an item from the <a href="https://fitzs-3d-printing.square.site/s/shop" style="color:var(--primary);">Fitz's 3D Printing shop</a> — <b>the price you pay decides your tier</b> (the item itself is random). Allowances reset each day; your tier stays on your account.</p>
     <div class="tiers">
         <div class="tier">
             <span class="default-chip">Default</span>
@@ -86,7 +86,8 @@
         </div>
         <div class="tier hot">
             <div class="t-name">Pro</div>
-            <div class="t-tag">For regulars</div>
+            <div class="t-tag">For regulars &mdash; $6.00</div>
+            <div style="margin-bottom:10px;"><a href="https://fitzs-3d-printing.square.site/product/mini-octopus/7?cp=true&sa=true&sbp=false&q=false" style="color:var(--primary);font-size:0.8rem;font-weight:700;">Buy a $6.00 item &rarr;</a></div>
             <ul>
                 <li><span class="yes">&#10003;</span><span><b>600</b> chat messages a day</span></li>
                 <li><span class="yes">&#10003;</span><span><b>2,000</b> server reads a day</span></li>
@@ -98,7 +99,8 @@
         </div>
         <div class="tier">
             <div class="t-name">Ultra</div>
-            <div class="t-tag">For staff and power users</div>
+            <div class="t-tag">For power users &mdash; $12.00</div>
+            <div style="margin-bottom:10px;"><a href="https://fitzs-3d-printing.square.site/product/Fitzs_nameplate/1?cp=true&sa=true&sbp=false&q=false" style="color:var(--gold);font-size:0.8rem;font-weight:700;">Buy the $12.00 item &rarr;</a></div>
             <ul>
                 <li><span class="yes">&#10003;</span><span><b>Unlimited</b> chat messages</span></li>
                 <li><span class="yes">&#10003;</span><span><b>Unlimited</b> server reads</span></li>
@@ -117,8 +119,12 @@
     </div>
     <div class="how">
         <h2>How it works (BETA)</h2>
-        <p>When you send a chat message, Sp1der checks your tier's daily allowance and counts the message toward it. The same idea applies to server reads, server writes and game fetches — each one counts toward your tier's daily amount. If you hit a limit you'll see a notice telling you your allowance resets tomorrow — nothing breaks, it just waits.</p>
-        <p>Tiers are set by the owner with the command <code>/tier @user <free|pro|ultra></code> — for example <code>/tier @fish01-jpg pro</code>. To check or change your own tier, ask an owner.</p>
+        <p><b>How to upgrade:</b> buy any item from the shop for the price of your tier — <b>$6.00 for Pro</b> (for example the <a href="https://fitzs-3d-printing.square.site/product/mini-octopus/7?cp=true&sa=true&sbp=false&q=false" style="color:var(--primary);">Mini Octopus</a> or the <a href="https://fitzs-3d-printing.square.site/product/dodecagonal-pyramid/6?cp=true&sa=true&sbp=false&q=false" style="color:var(--primary);">Dodecagonal Pyramid</a>), or <b>$12.00 for Ultra</b> (the <a href="https://fitzs-3d-printing.square.site/product/Fitzs_nameplate/1?cp=true&sa=true&sbp=false&q=false" style="color:var(--gold);">name plate</a> at its largest size). The item is random — only the price matters. You actually get the printed item too.</p>
+        <p><b>Where the money goes:</b> each purchase is split 4 equal ways — server costs, the owner and the two developers. So a $6.00 Pro purchase is $1.50 each, and a $12.00 Ultra purchase is $3.00 each.</p>
+        <p><b>After you buy:</b> run <code>/claimtier <order number></code> in chat (the order number is on your Square receipt). Staff verify the order and set your tier. Each order number can only be claimed once, so one purchase grants one account.</p>
+        <p><b>Seeing tiers:</b> run <code>/mytier</code> to see your own tier and today's usage, and <code>/tierlist</code> to see who holds which tier. Paid tiers also show as a PRO or ULTRA chip next to your name in chat.</p>
+        <p><b>For staff:</b> manage tiers with <code>/devmanagetier</code> (requires a staff account with a verified email and password confirmation). The older <code>/tier @user <free|pro|ultra></code> command still works.</p>
+        <p><b>Fair play:</b> free-tier daily allowances are shared per browser, so making alt accounts does not reset your free daily limit.</p>
         <p>This page is a beta: the numbers above are the current limits and they may be tuned as we see how much server data the community actually uses.</p>
     </div>
     <button class="back" onclick="if (window.opener && !window.opener.closed) { try { window.close(); } catch (e) { window.history.back(); } } else if (window.history.length > 1) { window.history.back(); } else { window.close(); }">Back to the Arcade</button>
