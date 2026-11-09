@@ -3342,6 +3342,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
             Quotas reset around midnight Pacific. Switching servers usually restores service immediately.
           </div>
         </div>
+        <div id="writeLimitAuto" style="color:var(--primary);font-size:0.8rem;font-weight:700;margin-bottom:12px;min-height:1.1em;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="composer-btn primary" style="flex:1;min-width:130px;" onclick="switchToNextServerFromLimit()">
             Change server
@@ -3378,6 +3379,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
             Quotas reset around midnight Pacific. Switching servers usually restores service immediately.
           </div>
         </div>
+        <div id="readLimitAuto" style="color:var(--primary);font-size:0.8rem;font-weight:700;margin-bottom:12px;min-height:1.1em;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="composer-btn primary" style="flex:1;min-width:130px;" onclick="switchToNextServerFromReadLimit()">Change server</button>
           <button class="composer-btn" style="flex:1;min-width:130px;" onclick="retryAfterReadLimit()">Try again</button>
@@ -3598,6 +3600,34 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         // DB2 allows public read/write - use for sp1der/staff/events data
         const sp1derDb = msgDbs[1];
 
+        /* ===== v4.7.1: QUOTA HELPERS (persisted exhausted-server memory, timeouts) ===== */
+        function quotaDayPT() { try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date()); } catch (e) { return new Date().toISOString().slice(0, 10); } }
+        /* A Set that remembers which servers hit their limit until the Firestore daily reset (midnight Pacific). */
+        function makePersistedSet(key) {
+            const set = new Set(); const day = quotaDayPT();
+            try { const raw = JSON.parse(localStorage.getItem(key) || 'null'); if (raw && raw.day === day && Array.isArray(raw.idx)) raw.idx.forEach(i => set.add(i)); } catch (e) {}
+            const baseAdd = set.add.bind(set);
+            set.add = function (v) { baseAdd(v); try { localStorage.setItem(key, JSON.stringify({ day: quotaDayPT(), idx: Array.from(set) })); } catch (e) {} return set; };
+            return set;
+        }
+        /* Firestore queues quota-blocked writes and retries them forever instead of rejecting, so a plain
+           await can hang. This rejects with a resource-exhausted style error after a deadline. */
+        const MSG_WRITE_TIMEOUT_MS = 8000;
+        function msgWriteWithTimeout(ref, data) {
+            return new Promise((resolve, reject) => {
+                let done = false;
+                const t = setTimeout(() => {
+                    if (done) return; done = true;
+                    const e = new Error('Server did not accept the message in time (quota or connection)');
+                    e.code = navigator.onLine === false ? 'unavailable' : 'resource-exhausted';
+                    e.sp1derTimeout = true;
+                    try { ref.delete().catch(() => {}); } catch (x) {} /* queued after the stuck write so it can never appear later as a duplicate */
+                    reject(e);
+                }, MSG_WRITE_TIMEOUT_MS);
+                ref.set(data).then(() => { if (done) return; done = true; clearTimeout(t); resolve(); }, (err) => { if (done) return; done = true; clearTimeout(t); reject(err); });
+            });
+        }
+
         /* ===== GLOBAL WRITE-LIMIT INTERCEPTOR (declarations first, patching after) ===== */
         let writeLimitModalOpen = false;
         let writeLimitTargetDb = null;
@@ -3796,7 +3826,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         let readLimitModalOpen = false;
         let readLimitTargetDb = null;
         let readLimitTestMode = false;
-        const readExhaustedDbs = new Set();
+        const readExhaustedDbs = makePersistedSet('sp1der_exhausted_reads');
         const readLimitLastShown = {}; // dbKey -> timestamp, so failing listeners do not re-open the popup right after dismissal
         const READ_LIMIT_COOLDOWN_MS = 30000;
         const reportReadErr = (err, self) => {
@@ -3898,7 +3928,51 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         });
 
         /* ===== WRITE-LIMIT GLOBAL POPUP (functions) ===== */
-        const exhaustedDbs = new Set();
+        const exhaustedDbs = makePersistedSet('sp1der_exhausted_writes');
+        /* ===== v4.7.1: AUTO-SWITCH when a server is maxed =====
+           Shows the limit popup with a short countdown, then moves chat to the next server that is not maxed. */
+        const LIMIT_AUTO_SECONDS = 6;
+        let limitAutoTimer = null, limitSoftRead = false;
+        function nextHealthyDb(from) {
+            const total = msgDbs.length || 1;
+            for (let i = 1; i < total; i++) { const c = (from + i) % total; if (!exhaustedDbs.has(c) && !readExhaustedDbs.has(c)) return c; }
+            return -1;
+        }
+        function limitAutoStop() {
+            if (limitAutoTimer) { clearInterval(limitAutoTimer); limitAutoTimer = null; }
+            ['writeLimitAuto', 'readLimitAuto'].forEach(id => { const el = $(id); if (el) el.textContent = ''; });
+        }
+        function limitAutoStart(kind, dbIndex) {
+            limitAutoStop();
+            if (writeLimitTestMode || readLimitTestMode) return;
+            const el = $(kind + 'LimitAuto'); if (!el) return;
+            if (dbIndex == null || dbIndex < 0) { el.textContent = 'This is the main account server. Chat uses the message servers, so nothing needs switching.'; return; }
+            if (dbIndex !== selectedMsgDbIndex) { el.textContent = 'This conversation is stored on Server ' + (dbIndex + 1) + ' and will work again after the daily reset.'; return; }
+            const next = nextHealthyDb(dbIndex);
+            if (next < 0) { el.textContent = 'Every other server is also at its limit right now. Try again after the daily reset.'; return; }
+            let left = LIMIT_AUTO_SECONDS;
+            const paint = () => { el.textContent = 'Switching to Server ' + (next + 1) + ' automatically in ' + left + 's. Press Close to stay on this server.'; };
+            paint();
+            limitAutoTimer = setInterval(() => {
+                left--;
+                if (left <= 0) { limitAutoStop(); if (kind === 'write') switchToNextServerFromLimit(); else switchToNextServerFromReadLimit(); }
+                else paint();
+            }, 1000);
+        }
+        function resendAfterServerSwitch() {
+            if (!window.__sp1derResend) return;
+            window.__sp1derResend = false;
+            setTimeout(() => { try { const i = $('composerInput'); if (i && i.value.trim() && !sendMessageInFlight) { toast('Resending your message on the new server...'); sendMessage(false); } } catch (e) {} }, 900);
+        }
+        /* If the saved server already hit its limit today, start on one that has not. */
+        (function pickHealthyStartDb() {
+            try {
+                if (exhaustedDbs.has(selectedMsgDbIndex) || readExhaustedDbs.has(selectedMsgDbIndex)) {
+                    const n = nextHealthyDb(selectedMsgDbIndex);
+                    if (n >= 0) { selectedMsgDbIndex = n; DB_MANAGER.currentMsgDbIndex = n; localStorage.setItem('sp1der_selected_db', n); setTimeout(() => { try { toast('Your last server was full, so chat moved to Server ' + (n + 1) + '.'); } catch (e) {} }, 2500); }
+                }
+            } catch (e) {}
+        })();
         function testWriteLimitPopup() {
             if (writeLimitModalOpen) return;
             writeLimitTestMode = true;
@@ -3917,8 +3991,10 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
             $('writeLimitModal').classList.add('active');
             writeLimitModalOpen = true;
             writeLimitTargetDb = dbIndex;
+            limitAutoStart('write', dbIndex);
         }
         function closeWriteLimitModal() {
+            limitAutoStop(); window.__sp1derResend = false;
             writeLimitModalOpen = false;
             writeLimitTestMode = false;
             const tb = $('writeLimitTestBadge'); if (tb) tb.style.display = 'none';
@@ -3927,17 +4003,19 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         }
         function switchToNextServerFromLimit() {
             if (writeLimitTestMode) { closeWriteLimitModal(); toast('Test only: no server was switched.'); return; }
-            // pick the next server that is not the one that just failed
-            const total = msgDbs.length || 1;
-            const from = (writeLimitTargetDb == null || writeLimitTargetDb < 0) ? selectedMsgDbIndex : writeLimitTargetDb;
+            const from = writeLimitTargetDb;
+            const resend = !!window.__sp1derResend;
+            limitAutoStop();
+            if (from == null || from < 0) { closeWriteLimitModal(); toast('The main account server is at its limit. Chat is not affected; profile saves resume after the daily reset.'); return; }
             exhaustedDbs.add(from);
-            let next = -1;
-            for (let i = 1; i <= total; i++) { const c = (from + i) % total; if (c !== from && !exhaustedDbs.has(c)) { next = c; break; } }
-            if (next === -1) { toast(total > 1 ? 'Every server has hit its write limit. Clear a server\'s data or try again after the daily reset.' : 'Only one server configured.'); return; }
+            if (from !== selectedMsgDbIndex) { closeWriteLimitModal(); toast('Server ' + (from + 1) + ' is full. Conversations stored there work again after the daily reset.'); return; }
+            const next = nextHealthyDb(from);
+            if (next === -1) { toast((msgDbs.length || 1) > 1 ? 'Every server has hit its write limit. Try again after the daily reset (midnight Pacific).' : 'Only one server configured.'); return; }
             closeWriteLimitModal();
+            window.__sp1derResend = resend;
             switchChatDatabase(next);
-            if (selectedChannelId) openChannel(selectedChannelId);
             toast('Switched to Server ' + (next + 1));
+            resendAfterServerSwitch();
         }
         /* ===== READ-LIMIT GLOBAL POPUP (functions) ===== */
         function testReadLimitPopup() {
@@ -3948,8 +4026,9 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         function openReadLimitModal(e, dbIndex) {
             if (readLimitModalOpen) return; // dedupe — only one modal at a time
             readLimitTestMode = !!(e && typeof e.code === 'string' && e.code.endsWith('(test)'));
+            limitSoftRead = !!(e && e.soft);
             const tb = $('readLimitTestBadge'); if (tb) tb.style.display = readLimitTestMode ? 'block' : 'none';
-            if (!readLimitTestMode && dbIndex != null && dbIndex >= 0) readExhaustedDbs.add(dbIndex);
+            if (!readLimitTestMode && !limitSoftRead && dbIndex != null && dbIndex >= 0) readExhaustedDbs.add(dbIndex);
             const code = String((e && e.code) || 'resource-exhausted').toLowerCase();
             const label = (dbIndex == null) ? 'Server (main)' : 'DB-' + (dbIndex + 1);
             $('readLimitDbName').textContent = label;
@@ -3958,8 +4037,10 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
             $('readLimitModal').classList.add('active');
             readLimitModalOpen = true;
             readLimitTargetDb = dbIndex;
+            limitAutoStart('read', dbIndex);
         }
         function closeReadLimitModal() {
+            limitAutoStop();
             readLimitModalOpen = false;
             readLimitTestMode = false;
             const tb = $('readLimitTestBadge'); if (tb) tb.style.display = 'none';
@@ -3968,12 +4049,13 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         }
         function switchToNextServerFromReadLimit() {
             if (readLimitTestMode) { closeReadLimitModal(); toast('Test only: no server was switched.'); return; }
-            const total = msgDbs.length || 1;
-            const from = (readLimitTargetDb == null || readLimitTargetDb < 0) ? selectedMsgDbIndex : readLimitTargetDb;
-            readExhaustedDbs.add(from);
-            let next = -1;
-            for (let i = 1; i <= total; i++) { const c = (from + i) % total; if (c !== from && !readExhaustedDbs.has(c)) { next = c; break; } }
-            if (next === -1) { toast(total > 1 ? 'Every server has hit its read limit. Try again after the daily reset.' : 'Only one server configured.'); return; }
+            const from = readLimitTargetDb;
+            limitAutoStop();
+            if (from == null || from < 0) { closeReadLimitModal(); toast('The main account server is at its read limit. Chat is not affected; profile data may be stale until the daily reset.'); return; }
+            if (!limitSoftRead) readExhaustedDbs.add(from);
+            if (from !== selectedMsgDbIndex) { closeReadLimitModal(); toast('Server ' + (from + 1) + ' is at its read limit. Conversations stored there load again after the daily reset.'); return; }
+            const next = nextHealthyDb(from);
+            if (next === -1) { toast((msgDbs.length || 1) > 1 ? 'Every server has hit its read limit. Try again after the daily reset (midnight Pacific).' : 'Only one server configured.'); return; }
             closeReadLimitModal();
             switchChatDatabase(next);
         }
@@ -5819,7 +5901,13 @@ Furball found a sunbeam and is not moving for anyone.`;
                 renderFeed(msgs, channelId);
             }, (err) => { messageLoaded = true; if (selectedChannelId === channelId && feed) feed.textContent = 'Error loading messages: ' + (err.message || 'Firebase unavailable') + '. Review access must also be authorized by this message server.'; });
             // Timeout: if no messages loaded after 5s, show error
-            setTimeout(() => { if (selectedChannelId === channelId && !messageLoaded && feed) feed.innerHTML = '<div class="chat-empty">Unable to connect to Firebase. Chat is unavailable.</div>'; }, 5000);
+            setTimeout(() => {
+                if (selectedChannelId === channelId && !messageLoaded && feed) {
+                    feed.innerHTML = '<div class="chat-empty">Unable to connect to this chat server. It may be at its daily limit.</div>';
+                    const idx = msgDbs.indexOf(msgDb); /* quota-blocked listeners retry silently, so a long silence is treated as a full server */
+                    if (navigator.onLine !== false && idx >= 0 && idx === selectedMsgDbIndex) openReadLimitModal({ code: 'no response', soft: true }, idx);
+                }
+            }, 8000);
         }
         function shouldShowMessage(msg, channelId, myUid) {
             return true;
@@ -6229,7 +6317,14 @@ Furball found a sunbeam and is not moving for anyone.`;
             try {
                 sendMessageInFlight = true;
                 setMessageSendStatus('Sending…');
-                await msgDocRef.set(msg);
+                { /* known-full server: show the popup and auto-switch instead of waiting on a write that cannot succeed */
+                    const tIdx = msgDbs.indexOf(msgDb);
+                    if (tIdx >= 0 && tIdx === selectedMsgDbIndex && ch.type === 'global' && exhaustedDbs.has(tIdx) && nextHealthyDb(tIdx) >= 0) {
+                        window.__sp1derResend = true; setMessageSendStatus('Server full — switching…', true);
+                        openWriteLimitModal({ code: 'resource-exhausted' }, tIdx); return;
+                    }
+                }
+                await msgWriteWithTimeout(msgDocRef, msg);
                 DB_MANAGER.incrementWrites(1);
                 setMessageSendStatus('Sent');
                 (async () => {
@@ -6249,13 +6344,20 @@ Furball found a sunbeam and is not moving for anyone.`;
                 })();
                 clearComposerSafely(); if (editingMessage) { cancelEdit(); }
             } catch (e) {
-                // Server overload / rate limit / quota errors get one bounded retry on the same doc ref
+                // Quota / stuck write: retrying the same full server cannot work. Show the popup, auto-switch, resend.
+                if (isQuotaErr(e)) {
+                    window.__sp1derResend = (ch.type === 'global');
+                    setMessageSendStatus('Server full — switching…', true);
+                    openWriteLimitModal(e, msgDbs.indexOf(msgDb));
+                    return;
+                }
+                // Other transient overload errors get one bounded retry on the same doc ref
                 if (isOverloadErr(e)) {
                     setMessageSendStatus('Server busy — retrying…');
                     toast('Server overload — retrying in a moment...');
                     await new Promise(r => setTimeout(r, 2500));
                     try {
-                        await msgDocRef.set(msg);
+                        await msgWriteWithTimeout(msgDocRef, msg);
                         DB_MANAGER.incrementWrites(1);
                         setMessageSendStatus('Sent');
                         clearComposerSafely(); if (editingMessage) { cancelEdit(); }
@@ -6263,7 +6365,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                         return;
                     } catch (e2) {
                         // Quota hit → open the global write-limit popup (user can switch server or clear)
-                        if (isQuotaErr(e2)) { openWriteLimitModal(e2, msgDbs.indexOf(msgDb)); }
+                        if (isQuotaErr(e2)) { window.__sp1derResend = (ch.type === 'global'); openWriteLimitModal(e2, msgDbs.indexOf(msgDb)); }
                         setMessageSendStatus('Not sent: ' + humanErr(e2), true);
                         toast('Failed to send: ' + humanErr(e2) + '. Your message is still in the composer.');
                         return;
@@ -10207,19 +10309,32 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             ultra: { label: 'Ultra', dailyMessages: Infinity, syncs: 10 }
         };
         function tierToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+        /* v4.7.1: the counter used to await reads/writes on the main cf-minecraft database. When that database
+           is at its quota those calls hang, which froze every chat send. The count now lives locally (instant),
+           the tier is read from the already-loaded profile, and Firestore is only synced in the background. */
+        const TIER_SYNC_MS = 60000; let tierLastSync = 0, tierRemote = { uid: null, tier: null };
+        function tierCurrent() {
+            const t = (userProfile && SERVER_TIERS[userProfile.tier]) ? userProfile.tier : (tierRemote.uid === (currentUser && currentUser.uid) && SERVER_TIERS[tierRemote.tier] ? tierRemote.tier : 'free');
+            return t;
+        }
         async function tierConsumeQuota() {
-            /* Returns true if the message may be sent (quota consumed). */
-            if (!currentUser || !db) return true;
+            /* Returns true if the message may be sent (quota consumed). Never waits on the network. */
+            if (!currentUser) return true;
             try {
-                const ref = db.collection('users').doc(currentUser.uid);
-                const doc = await ref.get();
-                const data = doc.exists ? (doc.data() || {}) : {};
-                const tier = SERVER_TIERS[data.tier] ? data.tier : 'free';
-                const day = tierToday();
-                const used = (data.tierDay === day) ? (data.tierMsgs || 0) : 0;
-                const limit = SERVER_TIERS[tier].dailyMessages;
-                if (used >= limit) { toast('Daily ' + SERVER_TIERS[tier].label + ' message limit reached (' + limit + '/day). Your allowance resets tomorrow. (BETA)'); return false; }
-                await ref.set({ tier: tier, tierDay: day, tierMsgs: used + 1 }, { merge: true });
+                const uid = currentUser.uid, day = tierToday(), key = 'sp1der_tier_use_' + uid;
+                let use = {}; try { use = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) {}
+                if (use.day !== day) use = { day: day, msgs: 0 };
+                const tier = tierCurrent(), limit = SERVER_TIERS[tier].dailyMessages;
+                if (use.msgs >= limit) { toast('Daily ' + SERVER_TIERS[tier].label + ' message limit reached (' + limit + '/day). Your allowance resets tomorrow. (BETA)'); return false; }
+                use.msgs++; localStorage.setItem(key, JSON.stringify(use));
+                if (Date.now() - tierLastSync > TIER_SYNC_MS) { /* background sync, throttled, never awaited */
+                    tierLastSync = Date.now();
+                    try {
+                        const ref = db.collection('users').doc(uid);
+                        ref.get().then(d => { const x = d.exists ? (d.data() || {}) : {}; if (SERVER_TIERS[x.tier]) tierRemote = { uid: uid, tier: x.tier }; }).catch(() => {});
+                        ref.set({ tier: tier, tierDay: day, tierMsgs: use.msgs }, { merge: true }).catch(() => {});
+                    } catch (e) {}
+                }
                 return true;
             } catch (e) { return true; /* never block chat on a beta counter failure */ }
         }
