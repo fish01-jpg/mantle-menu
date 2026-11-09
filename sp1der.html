@@ -2426,6 +2426,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 }
 </style>
 <!-- sp1der-phone:end -->
+<style id="workspaceRoleStyles">#workspaceRoleTabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0;position:sticky;top:0;background:var(--bg-0);padding:12px 0;z-index:5}#workspaceRoleTabs [aria-selected="true"]{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}#workspaceTools [hidden],#workspaceRoleTabs [hidden]{display:none!important}.workspace-tier-heading{font-size:1.05rem;margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}#workspaceTools section{min-width:0}#workspaceTools input,#workspaceTools textarea{max-width:100%}</style>
 </head>
 <body>
 
@@ -2873,134 +2874,127 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 
                 <!-- ADMIN PANEL (owners only: Aegis, P1xelF1n, Sebass, redFish) -->
                 <div class="panel" id="panel-admin">
-                    <div class="panel-scroll">
-                        <div class="admin-head">
-                            <div>
-                                <div class="admin-title">Admin Command Panel</div>
-                                <div class="admin-sub">Moderation tools for admins and owners. Signed in as <b id="adminWho">-</b> <span class="admin-role-pill" id="adminRolePill">member</span></div>
-                            </div>
-                        </div>
-                        <div class="admin-stats">
-                            <div class="admin-stat"><div class="admin-stat-num" id="adminStatOnline">0</div><div class="admin-stat-label">Online now</div></div>
-                            <div class="admin-stat"><div class="admin-stat-num" id="adminStatKnown">-</div><div class="admin-stat-label">Known users</div></div>
-                            <div class="admin-stat"><div class="admin-stat-num" id="adminStatStaff">0</div><div class="admin-stat-label">Staff online</div></div>
-                            <div class="admin-stat"><div class="admin-stat-num" id="adminStatRestricted">0</div><div class="admin-stat-label">Banned / muted</div></div>
-                            <div class="admin-stat"><div class="admin-stat-num" id="adminStatDb">-</div><div class="admin-stat-label">Chat server</div></div>
-                        </div>
+<div class="panel-scroll">
+<div class="admin-head">
+<div>
+<div class="admin-title">Staff Workspace</div>
+<div class="admin-sub">Role-based tools. Signed in as <b id="adminWho">-</b> <span class="admin-role-pill" id="adminRolePill">member</span></div>
+</div>
+</div>
+<div class="admin-stats">
+<div class="admin-stat"><div class="admin-stat-num" id="adminStatOnline">0</div><div class="admin-stat-label">Online now</div></div>
+<div class="admin-stat"><div class="admin-stat-num" id="adminStatKnown">-</div><div class="admin-stat-label">Known users</div></div>
+<div class="admin-stat"><div class="admin-stat-num" id="adminStatStaff">0</div><div class="admin-stat-label">Staff online</div></div>
+<div class="admin-stat"><div class="admin-stat-num" id="adminStatRestricted">0</div><div class="admin-stat-label">Banned / muted</div></div>
+<div class="admin-stat"><div class="admin-stat-num" id="adminStatDb">-</div><div class="admin-stat-label">Chat server</div></div>
+</div><div aria-label="Workspace role views" id="workspaceRoleTabs" role="tablist"><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="staff" id="workspaceTab-staff" onclick="selectWorkspaceTab('staff')" role="tab" tabindex="-1" type="button">Staff</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="admin" id="workspaceTab-admin" onclick="selectWorkspaceTab('admin')" role="tab" tabindex="-1" type="button">Admin</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="founder" id="workspaceTab-founder" onclick="selectWorkspaceTab('founder')" role="tab" tabindex="-1" type="button">Founder</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="owner" id="workspaceTab-owner" onclick="selectWorkspaceTab('owner')" role="tab" tabindex="-1" type="button">Owner / Developer</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="management" id="workspaceTab-management" onclick="selectWorkspaceTab('management')" role="tab" tabindex="-1" type="button">Management</button></div><div id="workspaceTools" role="tabpanel" tabindex="0"><section data-workspace-tier="staff" hidden="" id="workspaceSection-staff"><h2 class="workspace-tier-heading">Staff</h2><div class="admin-card">
+<div class="admin-card-title">Quick actions</div>
+<div class="admin-actions">
+<button class="composer-btn" onclick="showView('community')">Chat</button>
+<button class="composer-btn" onclick="signOutUser()">Sign Out of Account</button>
 
-                        <div class="admin-card">
-                            <div class="admin-card-title">Quick actions</div>
-                            <div class="admin-actions">
-                                <button class="composer-btn" onclick="showView('community')">Chat</button>
-                                <button class="composer-btn" onclick="signOutUser()">Sign Out of Account</button>
-                                <button class="composer-btn" onclick="openManageUsers()" data-need="admin">Manage Users</button>
-                                <button class="composer-btn" onclick="openServerMgmt()" data-need="admin">Server Command Center</button>
-                                <button class="composer-btn" onclick="openMessageLog()" data-need="owner">Message Log</button>
-                                <button class="composer-btn" onclick="openCommandHelp()">Chat Commands</button>
-                                <button class="composer-btn" onclick="showView('activeusers')">Active Users</button>
-                                <button class="composer-btn" onclick="adminRefresh(true)">Refresh</button>
-                            </div>
-                        </div>
 
-                        <div class="admin-card" id="adminMessageLogCard" data-need="owner">
-                            <div class="admin-card-title">Message Log</div>
-                            <div class="admin-sub" style="margin-bottom:10px;">Archive of messages sent on any server, kept even after a purge or clear. Owners only.</div>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                                <input type="text" id="msgLogSearch" placeholder="Search text or username..." oninput="renderMessageLog()" style="flex:2;min-width:160px;font-size:0.8rem;padding:6px 10px;">
-                                <select id="msgLogChannel" onchange="renderMessageLog()" style="flex:1;min-width:140px;font-size:0.8rem;"><option value="">All conversations</option></select>
-                                <select id="msgLogType" onchange="renderMessageLog()" style="flex:1;min-width:110px;font-size:0.8rem;"><option value="">All types</option><option value="global">Global</option><option value="group">Groups</option><option value="dm">DMs</option></select>
-                            </div>
-                            <div id="msgLogStatus" style="font-size:0.72rem;color:var(--text-faint);margin-bottom:6px;">Not loaded yet.</div>
-                            <div id="msgLogList" style="max-height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:6px;background:var(--bg-2);"></div>
-                            <div class="admin-actions" style="margin-top:10px;">
-                                <button class="composer-btn" onclick="loadMessageLog(true)">Refresh</button>
-                                <button class="composer-btn" id="msgLogMoreBtn" onclick="loadMessageLog(false)">Load older</button>
-                                <button class="composer-btn" onclick="exportMessageLog()">Export JSON</button>
-                            </div>
-                        </div>
 
-                        <div class="admin-card">
-                            <div class="admin-card-title">User controls</div>
-                            <div class="admin-sub" style="margin-bottom:10px;">Ban, mute, warn and more. You can only act on users ranked below you. Mods can mute, warn and poke; bans, kicks and roles need admin.</div>
-                            <div class="admin-controls-bar">
-                                <input type="text" id="adminReason" placeholder="Reason or message (shown to the user)" maxlength="200">
-                                <select id="adminMuteDur" title="Mute length">
-                                    <option value="10">Mute 10 min</option>
-                                    <option value="60">Mute 1 hour</option>
-                                    <option value="1440">Mute 24 hours</option>
-                                    <option value="0">Mute until unmuted</option>
-                                </select>
-                            </div>
-                            <div class="admin-search">
-                                <input type="text" id="adminSearch" placeholder="Find any user by name or email..." onkeydown="if(event.key==='Enter')adminSearchUsers()">
-                                <button class="composer-btn" onclick="adminSearchUsers()">Search</button>
-                            </div>
-                            <div id="adminSearchResults" class="admin-users"></div>
-                            <div class="admin-subhead">Online now <span class="admin-sub" id="adminUsersHint"></span></div>
-                            <div id="adminUsersTable" class="admin-users"></div>
-                        </div>
+<button class="composer-btn" onclick="openCommandHelp()">Chat Commands</button>
+<button class="composer-btn" onclick="showView('activeusers')">Active Users</button>
+<button class="composer-btn" onclick="adminRefresh(true)">Refresh</button>
+</div>
+</div><div class="admin-card">
+<div class="admin-card-title">User controls</div>
+<div class="admin-sub" style="margin-bottom:10px;">Ban, mute, warn and more. You can only act on users ranked below you. Mods can mute, warn and poke; bans, kicks and roles need admin.</div>
+<div class="admin-controls-bar">
+<input id="adminReason" maxlength="200" placeholder="Reason or message (shown to the user)" type="text"/>
+<select id="adminMuteDur" title="Mute length">
+<option value="10">Mute 10 min</option>
+<option value="60">Mute 1 hour</option>
+<option value="1440">Mute 24 hours</option>
+<option value="0">Mute until unmuted</option>
+</select>
+</div>
+<div class="admin-search">
+<input id="adminSearch" onkeydown="if(event.key==='Enter')adminSearchUsers()" placeholder="Find any user by name or email..." type="text"/>
+<button class="composer-btn" onclick="adminSearchUsers()">Search</button>
+</div>
+<div class="admin-users" id="adminSearchResults"></div>
+<div class="admin-subhead">Online now <span class="admin-sub" id="adminUsersHint"></span></div>
+<div class="admin-users" id="adminUsersTable"></div>
+</div><div class="admin-card">
+<div class="admin-card-title">Banned and muted users</div>
+<div class="admin-users" id="adminRestricted"><div class="admin-sub">Nobody is banned or muted.</div></div>
+</div><div class="admin-card">
+<div class="admin-card-title">Fun and live controls</div>
+<div class="admin-fun-row">
+<div class="admin-fun-label">Screen effects for everyone online</div>
+<div class="admin-actions">
+<button class="composer-btn" onclick="adminEffect('confetti')">Confetti</button>
+<button class="composer-btn" onclick="adminEffect('spiders')">Spider rain</button>
+<button class="composer-btn" onclick="adminEffect('stars')">Starfall</button>
+</div>
+</div>
 
-                        <div class="admin-card">
-                            <div class="admin-card-title">Banned and muted users</div>
-                            <div id="adminRestricted" class="admin-users"><div class="admin-sub">Nobody is banned or muted.</div></div>
-                        </div>
 
-                        <div class="admin-card">
-                            <div class="admin-card-title">Fun and live controls</div>
-                            <div class="admin-fun-row">
-                                <div class="admin-fun-label">Screen effects for everyone online</div>
-                                <div class="admin-actions">
-                                    <button class="composer-btn" onclick="adminEffect('confetti')">Confetti</button>
-                                    <button class="composer-btn" onclick="adminEffect('spiders')">Spider rain</button>
-                                    <button class="composer-btn" onclick="adminEffect('stars')">Starfall</button>
-                                </div>
-                            </div>
-                            <div class="admin-fun-row">
-                                <div class="admin-fun-label">Site banner <span class="admin-sub" id="adminBannerState"></span></div>
-                                <div class="admin-broadcast">
-                                    <input type="text" id="adminBannerInput" placeholder="Banner text shown at the top for everyone..." maxlength="160" style="flex:1;">
-                                    <button class="composer-btn primary" onclick="adminSetBanner(true)" data-need="admin">Set</button>
-                                    <button class="composer-btn" onclick="adminSetBanner(false)" data-need="admin">Clear</button>
-                                </div>
-                            </div>
-                            <div class="admin-fun-row">
-                                <div class="admin-fun-label">Chat controls <span class="admin-sub" id="adminChatState"></span></div>
-                                <div class="admin-actions">
-                                    <button class="composer-btn" id="adminLockBtn" onclick="adminToggleLock()" data-need="admin">Lock chat</button>
-                                    <select id="adminSlowSel" data-need="admin" onchange="adminSetSlow(this.value)">
-                                        <option value="0">Slow mode off</option>
-                                        <option value="5">Slow mode 5s</option>
-                                        <option value="15">Slow mode 15s</option>
-                                        <option value="30">Slow mode 30s</option>
-                                        <option value="60">Slow mode 60s</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="admin-fun-row">
-                                <div class="admin-fun-label">Random pick</div>
-                                <div class="admin-actions">
-                                    <button class="composer-btn" onclick="adminRandomPick()">Pick a random online user</button>
-                                    <button class="composer-btn" id="adminPickAnnounce" onclick="adminAnnouncePick()" style="display:none;">Announce winner</button>
-                                    <span class="admin-pick" id="adminPickResult"></span>
-                                </div>
-                            </div>
-                        </div>
+<div class="admin-fun-row">
+<div class="admin-fun-label">Random pick</div>
+<div class="admin-actions">
+<button class="composer-btn" onclick="adminRandomPick()">Pick a random online user</button>
+<button class="composer-btn" id="adminPickAnnounce" onclick="adminAnnouncePick()" style="display:none;">Announce winner</button>
+<span class="admin-pick" id="adminPickResult"></span>
+</div>
+</div>
+</div><div class="admin-card">
+<div class="admin-card-title">Broadcast announcement</div>
+<div class="admin-sub" style="margin-bottom:10px;">Posts an announcement to Global as you.</div>
+<div class="admin-broadcast">
+<textarea id="adminBroadcastInput" placeholder="Announcement text..." rows="2"></textarea>
+<button class="composer-btn primary" onclick="adminBroadcast()">Send</button>
+</div>
+</div><div class="admin-card">
+<div class="admin-card-title">Session log</div>
+<div class="admin-log" id="adminLog"><div class="admin-sub">No admin actions yet this session.</div></div>
+</div><div class="admin-card"><div class="admin-card-title">Conversation tools</div><p class="admin-sub" id="workspaceContext"></p><div class="admin-actions"><button class="composer-btn" onclick="showView('community')">Open chat</button><button class="composer-btn" onclick="openSpoofModal()">Send as</button><button class="composer-btn" onclick="openNewDM()">New DM / group</button><button class="composer-btn" onclick="workspacePurge()">Purge current conversation</button></div></div><div class="admin-card"><div class="admin-card-title">My staff status and description</div><div id="workspaceStaffSelf"></div><div hidden="" id="workspaceAegisTools"><button class="composer-btn" onclick="openAICommands()">Aegis AI commands</button></div></div><div class="admin-card"><div class="admin-card-title">Command console</div><p class="admin-sub">Runs an existing slash command in the current conversation. Unavailable commands do not grant access.</p><form onsubmit="event.preventDefault();workspaceRunCommand()"><input aria-label="Slash command" autocomplete="off" id="workspaceCommandInput" placeholder="/command arguments" style="width:100%"/><div class="admin-actions"><button class="composer-btn" type="submit">Run command</button><button class="composer-btn" onclick="openCommandHelp()" type="button">Available command help</button></div></form></div></section><section data-workspace-tier="admin" hidden="" id="workspaceSection-admin"><h2 class="workspace-tier-heading">Admin</h2><div class="admin-card"><div class="admin-fun-row">
+<div class="admin-fun-label">Site banner <span class="admin-sub" id="adminBannerState"></span></div>
+<div class="admin-broadcast">
+<input id="adminBannerInput" maxlength="160" placeholder="Banner text shown at the top for everyone..." style="flex:1;" type="text"/>
+<button class="composer-btn primary" data-need="admin" onclick="adminSetBanner(true)">Set</button>
+<button class="composer-btn" data-need="admin" onclick="adminSetBanner(false)">Clear</button>
+</div>
+</div></div><div class="admin-card"><div class="admin-fun-row">
+<div class="admin-fun-label">Chat controls <span class="admin-sub" id="adminChatState"></span></div>
+<div class="admin-actions">
+<button class="composer-btn" data-need="admin" id="adminLockBtn" onclick="adminToggleLock()">Lock chat</button>
+<select data-need="admin" id="adminSlowSel" onchange="adminSetSlow(this.value)">
+<option value="0">Slow mode off</option>
+<option value="5">Slow mode 5s</option>
+<option value="15">Slow mode 15s</option>
+<option value="30">Slow mode 30s</option>
+<option value="60">Slow mode 60s</option>
+</select>
+</div>
+</div></div></section><section data-workspace-tier="founder" hidden="" id="workspaceSection-founder"><h2 class="workspace-tier-heading">Founder</h2><div class="admin-card" id="workspaceEditorHost"></div></section><section data-workspace-tier="owner" hidden="" id="workspaceSection-owner"><h2 class="workspace-tier-heading">Owner / Developer</h2><div class="admin-card" data-need="owner" id="adminMessageLogCard">
+<div class="admin-card-title">Message Log</div>
+<div class="admin-sub" style="margin-bottom:10px;">Client-maintained message archive across servers. Not a tamper-proof or complete audit log.</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+<input id="msgLogSearch" oninput="renderMessageLog()" placeholder="Search text or username..." style="flex:2;min-width:160px;font-size:0.8rem;padding:6px 10px;" type="text"/>
+<select id="msgLogChannel" onchange="renderMessageLog()" style="flex:1;min-width:140px;font-size:0.8rem;"><option value="">All conversations</option></select>
+<select id="msgLogType" onchange="renderMessageLog()" style="flex:1;min-width:110px;font-size:0.8rem;"><option value="">All types</option><option value="global">Global</option><option value="group">Groups</option><option value="dm">DMs</option></select>
+</div>
+<div id="msgLogStatus" style="font-size:0.72rem;color:var(--text-faint);margin-bottom:6px;">Not loaded yet.</div>
+<div id="msgLogList" style="max-height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:6px;background:var(--bg-2);"></div>
+<div class="admin-actions" style="margin-top:10px;">
+<button class="composer-btn" onclick="loadMessageLog(true)">Refresh</button>
+<button class="composer-btn" id="msgLogMoreBtn" onclick="loadMessageLog(false)">Load older</button>
+<button class="composer-btn" onclick="exportMessageLog()">Export JSON</button>
+</div>
+</div><div class="admin-card"><div class="admin-card-title">Conversation oversight</div><p class="admin-sub">Uses the existing Owner/Developer conversation view. Database privacy enforcement remains unfinished.</p><div class="admin-actions"><button class="composer-btn" onclick="toggleOwnerConversations(false);showView('community')">My conversations</button><button class="composer-btn" onclick="toggleOwnerConversations(true);showView('community')">Review active conversations</button><button class="composer-btn" onclick="openMessageLog()">Load message archive</button></div></div></section><section data-workspace-tier="management" hidden="" id="workspaceSection-management"><h2 class="workspace-tier-heading">Management</h2><div class="admin-card"><div class="admin-card-title">System management</div><p class="admin-sub">Allowlisted management access is separate from role-derived capabilities.</p><div class="admin-actions"><button class="composer-btn" onclick="openManageUsers()">User ban list</button><button class="composer-btn" onclick="toggleGlobalDesync()">Desync Firebase</button><button class="composer-btn" onclick="toggleGlobalPopup()">Toggle maintenance</button></div><div id="workspaceDatabaseHost"></div></div><div class="admin-card" id="workspaceMgmt-updates"></div><div class="admin-card" id="workspaceMgmt-events"></div><div class="admin-card" id="workspaceMgmt-staff"></div><div class="admin-card" id="workspaceMgmt-users"></div><div class="admin-card" id="workspaceMgmt-apps"></div><div class="admin-card" id="workspaceMgmt-aegis"></div></section></div>
 
-                        <div class="admin-card">
-                            <div class="admin-card-title">Broadcast announcement</div>
-                            <div class="admin-sub" style="margin-bottom:10px;">Posts an announcement to Global as you.</div>
-                            <div class="admin-broadcast">
-                                <textarea id="adminBroadcastInput" rows="2" placeholder="Announcement text..."></textarea>
-                                <button class="composer-btn primary" onclick="adminBroadcast()">Send</button>
-                            </div>
-                        </div>
 
-                        <div class="admin-card">
-                            <div class="admin-card-title">Session log</div>
-                            <div id="adminLog" class="admin-log"><div class="admin-sub">No admin actions yet this session.</div></div>
-                        </div>
-                    </div>
-                </div>
+
+
+
+
+
+</div>
+</div>
 
                 <!-- EDITOR PANEL (hidden, accessible from games) -->
                 <div class="panel" id="panel-editor">
@@ -4093,7 +4087,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         // Panel access does not grant owner rank or owner-only privileges.
         const canAccessAdminPanel = () => !!(currentUser && auth.currentUser &&
             currentUser.uid === auth.currentUser.uid &&
-            (isAdminPanelOwner() || ['owner','developer','founder','aegis','admin','administrator'].includes(getRole())));
+            (isAdminPanelOwner() || isStaffUser()));
         function refreshAdminAccess() {
             const accountActions = document.getElementById('accountChatActions');
             if (accountActions) accountActions.style.display = currentUser ? 'flex' : 'none';
@@ -4755,7 +4749,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             const intro = document.createElement('p'); intro.className = 'command-guide-intro';
             intro.textContent = 'Select a command to put it in the Community composer, then replace any argument placeholders before sending. Selecting a command never sends it.';
             content.appendChild(intro);
-            const cmds = getChatCommands();
+            const cmds = getChatCommands().filter(workspaceCommandAllowed);
             for (const group of ['4.5.0 Moderation', 'Furry Bonus Commands', 'General Chat', 'Staff and Server Tools', 'Staff Status', 'Aegis AI']) {
                 const heading = document.createElement('h3'); heading.className = 'command-guide-heading'; heading.textContent = group; content.appendChild(heading);
                 if (group === 'Furry Bonus Commands') {
@@ -6500,7 +6494,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'back': { if (!isStaffUser()) { toast('Staff only'); return true; } if (currentUser) { try { const doc = await sp1derDb.collection('system').doc('sp1derData').get(); if (doc.exists) { const staff = doc.data().staffList || []; const idx = staff.findIndex(function(s) { return s.uid === currentUser.uid; }); if (idx >= 0) { staff[idx].status = 'online'; staff[idx].statusText = 'Online'; await sp1derDb.collection('system').doc('sp1derData').set({ staffList: staff }, { merge: true }); toast('Status: Online'); } else { toast('You are not listed as staff.'); } } else { toast('You are not listed as staff.'); } } catch(e) { toast('Failed'); } } return true; }
                 case 'ip': if (canUseStaffCmds()) { try { const r = await fetch('https://api.ipify.org?format=json'); const j = await r.json(); toast('Your IP: ' + j.ip); } catch (e) { toast('Failed to get IP'); } } else toast('Staff only.'); return true;
                 case 'profile': if (args[0]) { const uname = args[0].replace('@', ''); toast('Viewing profile: ' + uname); } return true;
-                case 'genaccess': if (!isAdminPanelOwner()) { toast('Owner only.'); return true; } if (args.length < 2) { toast('Usage: /genaccess <@user> <token>'); return true; } toast(`Granted ${args[1]} to ${args[0]}`); return true;
+                case 'genaccess': toast('Unavailable: token/access semantics have not been defined.');return true;
                 case 'globalwarn': if (!canUseStaffCmds()) { toast('Staff only.'); return true; } if (!args[0]) { toast('Usage: /globalwarn <message>'); return true; } try { await db.collection('globalNotifs').add({ type: 'warn', message: args.join(' '), timestamp: sv(), sender: myUid }); toast('Warning sent'); } catch (e) { toast('Failed'); } return true;
                 case 'globalpopup': if (!canUseStaffCmds()) { toast('Staff only.'); return true; } if (!args[0]) { toast('Usage: /globalpopup <message>'); return true; } try { await db.collection('system').doc('globalPopup').set({ message: args.join(' '), active: true, timestamp: sv(), sender: myUid }); toast('Popup sent'); } catch (e) { toast('Failed'); } return true;
                 case 'globaldesync': if (!isOwner()) { toast('Owner only.'); return true; } toggleGlobalDesync(); return true;
@@ -6509,8 +6503,8 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'timeout': if (!canUseStaffCmds()) { toast('Staff only.'); return true; } await modCommand('mute', args); return true;
                 case 'untimeout': if (!canUseStaffCmds()) { toast('Staff only.'); return true; } await modCommand('unmute', args); return true;
                 case 'kick': if (!canUseOwnerCmds()) { toast('Admin only.'); return true; } await modCommand('kick', args); return true;
-                case 'role': if (!isAdminPanelOwner()) { toast('Only an owner can change a rank.'); return true; } if (args.length < 2) { toast('Usage: /role <@user> <role>'); return true; } toast(`Set ${args[0]} role to ${args[1]}`); return true;
-                case 'demote': if (!isOwner()) { toast('Owner only.'); return true; } if (!args[0]) { toast('Usage: /demote <@user>'); return true; } toast(`Demoted ${args[0]}`); return true;
+                case 'role': await workspaceRoleCommand('role',args);return true;
+                case 'demote': await workspaceRoleCommand('demote',args);return true;
                 case 'popup': {
                     if (!canUseStaffCmds()) { toast('Staff only.'); return true; }
                     if (!args[0] || !args[0].startsWith('@') || !args[1]) { toast('Usage: /popup @user <message>'); return true; }
@@ -6565,8 +6559,8 @@ Furball found a sunbeam and is not moving for anyone.`;
                     await pinMessage(lastMsg, selectedChannelId);
                     return true;
                 }
-                case 'lock': if (!isOwner()) { toast('Owner only.'); return true; } if (args.length < 2) { toast('Usage: /lock <@user> <role>'); return true; } toast(`Locked ${args[0]}`); return true;
-                case 'unlock': if (!isOwner()) { toast('Owner only.'); return true; } if (!args[0]) { toast('Usage: /unlock <@user>'); return true; } toast(`Unlocked ${args[0]}`); return true;
+                case 'lock': await workspaceRoleCommand('lock',args);return true;
+                case 'unlock': await workspaceRoleCommand('unlock',args);return true;
                 case 'grantsync': { if (!canUseStaffCmds()) { toast('Staff only.'); return true; } if (!args[0]) { toast('Usage: /grantsync <@user> [count]'); return true; } const count = parseInt(args[1]) || 1; const targetUid = await resolveTargetUid(args[0]); if (!targetUid) { toast('No user found named "' + args[0].replace('@', '') + '".'); return true; } const result = await grantProfileSync(targetUid, count); toast(result); return true; }
                 case 'dbstatus': { toast('Current Server: ' + (selectedMsgDbIndex + 1) + ' of 5'); return true; }
                 case 'server': case 'manage': case 'commandcenter': openServerLogin(); return true;
@@ -6619,7 +6613,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 list.appendChild(item);
             });
         }
-        async function toggleBanUser(uid) { if (!requireAdminOwner()) return; try { const ref = db.collection('users').doc(uid); const doc = await ref.get(); const data = doc.data() || {}; await ref.set({ banned: !data.banned }, { merge: true }); toast(data.banned ? 'User unbanned' : 'User banned'); loadManageUsers(); } catch (e) { toast('Failed'); } }
+        async function toggleBanUser(uid){if(!requireAdminOwner())return;await mgmtToggleBan(uid);loadManageUsers();}
         function openNewDM() { if (!isConversationAccountMember()) { toast('Member sign-in required to start a conversation.'); return; } window._dmSelected = []; $('groupNameInput').value = ''; $('groupNameRow').style.display = 'none'; $('newDMModal').classList.add('active'); loadDMUserList(); }
         async function loadDMUserList() {
             if (!isConversationAccountMember()) return;
@@ -6941,6 +6935,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (!canUseStaffCmds()) { toast('Staff only'); return; }
             if (purgeChannelInFlight) { toast('A purge is already running — please wait.'); return; }
             const chId = channelId || selectedChannelId || 'global';
+            if(!confirm('Purge conversation '+chId+' on message server '+(selectedMsgDbIndex+1)+'?'))return;
             const msgDb = getMsgDbForCh(chId);
             purgeChannelInFlight = true;
             toast('Purging chat — this may take a few seconds...');
@@ -6995,7 +6990,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         const canViewMessageLog = () => isConversationOwnerAccount();
         function openMessageLog() {
             if (!canViewMessageLog()) { toast('Message log is for owners only.'); return; }
-            showView('admin');
+            showView('admin');selectWorkspaceTab('owner');
             const card = $('adminMessageLogCard');
             if (card) setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
             loadMessageLog(true);
@@ -8925,6 +8920,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             adminLogEntries.forEach(e => { const row = document.createElement('div'); row.className = 'admin-log-row'; const t = document.createElement('span'); t.className = 'admin-log-time'; t.textContent = new Date(e.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); const x = document.createElement('span'); x.textContent = e.text; row.appendChild(t); row.appendChild(x); el.appendChild(row); });
         }
         function updateAdminNav() {
+            refreshWorkspace();
             updateOwnerConversationView();
             updateSpoofControls();
             if (!canViewMessageLog()) {
@@ -8964,14 +8960,28 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         }
         /* One entry point for every moderation action (buttons and chat commands both use it). */
         async function modDo(action, u, opts) {
-            opts = opts || {}; const err = modActionError(action, u); if (err) { toast(err); return false; }
+            opts=opts||{};
+            if(['role','demote','lock','unlock'].includes(action))return workspaceRoleAction(action,u,opts);
+            const stamp=workspaceActorStamp();
+            try {
+                const snap=await db.collection('users').doc(u.uid).get();if(!snap.exists){toast('Account not found');return false;}u={...snap.data(),uid:snap.id};
+                if(!workspaceActorSame(stamp)){toast('Sign-in changed');return false;}
+            }catch(e){toast('Could not load target: '+e.message);return false;}
+            const err=modActionError(action,u);if(err){toast(err);return false;}
+            if(fixedDeveloper(u.email,u.uid)||isAdminPanelEmail(u.email)){toast('Fixed allowlisted account protected');return false;}
+            if(['ban','unban','kick','mute','unmute'].includes(action)) {
+                const mins=opts.minutes!==undefined?+opts.minutes:+($('adminMuteDur')?$('adminMuteDur').value:10);
+                if(action==='mute' && (!Number.isFinite(mins)||mins<0)){toast('Invalid mute duration');return false;}
+                if(!confirm(action.toUpperCase()+'\nTarget: '+adminUName(u)+'\nUID: '+u.uid+(action==='mute'?'\nDuration: '+(mins?mins+' minutes':'until unmuted'):'')))return false;
+                if(!workspaceActorSame(stamp)||modActionError(action,u)){toast('Account or permission changed');return false;}
+            }
             const reason = (opts.reason !== undefined ? opts.reason : ($('adminReason') ? $('adminReason').value : '')).trim(); const me = adminMyName(); const name = adminUName(u); const now = Date.now();
             const mid = now + '_' + Math.random().toString(36).slice(2, 7);
             let fields = null, doneMsg = '', logMsg = '';
             switch (action) {
                 case 'mute': { const mins = opts.minutes !== undefined ? +opts.minutes : +($('adminMuteDur') ? $('adminMuteDur').value : 10); fields = { muted: true, mutedUntil: mins > 0 ? now + mins * 60000 : 0, muteReason: reason || '', mutedBy: me, mutedAt: now }; doneMsg = name + ' muted ' + (mins > 0 ? 'for ' + (mins >= 60 ? (mins / 60) + 'h' : mins + ' min') : 'until unmuted'); logMsg = 'Muted ' + name + (mins > 0 ? ' (' + mins + ' min)' : ' (indefinite)') + (reason ? ': ' + reason : ''); break; }
                 case 'unmute': fields = { muted: false, mutedUntil: 0, muteReason: '' }; doneMsg = name + ' unmuted'; logMsg = 'Unmuted ' + name; break;
-                case 'ban': if (opts.confirm !== false && !confirm('Ban ' + name + '? They will be locked out until unbanned.')) return false; fields = { banned: true, banReason: reason || '', bannedBy: me, bannedAt: now }; doneMsg = name + ' banned'; logMsg = 'Banned ' + name + (reason ? ': ' + reason : ''); break;
+                case 'ban': fields = { banned: true, banReason: reason || '', bannedBy: me, bannedAt: now }; doneMsg = name + ' banned'; logMsg = 'Banned ' + name + (reason ? ': ' + reason : ''); break;
                 case 'unban': fields = { banned: false, banReason: '' }; doneMsg = name + ' unbanned'; logMsg = 'Unbanned ' + name; break;
                 case 'kick': fields = { kickAt: now }; doneMsg = name + ' was kicked out of their session'; logMsg = 'Kicked ' + name; break;
                 case 'warn': fields = { modMsg: { id: mid, kind: 'warn', text: reason || 'Please follow the community rules.', from: me, at: now }, warnings: firebase.firestore.FieldValue.increment(1) }; doneMsg = 'Warning sent to ' + name; logMsg = 'Warned ' + name + (reason ? ': ' + reason : ''); break;
@@ -9010,20 +9020,214 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             bar.appendChild(adminBtn('Warn', '', () => modDo('warn', u)));
             bar.appendChild(adminBtn('Poke', '', () => modDo('poke', u)));
             bar.appendChild(adminBtn('Message', '', () => modDo('message', u)));
-            if (canUseOwnerCmds()) {
+            if (workspaceIncludes('admin') && canUseOwnerCmds()) {
                 bar.appendChild(adminBtn('Kick', '', () => modDo('kick', u)));
                 bar.appendChild(u.banned ? adminBtn('Unban', 'ok', () => modDo('unban', u)) : adminBtn('Ban', 'danger', () => modDo('ban', u)));
-                const sel = document.createElement('select'); sel.className = 'admin-role-select'; sel.disabled = !isAdminPanelOwner();
+                const sel = document.createElement('select'); sel.className = 'admin-role-select'; sel.hidden = !workspaceIncludes('management') || !isAdminPanelOwner();
                 const cur = String(u.role || 'member').toLowerCase(); const curN = (cur === 'mod' || cur === 'watchdog') ? 'moderator' : cur;
                 const opts = ADMIN_ASSIGNABLE.filter(o => roleLevel(o.v) < getLevel());
                 if (!opts.some(o => o.v === curN)) { const o = document.createElement('option'); o.value = curN; o.textContent = curN; sel.appendChild(o); }
                 opts.forEach(o => { const op = document.createElement('option'); op.value = o.v; op.textContent = o.label; sel.appendChild(op); });
                 sel.value = curN; sel.onchange = () => modDo('role', u, { role: sel.value }).then(ok => { if (!ok) renderAdminPanel(); });
                 bar.appendChild(sel);
+                if(workspaceIncludes('management') && isAdminPanelOwner()){
+                    bar.appendChild(adminBtn(u.appRoleLocked?'Unlock role':'Lock role','',()=>modDo(u.appRoleLocked?'unlock':'lock',u,{role:sel.value}).then(()=>renderAdminPanel())));
+                }
             }
             row.appendChild(bar); return row;
         }
+
+        /* Workspace capabilities are UI/application checks, not database security rules. */
+        var workspaceSelected=null,workspaceIdentity=null,workspaceBusy=false,workspaceStaffIdentity=null;
+        var WORKSPACE_TIERS=['staff','admin','founder','owner','management'];
+        function workspaceCan(tier) {
+            if(!currentUser || !auth.currentUser || currentUser.uid!==auth.currentUser.uid) return false;
+            const management=isAdminPanelOwner(),role=getRole();
+            switch(tier) {
+                case 'staff':return management || isStaffUser();
+                case 'admin':return management || roleLevel(role)>=80;
+                case 'founder':return management || ['founder','owner','developer'].includes(role);
+                case 'owner':return ['owner','developer'].includes(role);
+                case 'management':return management;
+                default:return false;
+            }
+        }
+        function workspaceIncludes(tier) {
+            return workspaceCan(tier) && !!workspaceSelected && (workspaceSelected==='management' || WORKSPACE_TIERS.indexOf(tier)<=WORKSPACE_TIERS.indexOf(workspaceSelected));
+        }
+        function selectWorkspaceTab(tier) {
+            if(!workspaceCan(tier)){refreshWorkspace();return;}
+            workspaceSelected=tier;refreshWorkspace();renderAdminPanel();
+        }
+        function refreshWorkspace() {
+            const root=document.getElementById('workspaceTools');if(!root || workspaceBusy)return;
+            workspaceBusy=true;
+            try {
+                const key=(currentUser?currentUser.uid:'')+':'+getRole()+':'+isAdminPanelOwner()+':'+_authGeneration;
+                if(workspaceIdentity!==key) {
+                    workspaceIdentity=key;workspaceSelected=null;workspaceStaffIdentity=null;
+                    ['workspaceEditorHost',...['updates','events','staff','users','apps','aegis'].map(t=>'workspaceMgmt-'+t)].forEach(id=>{
+                        const el=$(id);if(el){el.replaceChildren();delete el.dataset.ready;}
+                    });
+                    ['workspaceCommandInput','adminReason','adminBannerInput','adminBroadcastInput','adminSearch','msgLogSearch'].forEach(id=>{if($(id))$(id).value='';});
+                    if($('workspaceStaffSelf'))$('workspaceStaffSelf').replaceChildren();
+                }
+                const allowed=WORKSPACE_TIERS.filter(workspaceCan);
+                if(!allowed.includes(workspaceSelected))workspaceSelected=allowed[allowed.length-1]||null;
+                const tabs=$('workspaceRoleTabs');
+                tabs.querySelectorAll('[data-workspace-tab]').forEach(b=>{
+                    const tier=b.dataset.workspaceTab,selected=tier===workspaceSelected;
+                    b.hidden=!workspaceCan(tier);b.tabIndex=selected?0:-1;b.setAttribute('aria-selected',String(selected));
+                });
+                if(!tabs.dataset.bound) {
+                    tabs.dataset.bound='true';
+                    tabs.addEventListener('keydown',e=>{
+                        if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+                        const list=[...tabs.querySelectorAll('[role="tab"]')].filter(b=>!b.hidden);if(!list.length)return;e.preventDefault();
+                        let i=list.indexOf(document.activeElement);
+                        i=e.key==='Home'?0:e.key==='End'?list.length-1:(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;
+                        list[i].click();list[i].focus();
+                    });
+                    ['click','change','submit'].forEach(type=>root.addEventListener(type,e=>{
+                        const section=e.target.closest('[data-workspace-tier]');
+                        if(section && !workspaceIncludes(section.dataset.workspaceTier)){e.preventDefault();e.stopImmediatePropagation();refreshWorkspace();}
+                    },true));
+                }
+                root.setAttribute('aria-labelledby',workspaceSelected?'workspaceTab-'+workspaceSelected:'workspaceRoleTabs');
+                root.querySelectorAll('[data-workspace-tier]').forEach(sec=>sec.hidden=!workspaceIncludes(sec.dataset.workspaceTier));
+                const editor=$('workspaceEditorHost');
+                if(workspaceIncludes('founder') && !editor.dataset.ready) {
+                    renderWorkspaceManagementTool('editor',editor);editor.dataset.ready='true';
+                    if(['founder','owner','developer'].includes(getRole())) {
+                        const button=document.createElement('button');button.className='composer-btn';button.textContent='Publish to launcher';
+                        button.onclick=()=>{if(workspaceCan('founder'))publishToLauncher();};editor.appendChild(button);
+                    }
+                }
+                if(workspaceIncludes('management')) {
+                    ['updates','events','staff','users','apps','aegis'].forEach(tab=>{
+                        const host=$('workspaceMgmt-'+tab);if(!host.dataset.ready){renderWorkspaceManagementTool(tab,host);host.dataset.ready='true';}
+                    });
+                    const host=$('workspaceDatabaseHost'),controls=$('dbMgmtContent');
+                    if(host && controls && !host.contains(controls))host.appendChild(controls);
+                    renderDbManagement();
+                }
+                const context=$('workspaceContext');if(context)context.textContent='Conversation: '+(selectedChannelId||'global')+' · Message server '+(selectedMsgDbIndex+1);
+                const ai=$('workspaceAegisTools');if(ai)ai.hidden=!isAegisUser();
+                if(workspaceIncludes('staff') && workspaceStaffIdentity!==key){workspaceStaffIdentity=key;loadWorkspaceStaffSelf(key);}
+            }finally{workspaceBusy=false;}
+        }
+        async function loadWorkspaceStaffSelf(key) {
+            const box=$('workspaceStaffSelf');if(!box)return;box.textContent='Loading your staff record…';
+            try {
+                const snapshot=await sp1derDb.collection('system').doc('sp1derData').get();
+                if(workspaceIdentity!==key || !workspaceCan('staff'))return;
+                const record=((snapshot.exists && snapshot.data().staffList)||[]).find(x=>x.uid===currentUser.uid);
+                box.replaceChildren();
+                if(!record){box.textContent='No staff-roster record is linked to your UID. An allowlisted manager must link it before you can edit it.';return;}
+                const status=document.createElement('select');status.id='workspaceOwnStatus';status.setAttribute('aria-label','My staff status');
+                ['online','away','break','left','offline'].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;status.appendChild(o);});status.value=record.status||'offline';
+                const description=document.createElement('textarea');description.id='workspaceOwnDescription';description.setAttribute('aria-label','My staff description');description.maxLength=2000;description.rows=4;description.style.width='100%';description.value=record.description||'';
+                const save=document.createElement('button');save.className='composer-btn primary';save.textContent='Save my staff details';
+                const uid=currentUser.uid,generation=_authGeneration;
+                save.onclick=async()=>{
+                    if(workspaceIdentity!==key || !workspaceCan('staff'))return;save.disabled=true;
+                    try{await saveOwnedStaffRecord(record.id,{status:status.value,description:description.value},uid,generation);toast('Staff details saved');}
+                    catch(e){toast(e.message||'Staff write failed');}finally{save.disabled=false;}
+                };box.append(status,description,save);
+            }catch(e){if(workspaceIdentity===key)box.textContent='Could not load staff details: '+e.message;}
+        }
+        async function saveOwnedStaffRecord(staffId,patch,uid,generation) {
+            const same=()=>currentUser && auth.currentUser && currentUser.uid===uid && auth.currentUser.uid===uid && _authGeneration===generation && isStaffUser();
+            if(!same())throw new Error('Sign-in changed or staff access unavailable.');
+            if(patch.status!==undefined && !['online','away','break','left','offline'].includes(patch.status))throw new Error('Invalid staff status.');
+            if(patch.description!==undefined && String(patch.description).length>2000)throw new Error('Description must be 2,000 characters or fewer.');
+            const ref=sp1derDb.collection('system').doc('sp1derData');
+            await sp1derDb.runTransaction(async transaction=>{
+                const snapshot=await transaction.get(ref);if(!same())throw new Error('Sign-in changed. Save cancelled.');
+                const list=(snapshot.exists && snapshot.data().staffList)||[];const index=list.findIndex(x=>x.id===staffId);
+                if(index<0 || list[index].uid!==uid)throw new Error('You may edit only your own linked staff record.');
+                list[index]={...list[index],...patch};
+                if(patch.status!==undefined)list[index].statusText={online:'Online',away:'Away',break:'On Break',left:'Left',offline:'Offline'}[patch.status];
+                if(!same())throw new Error('Sign-in changed. Save cancelled.');transaction.set(ref,{staffList:list},{merge:true});
+            });
+        }
+        async function workspaceRunCommand() {
+            if(!workspaceCan('staff'))return;
+            const input=$('workspaceCommandInput'),text=input.value.trim();if(!text.startsWith('/')){toast('Enter a slash command.');return;}
+            const uid=currentUser.uid,generation=_authGeneration;
+            try{const handled=await handleCommand(text,selectedChannelId||'global');if(currentUser && currentUser.uid===uid && generation===_authGeneration && handled)input.value='';if(!handled)toast('Unknown or unavailable command.');}
+            catch(e){toast('Command failed: '+e.message);}
+        }
+        function workspacePurge(){if(workspaceCan('staff'))purgeChannel(selectedChannelId||'global');}
+        function workspaceCommandAllowed(command) {
+            const name=command.usage.split(/\s/)[0].replace(/^\//,'');
+            if(name==='genaccess')return false;
+            if(['role','demote','lock','unlock','server','manage','commandcenter'].includes(name))return workspaceCan('management');
+            if(name==='msglog')return workspaceCan('owner');
+            if(['ban','unban','kick','chatlock','chatunlock','slowmode','banner'].includes(name))return workspaceCan('admin');
+            if(command.ai)return isAegisUser();if(command.group==='Furry Bonus Commands')return canUseFurballCommands();
+            if(command.owner)return canUseOwnerCmds();if(command.staff)return canUseStaffCmds();return true;
+        }
+
+
+        function workspaceActorStamp(){return currentUser?{uid:currentUser.uid,generation:_authGeneration}:null;}
+        function workspaceActorSame(stamp){return !!(stamp && currentUser && auth.currentUser && stamp.uid===currentUser.uid && stamp.uid===auth.currentUser.uid && stamp.generation===_authGeneration);}
+        function workspaceRoleValue(value){const role=String(value||'').trim().toLowerCase();return role==='administrator'?'admin':role==='mod'?'moderator':role;}
+        async function workspaceResolveAccount(value) {
+            const term=String(value||'').replace(/^@/,'').trim();if(!term)throw new Error('Enter an exact UID, email, or unique account name.');
+            const direct=await db.collection('users').doc(term).get();if(direct.exists)return {...direct.data(),uid:direct.id};
+            const matches=new Map();
+            for(const field of term.includes('@')?['email']:['username','displayName']) {
+                const snap=await db.collection('users').where(field,'==',term).limit(2).get();
+                snap.docs.forEach(d=>matches.set(d.id,{...d.data(),uid:d.id}));
+            }
+            if(matches.size!==1)throw new Error(matches.size?'Ambiguous account. Use an exact UID or email.':'Account not found. Use an exact UID or email.');
+            return [...matches.values()][0];
+        }
+        async function workspaceRoleAction(action,target,options) {
+            options=options||{};const stamp=workspaceActorStamp();
+            if(!workspaceCan('management')){toast('Allowlisted management access required.');return false;}
+            const ref=db.collection('users').doc(target.uid);
+            try {
+                const snapshot=await ref.get();if(!snapshot.exists)throw new Error('Account not found.');
+                const before={...snapshot.data(),uid:snapshot.id};
+                const check=u=>{
+                    if(!workspaceActorSame(stamp)||!workspaceCan('management'))throw new Error('Account or access changed.');
+                    if(u.uid===stamp.uid)throw new Error('You cannot target yourself.');
+                    if(fixedDeveloper(u.email,u.uid)||isAdminPanelEmail(u.email))throw new Error('Fixed allowlisted accounts cannot be changed here.');
+                    if(roleLevel(accountRole(u))>=getLevel())throw new Error('Target has equal or higher rank.');
+                    if(action!=='unlock' && u.appRoleLocked)throw new Error('Unlock this role before changing it.');
+                };check(before);
+                const role=action==='demote'?'member':workspaceRoleValue(options.role);
+                if(action!=='unlock' && !['member','moderator','watchdog','admin','founder','owner','developer','aegis'].includes(role))throw new Error('Invalid role value.');
+                if(action!=='unlock' && roleLevel(role)>getLevel())throw new Error('You cannot assign that role.');
+                const label=adminUName(before),oldRole=workspaceRoleValue(accountRole(before));
+                const nextRole=action==='unlock'?oldRole:role;
+                const message=action==='unlock'?'Remove the app-level role lock; keep the current role.':action==='lock'?'Set this role and lock it in patched app controls.':'Change the stored account role.';
+                if(!confirm(message+'\nTarget: '+label+'\nUID: '+before.uid+'\nRole: '+roleLabel(oldRole)+' → '+roleLabel(nextRole)+'\nApp role lock: '+!!before.appRoleLocked+' → '+(action==='lock')))return false;
+                let written;
+                await db.runTransaction(async transaction=>{
+                    const fresh=await transaction.get(ref);if(!fresh.exists)throw new Error('Account no longer exists.');
+                    const user={...fresh.data(),uid:fresh.id};check(user);
+                    if(workspaceRoleValue(accountRole(user))!==oldRole || !!user.appRoleLocked!==!!before.appRoleLocked || adminUName(user)!==label || String(user.email||'')!==String(before.email||''))throw new Error('Target changed after confirmation. Review it again.');
+                    written=action==='unlock'?{appRoleLocked:false,appRoleLockBy:stamp.uid,appRoleLockAt:Date.now()}:{role,roleGrantedBy:stamp.uid,roleGrantedAt:Date.now(),...(action==='lock'?{appRoleLocked:true,appRoleLockBy:stamp.uid,appRoleLockAt:Date.now()}:{})};
+                    transaction.set(ref,written,{merge:true});
+                });
+                Object.assign(target,written);
+                if(action!=='unlock'){try{await db.collection('presence').doc(target.uid).set({role},{merge:true});}catch(e){toast('Role saved; presence refresh failed: '+e.message);}}
+                adminLogAdd(action+' '+label+' ('+target.uid+'): '+oldRole+' → '+nextRole);toast(action==='unlock'?'Role unlocked':action==='lock'?'Role saved and locked':'Role updated');return true;
+            }catch(e){toast('Role action failed: '+e.message);return false;}
+        }
+        async function workspaceRoleCommand(action,args) {
+            if(!workspaceCan('management')){toast('Allowlisted management access required.');return;}
+            if(!args[0] || (['role','lock'].includes(action)&&!args[1])){toast('Usage: /'+action+' <UID|email|@unique-name>'+(['role','lock'].includes(action)?' <role>':''));return;}
+            const stamp=workspaceActorStamp();
+            try{const user=await workspaceResolveAccount(args[0]);if(!workspaceActorSame(stamp))throw new Error('Sign-in changed.');await modDo(action,user,{role:args[1]});}
+            catch(e){toast(e.message);}
+        }
+
         function renderAdminPanel() {
+            refreshWorkspace();
             if (!$('panel-admin')) return;
             if (!canAccessAdminPanel()) { if (document.querySelector('#panel-admin.active')) showView('home'); return; }
             $('adminWho').textContent = (userProfile && userProfile.username) || (currentUser && (currentUser.displayName || currentUser.email)) || '-';
@@ -9165,16 +9369,19 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             if (!canUseOwnerCmds()) { toast('That needs the admin role'); return; }
             const text = ($('adminBannerInput').value || '').trim();
             if (on && !text) { toast('Type the banner text first'); return; }
+            if(!confirm(on?'Publish site banner?\n\n'+text:'Remove the live site banner?'))return;
             try { await db.collection('system').doc('siteBanner').set({ active: !!on, text: on ? text : '', by: adminMyName(), at: Date.now() }); toast(on ? 'Banner is live' : 'Banner cleared'); adminLogAdd(on ? 'Set banner: ' + text.slice(0, 50) : 'Cleared banner'); if (!on) $('adminBannerInput').value = ''; $('adminBannerState').textContent = on ? '(live)' : ''; } catch (e) { toast('Failed: ' + e.message); }
         }
         async function adminToggleLock() {
             if (!canUseOwnerCmds()) { toast('That needs the admin role'); return; }
             const next = !chatCtl.locked;
+            if(!confirm((next?'Lock':'Unlock')+' network chat?'))return;
             try { await db.collection('system').doc('chatControls').set({ locked: next, lockMsg: next ? 'Chat is locked by staff right now.' : '', by: adminMyName(), at: Date.now() }, { merge: true }); toast(next ? 'Chat locked' : 'Chat unlocked'); adminLogAdd(next ? 'Locked chat' : 'Unlocked chat'); } catch (e) { toast('Failed: ' + e.message); }
         }
         async function adminSetSlow(v) {
             if (!canUseOwnerCmds()) { toast('That needs the admin role'); return; }
-            const sec = parseInt(v, 10) || 0;
+            const sec=Number(v);if(!Number.isInteger(sec)||sec<0){toast('Invalid slow mode');return;}
+            if(!confirm('Network slow mode: '+(+chatCtl.slowSec||0)+' → '+sec+' seconds?')){renderAdminControls();return;}
             try { await db.collection('system').doc('chatControls').set({ slowSec: sec, by: adminMyName(), at: Date.now() }, { merge: true }); toast(sec ? 'Slow mode: ' + sec + 's' : 'Slow mode off'); adminLogAdd(sec ? 'Slow mode ' + sec + 's' : 'Slow mode off'); } catch (e) { toast('Failed: ' + e.message); }
         }
         function adminRandomPick() {
@@ -9192,6 +9399,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         }
         async function adminBroadcast() {
             const input = $('adminBroadcastInput'); const content = (input.value || '').trim(); if (!content) { toast('Write an announcement first'); return; }
+            if(!workspaceCan('staff')||!confirm('Publish announcement to Global?\n\n'+content))return;
             if (await adminPostGlobal(content, true)) { input.value = ''; adminLogAdd('Broadcast: ' + content.slice(0, 60)); }
         }
         async function adminRefresh(reload) {
@@ -9439,25 +9647,17 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             document.getElementById('aiCommandsModal').classList.add('active');
         }
         let _mgmtInitialized = false;
-        function openServerMgmt() {
-            if (!requireAdminOwner()) return;
-            let p = document.getElementById('serverMgmtPage');
-            if (!p) {
-                p = document.createElement('div');
-                p.id = 'serverMgmtPage';
-                p.style.cssText = 'position:fixed;inset:0;z-index:100000;background:var(--bg-0);display:none;flex-direction:column;overflow:hidden;';
-                p.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:var(--bg-1);border-bottom:1px solid var(--border);flex-shrink:0;"><span style="font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Server Command Center</span><div style="flex:1;"></div><button class="topbar-btn" onclick="closeServerMgmt()">Close</button></div><div style="display:flex;flex:1;overflow:hidden;"><div style="width:200px;flex-shrink:0;background:var(--bg-1);border-right:1px solid var(--border);padding:12px 8px;display:flex;flex-direction:column;gap:4px;"><button class="nav-item active" onclick="switchMgmtTab(\'updates\')" style="font-size:0.82rem;">Updates</button><button class="nav-item" onclick="switchMgmtTab(\'events\')" style="font-size:0.82rem;">Events</button><button class="nav-item" onclick="switchMgmtTab(\'staff\')" style="font-size:0.82rem;">Staff</button><button class="nav-item" onclick="switchMgmtTab(\'users\')" style="font-size:0.82rem;">Users</button><button class="nav-item" onclick="switchMgmtTab(\'apps\')" style="font-size:0.82rem;">Apps & Games</button><button class="nav-item" onclick="switchMgmtTab(\'aegis\')" style="font-size:0.82rem;">Aegis Web</button><button class="nav-item" onclick="switchMgmtTab(\'editor\')" style="font-size:0.82rem;">Site Editor</button></div><div id="mgmtContent" style="flex:1;overflow-y:auto;padding:24px;"></div></div>';
-                document.body.appendChild(p);
-                _mgmtInitialized = true;
-            }
-            p.style.display = 'flex';
-            switchMgmtTab('updates');
-        }
-        function closeServerMgmt() { const p = document.getElementById('serverMgmtPage'); if (p) p.style.display = 'none'; }
+        function openServerMgmt() { if(!requireAdminOwner()) return; showView('admin');selectWorkspaceTab('management'); }
+        function closeServerMgmt() { showView('community'); }
         function switchMgmtTab(tab) {
-            const c = document.getElementById('mgmtContent'); if (!c) return;
+            const tier=tab==='editor'?'founder':'management';if(!workspaceCan(tier)){toast('Not authorized');return;}
+            showView('admin');selectWorkspaceTab(tier);
+            const host=$(tab==='editor'?'workspaceEditorHost':'workspaceMgmt-'+tab);if(host) host.scrollIntoView({block:'start',behavior:'smooth'});
+        }
+        function renderWorkspaceManagementTool(tab,c) {
+            if(!c || !workspaceCan(tab==='editor'?'founder':'management')) return;
             document.querySelectorAll('#serverMgmtPage .nav-item').forEach(function(n) { n.classList.remove('active'); });
-            if (tab === 'events') { c.innerHTML = '<div style="padding:12px;"><h3>Event Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Create / Update Event</h4><input type="text" id="mgmtEventName" placeholder="Event name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtEventDesc" placeholder="Event description..." style="width:100%;height:80px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><select id="mgmtEventStatus" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><option value="upcoming">Upcoming</option><option value="active">Active</option><option value="ended">Ended</option></select><input type="text" id="mgmtEventEndNote" placeholder="End dedication note (shown when ended)..." style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><button class="composer-btn primary" onclick="mgmtSaveEvent()" style="padding:8px 16px;">Save Event</button></div><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add Winner to Hall</h4><input type="text" id="mgmtWinnerName" placeholder="Winner name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerTag" placeholder="Winner tag (e.g. Sp1der Master)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerStat" placeholder="Stat (e.g. Found 200 sp1ders)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerPhoto" placeholder="Photo URL (optional)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtWinnerWords" placeholder="Winner words (their quote)..." style="width:100%;height:60px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><button class="composer-btn primary" onclick="mgmtAddWinner()" style="padding:8px 16px;">Add Winner</button></div><div id="mgmtEventStatus"></div></div>'; mgmtRefreshEventStatus(); }
+            if (tab === 'events') { c.innerHTML = '<div style="padding:12px;"><h3>Event Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Create / Update Event</h4><input type="text" id="mgmtEventName" placeholder="Event name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtEventDesc" placeholder="Event description..." style="width:100%;height:80px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><select id="mgmtEventStatus" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><option value="upcoming">Upcoming</option><option value="active">Active</option><option value="ended">Ended</option></select><input type="text" id="mgmtEventEndNote" placeholder="End dedication note (shown when ended)..." style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><button class="composer-btn primary" onclick="mgmtSaveEvent()" style="padding:8px 16px;">Save Event</button></div><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add Winner to Hall</h4><input type="text" id="mgmtWinnerName" placeholder="Winner name" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerTag" placeholder="Winner tag (e.g. Sp1der Master)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerStat" placeholder="Stat (e.g. Found 200 sp1ders)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><input type="text" id="mgmtWinnerPhoto" placeholder="Photo URL (optional)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtWinnerWords" placeholder="Winner words (their quote)..." style="width:100%;height:60px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><button class="composer-btn primary" onclick="mgmtAddWinner()" style="padding:8px 16px;">Add Winner</button></div><div id="mgmtEventSummary"></div></div>'; mgmtRefreshEventStatus(); }
             else if (tab === 'staff') { c.innerHTML = '<div style="padding:12px;"><h3>Staff Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;"><h4 style="font-size:0.85rem;margin-bottom:8px;">Add Staff from User List</h4><div id="mgmtStaffUserList" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;"><div style="padding:8px;color:var(--text-dim);">Loading users...</div></div><div id="mgmtStaffSelected" style="display:none;background:var(--bg-1);border:1px solid var(--primary);border-radius:6px;padding:8px;margin-bottom:6px;"><div style="font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Selected User</div><div id="mgmtStaffSelectedName" style="font-weight:700;font-size:0.85rem;"></div></div><input type="text" id="mgmtStaffRole" placeholder="Role (e.g. Admin, Moderator, Support)" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;"><textarea id="mgmtStaffDesc" placeholder="Staff description (optional)..." style="width:100%;height:60px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:0.8rem;margin-bottom:6px;"></textarea><button class="composer-btn primary" id="mgmtAddStaffBtn" onclick="mgmtAddStaffFromUser()" style="padding:8px 16px;width:100%;" disabled>Add as Staff</button></div><h4 style="font-size:0.85rem;margin-bottom:8px;">Current Staff</h4><div id="mgmtStaffList" style="max-height:400px;overflow-y:auto;"></div></div>'; mgmtRefreshStaffList().then(function() { mgmtRefreshStaffUserList(); }); }
             if (tab==='updates') c.innerHTML = '<div style="padding:12px;"><h3>Deploy Update</h3><label for="mgmtUpdateText">Update notes</label><textarea id="mgmtUpdateText" style="width:100%;height:120px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;" placeholder="Paste update notes here..." oninput="calcUpdateTime()"></textarea><label for="mgmtVersionInput" style="display:block;margin-top:8px;">Version</label><input type="text" id="mgmtVersionInput" placeholder="Version e.g. 4.5.1" style="width:120px;max-width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:8px;"><label for="mgmtUpdateBy" style="display:block;margin-top:12px;">Update by (optional)</label><input type="text" id="mgmtUpdateBy" maxlength="80" placeholder="e.g. P1xelF1n" style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:4px;"><p style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">Shows an Update by tag on the published notes. Leave blank for no tag on a new version.</p><div id="mgmtTimeCalc" style="padding:10px;background:var(--bg-2);border-radius:8px;margin:8px 0;font-size:0.85rem;">Estimated time: Calculating...</div><button class="composer-btn primary" id="mgmtDeployBtn" onclick="deployUpdate()" style="width:100%;padding:12px;">Deploy Update</button><div id="mgmtDeployStatus" role="status" style="margin-top:10px;"></div></div>';
             else if (tab==='users') { c.innerHTML = '<div style="padding:12px;"><h3>User Management</h3><div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;"><input type="text" id="mgmtUserSearch" placeholder="Search by name or email..." style="width:100%;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;" oninput="mgmtFilterUsers()"></div><div id="mgmtUserList" style="max-height:500px;overflow-y:auto;"><div style="padding:8px;color:var(--text-dim);">Loading...</div></div><button class="composer-btn" onclick="mgmtRefreshUsers()" style="margin-top:8px;">Refresh</button></div>'; mgmtRefreshUsers(); }
@@ -9495,6 +9695,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             const author = document.getElementById('mgmtUpdateBy').value.trim().slice(0, 80);
             if (!t) { toast('Enter notes.'); return; }
             if (!v) { toast('Enter version.'); return; }
+            if(!confirm('Deploy update '+v+'?\nUpdate by: '+author+'\n\n'+t))return;
             const changes = t.split('\n').filter(line => line.trim());
             const seconds = Math.ceil(changes.length / 250) * 30;
             const st = document.getElementById('mgmtDeployStatus');
@@ -9575,27 +9776,13 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 mgmtRenderUsersList();
             } catch(e) { l.innerHTML = '<div style="padding:12px;color:var(--text-dim);">Unable to load users. Try again later.</div>'; }
         }
-        async function mgmtToggleBan(uid) { if (!requireAdminOwner()) return;
-            try {
-                const ref = db.collection('users').doc(uid);
-                const doc = await ref.get();
-                const data = doc.exists ? doc.data() : {};
-                await ref.set({ banned: !data.banned }, { merge: true });
-                toast(data.banned ? 'User unbanned' : 'User banned');
-                mgmtRefreshUsers();
-            } catch(e) { toast('Failed'); }
+        async function mgmtToggleBan(uid) {
+            if(!requireAdminOwner())return;
+            try{const snap=await db.collection('users').doc(uid).get();if(!snap.exists){toast('Account not found');return;}const user={...snap.data(),uid};if(await modDo(user.banned?'unban':'ban',user))mgmtRefreshUsers();}catch(e){toast('Failed: '+e.message);}
         }
-        async function mgmtSetUserRole(uid, role) {
-            if (!role) return;
-            if (!requireAdminOwner()) { mgmtRenderUsersList(); return; }
-            const target = (mgmtUsersCache || []).find(function(x) { return x.uid === uid; });
-            if (target && isAdminPanelEmail(target.email)) { toast('Owner accounts keep a fixed rank.'); mgmtRenderUsersList(); return; }
-            if ((role === 'owner' || role === 'developer' || role === 'aegis') && !confirm('Grant the ' + role + ' rank to this user?')) { mgmtRenderUsersList(); return; }
-            try {
-                await db.collection('users').doc(uid).set({ role: role, roleGrantedBy: currentUser.uid, roleGrantedAt: Date.now() }, { merge: true });
-                toast('Role set to: ' + role);
-                mgmtRefreshUsers();
-            } catch(e) { toast('Failed: ' + e.message); }
+        async function mgmtSetUserRole(uid,role) {
+            if(!role || !requireAdminOwner())return;
+            await modDo('role',{uid},{role});mgmtRefreshUsers();
         }
         async function mgmtAddToStaff(uid, name) { if (!requireAdminOwner()) return;
             try {
@@ -9912,49 +10099,22 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
         }
 
         function editStaffDesc(staffId) {
-            const el = $('staffDesc-' + staffId); if (!el) return;
-            el.contentEditable = true;
-            el.classList.add('editing');
-            el.focus();
-            const actions = el.parentElement.querySelector('.staff-actions');
-            if (actions && !actions.querySelector('.save-desc-btn')) {
-                const saveBtn = document.createElement('button');
-                saveBtn.className = 'composer-btn primary save-desc-btn';
-                saveBtn.textContent = 'Save';
-                saveBtn.style.cssText = 'padding:6px 10px;font-size:0.72rem;flex:1;';
-                saveBtn.onclick = function() {
-                    const newText = el.textContent.trim();
-                    el.contentEditable = false;
-                    el.classList.remove('editing');
-                    saveBtn.remove();
-                    // Update staff description in globalPopup.staffList
-                    try {
-                        sp1derDb.collection('system').doc('sp1derData').get().then(function(doc) {
-                            if (!doc.exists) return;
-                            const staff = doc.data().staffList || [];
-                            const idx = staff.findIndex(function(s) { return s.id === staffId; });
-                            if (idx >= 0) { staff[idx].description = newText; sp1derDb.collection('system').doc('sp1derData').set({ staffList: staff }, { merge: true }); toast('Description updated'); }
-                        });
-                    } catch(e) { toast('Failed to save'); }
-                };
-                actions.appendChild(saveBtn);
-            }
+            if(!currentUser || !isStaffUser())return;
+            const uid=currentUser.uid,generation=_authGeneration,el=$('staffDesc-'+staffId);if(!el)return;
+            const record=staffData.find(x=>x.id===staffId);if(!record || record.uid!==uid){toast('You may edit only your own staff description.');return;}
+            el.contentEditable=true;el.classList.add('editing');el.focus();const actions=el.parentElement.querySelector('.staff-actions');
+            if(!actions || actions.querySelector('.save-desc-btn'))return;
+            const button=document.createElement('button');button.className='composer-btn primary save-desc-btn';button.textContent='Save';
+            button.onclick=async()=>{button.disabled=true;try{await saveOwnedStaffRecord(staffId,{description:el.textContent.trim()},uid,generation);el.contentEditable=false;el.classList.remove('editing');button.remove();toast('Description updated');}catch(e){toast(e.message||'Failed to save');button.disabled=false;}};actions.appendChild(button);
         }
-
-        async function setStaffStatus(staffId, status) {
-            const statusTexts = { online: 'Online', away: 'Away', break: 'On Break', left: 'Left', offline: 'Offline' };
-            try {
-                const doc = await sp1derDb.collection('system').doc('sp1derData').get();
-                if (!doc.exists) { toast('No staff data'); return; }
-                const staff = doc.data().staffList || [];
-                const idx = staff.findIndex(function(s) { return s.id === staffId; });
-                if (idx >= 0) { staff[idx].status = status; staff[idx].statusText = statusTexts[status] || status; await sp1derDb.collection('system').doc('sp1derData').set({ staffList: staff }, { merge: true }); toast('Status: ' + (statusTexts[status] || status)); } else { toast('Staff not found'); }
-            } catch(e) { toast('Failed to update status'); }
+        async function setStaffStatus(staffId,status) {
+            if(!currentUser)return;const uid=currentUser.uid,generation=_authGeneration;
+            try{await saveOwnedStaffRecord(staffId,{status},uid,generation);toast('Status updated');}catch(e){toast(e.message||'Failed to update status');}
         }
 
         /* ===== SERVER MANAGEMENT: EVENTS ===== */
         function mgmtRefreshEventStatus() {
-            const el = $('mgmtEventStatus'); if (!el) return;
+            const el = $('mgmtEventSummary'); if (!el) return;
             const event = currentEventData || {};
             el.innerHTML = '<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:12px;"><div style="font-size:0.8rem;font-weight:700;color:var(--primary);margin-bottom:8px;">Current Event Status</div><div style="font-size:0.82rem;color:var(--text-dim);line-height:1.8;">Name: <b style="color:var(--text);">' + escapeHtml(event.name || 'None') + '</b><br>Status: <b style="color:var(--text);">' + escapeHtml(event.status || 'None') + '</b><br>Description: ' + escapeHtml(event.description || 'None') + '</div></div>';
             // Populate form with current event data
