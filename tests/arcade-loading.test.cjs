@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
-const hub = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const hub = fs.readFileSync(path.join(root, 'fishes-arcade.html'), 'utf8');
 const mantle = fs.readFileSync(path.join(root, 'Mantle.html'), 'utf8');
 const canonical = 'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/';
 const fn = name => {
