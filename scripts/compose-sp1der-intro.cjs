@@ -36,6 +36,73 @@ for (const stage of score.stages) {
     return .055 * env * (tone(f,t) + .25*tone(f*2.001,t) + .1*tone(f*3,t));
   }, (n-1.5)/3));
 }
+// ===== Progressive arrangement: every stage adds another connected layer, so
+// the score keeps growing fuller, brighter and more upbeat toward the title.
+// All layers share the same D-minor-to-D-major harmony as the stage chords. =====
+const stageIndexAt = t => { let i = 0; score.stages.forEach((s, k) => { if (t >= s.at) i = k; }); return i; };
+const rootOf = i => i >= 7 ? 146.8324 : 73.4162;   // D3 at the title, D2 before it
+const fifthOf = i => i >= 7 ? 220 : 110;           // A2 / A3
+const ARP = [146.8324, 174.6141, 220, 261.6256, 220, 174.6141];
+const ARP_TITLE = [293.6648, 369.9944, 440, 587.3296, 440, 369.9944];
+const LEAD = [[26,293.6648],[26.5,349.2282],[27,440],[27.5,392],[28,440],[28.5,523.2511],
+  [29,587.3296],[29.5,440],[30,369.9944],[30.5,440],[31,587.3296],[31.5,587.3296]];
+// 1) Warm pad bed under every stage from assembly on, thickening stage by stage.
+score.stages.forEach((stage, i) => {
+  if (i === 0) return;
+  const end = score.stages[i + 1]?.at ?? score.duration;
+  const level = .022 + i * .0045;
+  [rootOf(i), fifthOf(i), rootOf(i) * 2].forEach((f, n) => event(stage.at, end - stage.at, (t) => {
+    const fade = Math.min(1, t / .8, (end - stage.at - t) / .6);
+    return level * fade * (.6 * tone(f, t) + .25 * tone(f * 1.004, t) + .18 * tone(f * 2, t));
+  }, (n - 1) * .45));
+});
+// 2) Plucked arpeggio from ignition on; an octave up through transit, brighter at the title.
+const arpEnd = timeline.times.identity + 5 * timeline.beat + .25;
+for (let at = timeline.times.ignition; at < arpEnd; at += timeline.beat / 2) {
+  const i = stageIndexAt(at), step = Math.round(at / (timeline.beat / 2));
+  const f = (i >= 7 ? ARP_TITLE : ARP)[step % 6] * (i >= 5 ? 2 : 1);
+  const level = .022 + i * .0055;
+  event(at, .38, t => level * (tone(f, t) + .2 * tone(f * 2, t)) * Math.exp(-t * 9), step % 2 ? .6 : -.6);
+}
+// 3) Driving bass line from orbital on: root-root-fifth-root eighths that gain weight.
+for (let at = timeline.times.orbital; at < timeline.times.identity + 5 * timeline.beat; at += timeline.beat / 2) {
+  const i = stageIndexAt(at), step = Math.round(at / (timeline.beat / 2));
+  const f = step % 4 === 2 ? fifthOf(i) : rootOf(i);
+  const level = .062 + i * .005;
+  event(at, .3, t => level * (tone(f, t) + .3 * tone(f * 2.002, t)) * Math.min(1, t / .006) * Math.exp(-t * 7));
+}
+// 4) Off-beat shaker from network on, gaining presence every stage.
+for (let at = timeline.times.network + timeline.beat / 2; at < timeline.times.identity + 5 * timeline.beat; at += timeline.beat) {
+  const i = stageIndexAt(at);
+  let air = 0;
+  event(at, .12, t => { air = air * .82 + noise() * .18; return (.022 + (i - 4) * .008) * air * Math.exp(-t * 30); }, .35);
+}
+// 5) Sixteenth-note transit drive from warp on: the upbeat push into the title.
+for (let at = timeline.times.warp; at < timeline.times.identity + 5 * timeline.beat; at += timeline.beat / 4) {
+  const i = stageIndexAt(at), step = Math.round(at / (timeline.beat / 4));
+  const f = rootOf(i) * [1, 1, 1.5, 1][step % 4];
+  const accent = step % 4 === 0 ? 1 : .55;
+  event(at, .16, t => .039 * accent * tone(f * 2, t) * Math.min(1, t / .004) * Math.exp(-t * 18), step % 2 ? .25 : -.25);
+}
+// 6) Lead melody from resolve on: one phrase that resolves to D major at the title.
+for (const [at, f] of LEAD) {
+  const i = stageIndexAt(at), title = i >= 7;
+  const level = .055 + (i - 6) * .015;
+  event(at, .62, t => {
+    const vib = f * (1 + .004 * Math.sin(2 * Math.PI * 5 * t));
+    return level * Math.min(1, t / .02) * Math.exp(-t * 2.2) *
+      (tone(vib, t) + (title ? .4 * tone(vib * 2, t) : .18 * tone(vib * 2, t)));
+  }, .15);
+}
+// 7) Shimmering bell sparkle through the title locks, panned wide.
+const BELLS = [587.3296, 880, 739.9889, 1174.659];
+for (let at = timeline.times.identity, k = 0; at < arpEnd; at += timeline.beat / 4, k++) {
+  event(at, .3, t => .019 * (tone(BELLS[k % 4], t) + .3 * tone(BELLS[k % 4] * 2.76, t)) * Math.exp(-t * 12), k % 2 ? .75 : -.75);
+}
+// 8) Final warm bloom under the handoff: the whole stack landing on one D major chord.
+for (const [f, n] of [[146.8324,-.5],[220,0],[293.6648,.25],[369.9944,.5],[440,.7]])
+  event(timeline.times.handoff, 1.8, (t, u) =>
+    .07 * Math.sin(Math.PI * Math.min(1, u * 1.15)) * (tone(f, t) + .2 * tone(f * 2, t)), n);
 // The exact same events trigger the renderer. No independent beat timer.
 for (const cue of timeline.events) {
   const {at, power, index = 0} = cue;
@@ -91,6 +158,13 @@ const input = path.join(temp,'score.wav');
 const output = path.join(root,score.audio);
 try {
   fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(input,wav);
-  cp.execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-i',input,'-af','loudnorm=I=-16:TP=-1.5:LRA=9','-ar','44100','-codec:a','libmp3lame','-b:a','128k','-metadata','title=Sp1der / First Signal','-metadata','artist=Fishes Arcade','-metadata','comment=Original procedurally composed score; source included in repository',output]);
+  // Two-pass linear loudness normalization: one static gain instead of dynamic
+  // compression, so the progressive stage-by-stage build-up survives the master.
+  const probe=cp.spawnSync('ffmpeg',['-hide_banner','-i',input,'-af','loudnorm=I=-16:TP=-1.5:LRA=9:print_format=json','-f','null','-'],{encoding:'utf8'});
+  const log=(probe.stdout||'')+(probe.stderr||'');
+  const m=JSON.parse(log.slice(log.indexOf('{'),log.lastIndexOf('}')+1));
+  cp.execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-i',input,'-af',
+    `loudnorm=I=-16:TP=-1.5:LRA=9:linear=true:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}`,
+    '-ar','44100','-codec:a','libmp3lame','-b:a','128k','-metadata','title=Sp1der / First Signal','-metadata','artist=Fishes Arcade','-metadata','comment=Original procedurally composed score; source included in repository',output]);
   console.log('Composed '+score.duration+'s original stereo score: '+output);
 } finally {fs.rmSync(temp,{recursive:true,force:true});}

@@ -1,8 +1,8 @@
 {
   "title": "Sp1der / First Signal",
-  "version": 3,
+  "version": 4,
   "duration": 34,
-  "audio": "assets/intro/sp1der-intro-beta-v3.mp3",
+  "audio": "assets/intro/sp1der-intro-beta-v4.mp3",
   "bpm": 120,
   "stages": [
     {"id": "signal", "at": 0, "name": "First signal", "detail": "Out of the silence, a single connection.", "tag": "01 / ACQUIRE", "readouts": [

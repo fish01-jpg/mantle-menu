@@ -56,7 +56,7 @@ test('generated intro is current and all inline scripts parse',()=>{
   assert.doesNotMatch(read('sp1der-intro.html'),/__(?:STYLE|SCORE|SCRIPT|TIMING|LAYOUT|DURATION|VERSION|AUDIO)__|<script[^>]+src=/);
 });
 test('raw GitHub launcher injects a real document base instead of matching a script string',()=>{
-  const hub=read('index.html');
+  const hub=read('fishes-arcade.html');
   const inject=hub.match(/function injectBase\(html, base\) \{[\s\S]*?\n\}/)[0];
   const base='https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/';
   const result=vm.runInNewContext(inject+';injectBase(html,base)',{html:read('sp1der-intro.html'),base});
@@ -65,17 +65,18 @@ test('raw GitHub launcher injects a real document base instead of matching a scr
 });
 test('score has nine ordered stages and a real versioned 34-second MP3',()=>{
   assert.deepEqual(score.stages.map(s=>s.at),[0,4,8,12,16,20,26,29,32]);
-  assert.equal(score.duration,34);assert.equal(score.version,3);
-  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v3.mp3');
+  assert.equal(score.duration,34);assert.equal(score.version,4);
+  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v4.mp3');
   const data=fs.readFileSync(path.join(root,score.audio));
   assert.ok(data.length>500000&&data.length<650000);
   assert.equal(data.subarray(0,3).toString(),'ID3');
   // Older downloaded wrappers must still get their matching original audio.
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta.mp3')).size>300000);
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v2.mp3')).size>500000);
+  assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v3.mp3')).size>500000);
   assert.match(read('sp1der-intro.html'),/34 seconds/);
-  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 03/);
-  assert.match(read('index.html'),/34-second intro/);
+  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 04/);
+  assert.match(read('fishes-arcade.html'),/34-second intro/);
 });
 test('audio synthesis and rendering import the identical timing implementation',()=>{
   assert.match(read('scripts/compose-sp1der-intro.cjs'),/require\('\.\.\/intro\/timing\.js'\)\.create\(score\)/);
@@ -147,7 +148,7 @@ test('reduced motion suppresses all impact, camera, percussion and charge envelo
   for(const at of [7.95,8,12,20.1,24.5,28,33.5])assert.deepEqual(timing.effects(at,true),still);
 });
 test('Arcade has separate normal and beta entries with phone metadata',()=>{
-  const hub=read('index.html');
+  const hub=read('fishes-arcade.html');
   const entries=[...hub.matchAll(/class="row" data-launch="([^"]+)"/g)].map(match=>match[1]);
   assert.equal(new Set(entries).size,entries.length,'catalog launch IDs must remain unique');
   for(const id of ['spidercraft','polytrack','fluid','pixel-canvas','geometry-dash','tetris','tiers','sp1der','sp1der-intro'])

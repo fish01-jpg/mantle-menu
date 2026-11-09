@@ -6,7 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
-const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const html = fs.readFileSync(path.join(root, "fishes-arcade.html"), "utf8");
 const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(match => match[1]);
 const detector = scripts.find(script => script.includes("const uaPhone"));
 
@@ -44,7 +44,7 @@ function environment({ ua = "Desktop browser", width = 1440, height = 900, scree
 }
 
 test("all inline hub and Tetris scripts have valid JavaScript syntax", () => {
-  for (const filename of ["index.html", "tetris/tetris.html"]) {
+  for (const filename of ["fishes-arcade.html", "tetris/tetris.html"]) {
     const source = fs.readFileSync(path.join(root, filename), "utf8");
     for (const [index, match] of [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].entries()) {
       assert.doesNotThrow(() => new vm.Script(match[1], { filename: filename + ":" + index }));

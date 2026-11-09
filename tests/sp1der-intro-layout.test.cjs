@@ -70,10 +70,11 @@ test('primary geometry is clipped to its artwork region, not the control/caption
   assert.match(source,/const coreAlpha=.*layers\.core/);
   assert.match(source,/if\(layers\.signal>0\)for\(const s of stars/);
 });
-test('short phones keep at least one readable tunnel panel without shrinking its type',()=>{
+test('the tunnel keeps its corridor effects but carries no moving text panels',()=>{
   const source=fs.readFileSync(path.join(__dirname,'../intro/sp1der-intro.js'),'utf8');
-  assert.match(source,/if\(!panels\.length&&box\.width>=112&&box\.height>=64\)/);
-  assert.match(source,/x:box\.left\+8,y:box\.bottom-44,w:96,h:36/);
-  assert.match(source,/ctx\.font="12px 'IBM Plex Mono',monospace"/);
-  assert.match(source,/labels\[state\.reduced\?0:/);
+  const warp=source.slice(source.indexOf('function warpCorridor'),source.indexOf('function resolveSequence'));
+  assert.ok(warp.includes('const packets=phone()?10:18, objects=phone()?8:14'));
+  assert.ok(warp.includes('ring(.85,9'));
+  assert.doesNotMatch(warp,/paintPanel|panels|CONNECT','BUILD|fillText/);
+  assert.doesNotMatch(source,/labels=\['CONNECT','BUILD','EXPLORE','BELONG'\]/);
 });

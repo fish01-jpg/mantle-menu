@@ -176,7 +176,7 @@
       path([[-2.6,0,0],[2.6,0,0],[2.6,0,.04],[-2.6,0,.04]].map(p=>rotate(p,.4,a,.3)),C.pale,alpha*.5,1,true);
     }
   }
-  function warpCorridor(t, motion, alpha){
+  function warpCorridor(t, motion, alpha, lift, beat){
     const count=phone()?14:22;
     for(let j=0;j<count;j++){
       const z=state.reduced?j*1.7-2:((j*1.7+28-(t-T.warp)*8)%26+26)%26-4;
@@ -204,43 +204,40 @@
       const z=state.reduced?i*1.1:((i*1.9+26-(t-T.warp)*12)%22+22)%22-3.5;
       const p=[Math.cos(a)*r,Math.sin(a)*r,z];
       path([p,[p[0],p[1],z+1.1]],i%4===0?C.warm:C.cyan,alpha*.85,1.8);
+      // Beat-synced halos swell around every light packet as the score builds.
+      if(beat>.04)dot(p,2.2+beat*2.6,i%4===0?C.warm:C.cyan,alpha*beat*.3);
       dot(p,1.5,i%4===0?C.warm:C.pale,alpha);
     }
+    const orbits=[];
     for(let i=0;i<objects;i++){
       const z=state.reduced?i*1.7:((i*2.7+30-(t-T.warp)*5)%20+20)%20-3;
       const a=i/objects*TAU+motion*.1;
-      model(names[i%names.length],[Math.cos(a)*1.9,Math.sin(a)*1.9,z],.38,
+      const p=[Math.cos(a)*1.9,Math.sin(a)*1.9,z];
+      orbits.push(p);
+      model(names[i%names.length],p,.38,
         [.2,motion*.3+i,a*.1],alpha*.85,i%3===0?C.warm:C.cyan);
+    }
+    // Interconnection web: neighbours link to each other and to the corridor
+    // axis, so the transit reads as one woven system that brightens on beats.
+    for(let i=0;i<orbits.length;i++){
+      const a=orbits[i], b=orbits[(i+1)%orbits.length];
+      if(Math.abs(a[2]-b[2])<4)
+        path([a,b],i%2?C.cyan:C.warm,alpha*(.16+lift*.24+beat*.12),.8);
+      path([a,[a[0]*.26,a[1]*.26,a[2]]],C.dim,alpha*(.10+lift*.16),.7);
     }
     // A central destination, with independent inner and outer depth scales.
     ring(.85,9,[.1,-.1,0],-motion*.25,alpha*.7,true,C.warm);
     ring(1.15,12,[0,0,0],motion*.18,alpha*.5,true);
-    const panels=[], box=composition.box, labels=['CONNECT','BUILD','EXPLORE','BELONG'];
-    function paintPanel(rect,label){
-      const {w:pw,h:ph}=rect;
-      ctx.fillStyle=rgba([6,12,18],alpha*.92);ctx.fillRect(rect.x,rect.y,pw,ph);
-      ctx.strokeStyle=rgba(C.cyan,alpha*.65);ctx.lineWidth=1;ctx.strokeRect(rect.x,rect.y,pw,ph);
-      ctx.font="12px 'IBM Plex Mono',monospace";ctx.textAlign='left';ctx.textBaseline='top';
-      ctx.fillStyle=rgba(C.pale,alpha);ctx.fillText(label,rect.x+9,rect.y+6);
-      ctx.fillStyle=rgba(C.warm,alpha*.9);ctx.fillRect(rect.x+9,rect.y+25,pw*.26,2);
-      ctx.fillStyle=rgba(C.dim,alpha);ctx.fillRect(rect.x+12+pw*.26,rect.y+25,pw*.42,2);
+    // A shared glow breathes behind the destination as the score builds.
+    const dest=project([0,0,10.5]);
+    if(dest&&ctx){
+      const r=Math.max(20,unit*(1.5+beat*.3));
+      const glow=ctx.createRadialGradient(dest[0],dest[1],0,dest[0],dest[1],r);
+      glow.addColorStop(0,rgba(C.warm,alpha*(.10+lift*.10+beat*.14)));
+      glow.addColorStop(.5,rgba(C.cyan,alpha*(.04+lift*.05)));
+      glow.addColorStop(1,rgba(C.cyan,0));
+      ctx.fillStyle=glow;ctx.fillRect(dest[0]-r,dest[1]-r,r*2,r*2);
     }
-    for(let i=0;i<(phone()?4:7);i++){
-      const a=i/4*TAU+.65+motion*.09;
-      const z=state.reduced?i*2:((i*4+18-(t-T.warp)*3)%16+16)%16-2;
-      const q=project([Math.cos(a)*1.7,Math.sin(a)*1.7,z]);
-      if(!q||q[2]*2.1<60)continue;
-      const pw=Math.max(80,Math.min(124,q[2]*2.1)), ph=36;
-      const rect={x:q[0]-pw/2,y:q[1]-ph/2,w:pw,h:ph};
-      if(rect.x<box.left+4||rect.x+pw>box.right-4||rect.y<box.top+4||rect.y+ph>box.bottom-4)continue;
-      if(panels.some(p=>rect.x<p.x+p.w+8&&rect.x+pw+8>p.x&&rect.y<p.y+p.h+8&&rect.y+ph+8>p.y))continue;
-      panels.push(rect);
-      paintPanel(rect,labels[i%4]);
-    }
-    // Embedded/short phones must not lose every readable tunnel label to depth.
-    if(!panels.length&&box.width>=112&&box.height>=64)
-      paintPanel({x:box.left+8,y:box.bottom-44,w:96,h:36},
-        labels[state.reduced?0:Math.floor((t-T.warp)/1.5)%4]);
   }
   function resolveSequence(t,motion,alpha){
     const elapsed=t-T.resolve, index=state.reduced?2:Math.min(2,Math.floor(elapsed));
@@ -313,6 +310,8 @@
       path([[-7,2.15,i+8],[7,2.15,i+8]],C.dim,.11*active*layers.signal);
     }
     const beat=fx.pulse;
+    // Progressive energy: the sequence gets fuller and brighter as it builds.
+    const lift=poster||reduced?1:ease((t-T.assembly)/25);
     // The initial signal resolves into stacked orbital schematics.
     const ringIn=poster?1:ease((t-.3)/2);
     const ringOut=layers.signal;
@@ -347,8 +346,8 @@
       const spread=poster?0:(1-ignition)*(.6+Math.sin(i*8)*.2);
       return rotate(p.map((v,j)=>v*(coreScale+spread)+(j===1?Math.sin(i*7)*spread*.25:0)),motion*.19,motion*.24,.1);
     });
-    for(const [a,b] of edges)path([pts[a],pts[b]],C.pale,coreAlpha*.75,1.25);
-    pts.forEach(p=>dot(p,1.6,C.warm,coreAlpha*.9));
+    for(const [a,b] of edges)path([pts[a],pts[b]],C.pale,coreAlpha*(.75+lift*.1),1.25);
+    pts.forEach(p=>dot(p,1.6+lift*.5,C.warm,coreAlpha*(.9+lift*.1)));
     ring(.91,0,[motion*.15,motion*.12,0],motion*.2,.26*coreAlpha,true,C.warm);
     // Inner stacked rotors and orbiting circuit fragments add a second depth scale.
     for(let layer=0;layer<3;layer++)ring(.26+layer*.12,(layer-1)*.22,[.7,motion*.08,layer*.5],-motion*.3,.25*coreAlpha,true,layer===1?C.warm:C.cyan);
@@ -363,14 +362,14 @@
     if(layers.network>0){
       const enter=reduced?1:ease((t-T.network)/1.3), exit=layers.network;
       const p=nodes.map(v=>rotate(v,motion*.09,motion*.13,0).map(n=>n*enter));
-      links.forEach(([a,b],i)=>path([p[a],p[b]],i%11===0?C.warm:C.cyan,(.12+beat*.08)*enter*exit));
-      p.forEach((v,i)=>dot(v,i%9===0?2:1,C.cyan,(.45+beat*.25)*enter*exit));
+      links.forEach(([a,b],i)=>path([p[a],p[b]],i%11===0?C.warm:C.cyan,(.12+beat*.08+lift*.05)*enter*exit));
+      p.forEach((v,i)=>dot(v,i%9===0?2:1,C.cyan,(.45+beat*.25+lift*.15)*enter*exit));
       for(let j=0;j<9;j++){
         const z=reduced?j*2:((j*2+18-(t-T.network)*3.5)%18+18)%18;
         ring(3.3,z-3,[0,0,.3],j*.07,.10*enter*exit,true);
       }
     }
-    if(layers.warp>0)warpCorridor(t,motion,layers.warp);
+    if(layers.warp>0)warpCorridor(t,motion,layers.warp,lift,beat);
     if(layers.resolve>0)resolveSequence(t,motion,layers.resolve);
     if(!poster)drawImpact(fx,actual);
     // Six independently projected, extruded letters assemble from different axes.
