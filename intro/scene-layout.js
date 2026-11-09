@@ -23,7 +23,7 @@
     const right=width-pad, top=Math.max(pad,headerBottom+20);
     const bottom=(short?footerTop:Math.min(copyTop,footerTop))-20;
     const box={left,top,right,bottom,width:Math.max(1,right-left),height:Math.max(1,bottom-top)};
-    const radius={signal:2.8,assembly:3.05,ignition:1.7,orbital:3.0,network:3.3,warp:3.5}[scene]||2.8;
+    const radius={signal:2.8,assembly:3.05,ignition:1.7,orbital:3.0,network:3.3,warp:3.5,deep:3.4,reef:3.6,school:3.8,echo:2.8,finale:3.6}[scene]||2.8;
     // The assembly is an ellipse, not a sphere. Fit its shorter vertical extent
     // separately so embedded phones do not reduce six models to tiny stamps.
     const radiusY=scene==='assembly'?2.4:radius;

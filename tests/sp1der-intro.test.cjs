@@ -65,8 +65,8 @@ test('raw GitHub launcher injects a real document base instead of matching a scr
 });
 test('score has nine ordered stages and a real versioned 34-second MP3',()=>{
   assert.deepEqual(score.stages.map(s=>s.at),[0,4,8,12,16,20,26,29,32]);
-  assert.equal(score.duration,34);assert.equal(score.version,4);
-  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v4.mp3');
+  assert.equal(score.duration,34);assert.equal(score.version,5);
+  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v5.mp3');
   const data=fs.readFileSync(path.join(root,score.audio));
   assert.ok(data.length>500000&&data.length<650000);
   assert.equal(data.subarray(0,3).toString(),'ID3');
@@ -74,9 +74,45 @@ test('score has nine ordered stages and a real versioned 34-second MP3',()=>{
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta.mp3')).size>300000);
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v2.mp3')).size>500000);
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v3.mp3')).size>500000);
-  assert.match(read('sp1der-intro.html'),/34 seconds/);
-  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 04/);
+  assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v4.mp3')).size>500000);
+  assert.match(read('sp1der-intro.html'),/34<\/span> seconds/);
+  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 05/);
   assert.match(read('fishes-arcade.html'),/34-second intro/);
+});
+test('extended cut doubles the journey with its own score, audio and hit grid',()=>{
+  const ext=JSON.parse(read('intro/sequence-extended.json'));
+  assert.equal(ext.duration,68);assert.equal(ext.duration,score.duration*2);
+  assert.equal(ext.version,score.version);
+  assert.equal(ext.audio,'assets/intro/sp1der-intro-beta-v5-extended.mp3');
+  assert.deepEqual(ext.stages.map(s=>s.at),[0,4,8,12,16,20,26,32,38,44,47,51,55,61]);
+  assert.deepEqual(ext.stages.map(s=>s.id),['signal','assembly','ignition','orbital','network','deep','reef','school','warp','resolve','echo','identity','finale','handoff']);
+  const data=fs.readFileSync(path.join(root,ext.audio));
+  assert.ok(data.length>1000000&&data.length<1400000);
+  assert.equal(data.subarray(0,3).toString(),'ID3');
+  const tl=require('../intro/timing.js').create(ext);
+  assert.equal(tl.events.filter(e=>e.kind==='impact').length,23);
+  assert.equal(tl.events.filter(e=>e.kind==='pulse').length,99);
+  assert.deepEqual(tl.events.filter(e=>e.kind==='lock').map(e=>e.at),[51,51.5,52,52.5,53,53.5]);
+  assert.ok(tl.events.every((e,i,a)=>e.at>=0&&e.at<ext.duration&&(!i||e.at>=a[i-1].at)));
+  // Narrative captions stay inside their stages in the extended cut too.
+  for(const [i,stage] of ext.stages.entries()){
+    assert.equal(tl.story(stage.at).detail,stage.detail);
+    for(const cue of stage.readouts||[]){
+      assert.ok(cue.after>0&&stage.at+cue.after<(ext.stages[i+1]?.at??ext.duration));
+      assert.equal(tl.story(stage.at+cue.after).detail,cue.text);
+    }
+  }
+  // The composer renders both cuts through the same progressive arrangement.
+  assert.match(read('scripts/compose-sp1der-intro.cjs'),/sequence-extended\.json/);
+});
+test('the hidden signal from the deep lives only in the extended cut',()=>{
+  const built=read('sp1der-intro.html');
+  assert.match(built,/window\.SP1DER_INTRO_SCORE_EXTENDED = /);
+  assert.match(built,/id="extended"/);
+  assert.match(source,/SIGNAL FROM THE DEEP/);
+  assert.match(source,/'fish'/);
+  assert.match(source,/drawRedFish/);assert.match(source,/drawBlueBass/);assert.match(source,/FIN_PIXELS/);
+  assert.match(source,/SP1DER_INTRO_SCORE_EXTENDED/);
 });
 test('audio synthesis and rendering import the identical timing implementation',()=>{
   assert.match(read('scripts/compose-sp1der-intro.cjs'),/require\('\.\.\/intro\/timing\.js'\)\.create\(score\)/);

@@ -5,7 +5,9 @@ const fs=require('node:fs');
 const path=require('node:path');
 const layout=require('../intro/scene-layout.js');
 const score=JSON.parse(fs.readFileSync(path.join(__dirname,'../intro/sequence.json'),'utf8'));
+const ext=JSON.parse(fs.readFileSync(path.join(__dirname,'../intro/sequence-extended.json'),'utf8'));
 const keys=['signal','assembly','core','orbital','network','warp','resolve','title'];
+const ekeys=[...keys,'deep','reef','school','echo','finale'];
 test('phase two has no opening background or ghost core, including its exact boundary',()=>{
   for(const t of [4,4.01,4.5,6,7.99]){
     const layers=layout.layers(score,t);
@@ -72,9 +74,30 @@ test('primary geometry is clipped to its artwork region, not the control/caption
 });
 test('the tunnel keeps its corridor effects but carries no moving text panels',()=>{
   const source=fs.readFileSync(path.join(__dirname,'../intro/sp1der-intro.js'),'utf8');
-  const warp=source.slice(source.indexOf('function warpCorridor'),source.indexOf('function resolveSequence'));
+  const warp=source.slice(source.indexOf('function warpCorridor'),source.indexOf('function deepDive'));
   assert.ok(warp.includes('const packets=phone()?10:18, objects=phone()?8:14'));
   assert.ok(warp.includes('ring(.85,9'));
   assert.doesNotMatch(warp,/paintPanel|panels|CONNECT','BUILD|fillText/);
   assert.doesNotMatch(source,/labels=\['CONNECT','BUILD','EXPLORE','BELONG'\]/);
+});
+test('extended scenes each exclusively own their layer',()=>{
+  const expected=['signal','assembly','core','orbital','network','deep','reef','school','warp','resolve','echo','title','finale','title'];
+  ext.stages.forEach((stage,index)=>{
+    for(const reduced of [false,true]){
+      const layers=layout.layers(ext,stage.at+1.5,false,reduced);
+      assert.deepEqual(ekeys.filter(k=>layers[k]>0),[expected[index]]);
+    }
+  });
+  for(const [i,stage] of ext.stages.entries()){
+    const end=ext.stages[i+1]?.at??ext.duration;
+    assert.deepEqual(layout.layers(ext,stage.at+.01,false,true),layout.layers(ext,end-.01,false,true));
+  }
+});
+test('extended scenes fit their artwork region with their own radii',()=>{
+  for(const scene of ['deep','reef','school','echo','finale']){
+    const fit=layout.fit({width:390,height:792,headerBottom:113,copyTop:582,copyRight:164,footerTop:712,scene});
+    assert.ok(fit.unit>0);
+    assert.ok(fit.unit*fit.radius*2<=fit.box.width+.001);
+    assert.ok(fit.unit*fit.radiusY*2<=fit.box.height+.001);
+  }
 });

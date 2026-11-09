@@ -1,14 +1,19 @@
 (function () {
   'use strict';
-  const score = window.SP1DER_INTRO_SCORE;
-  const timeline = window.Sp1derTiming.create(score), T = timeline.times;
+  // Two cuts share one renderer: the classic 34s score and the 68s extended cut.
+  // The extended toggle only appears when the extended score was embedded.
+  const BASE_SCORE = window.SP1DER_INTRO_SCORE;
+  const EXTENDED_SCORE = window.SP1DER_INTRO_SCORE_EXTENDED || null;
+  let score = BASE_SCORE;
+  let timeline = window.Sp1derTiming.create(score), T = timeline.times;
   const sceneLayout = window.Sp1derSceneLayout;
   const $ = id => document.getElementById(id);
   const canvas = $('world'), ctx = canvas.getContext('2d'), audio = $('score'), app = $('sp1derApp');
   const state = {
     phase: 'ready', mode: 'silent', reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
     muted: false, time: 0, anchor: 0, offset: 0, stage: -1, ready: false,
-    appStarted: false, appFailed: false, finishWanted: false, generation: 0, frame: 0, lastPaint: 0
+    appStarted: false, appFailed: false, finishWanted: false, generation: 0, frame: 0, lastPaint: 0,
+    extended: false, egg: -1, eggStart: 0
   };
   const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
   const ease = v => { v = clamp(v); return v * v * (3 - 2 * v); };
@@ -239,6 +244,255 @@
       ctx.fillStyle=glow;ctx.fillRect(dest[0]-r,dest[1]-r,r*2,r*2);
     }
   }
+  // ===== Extended-cut scenes: the deep, the reef, the school, the echo, the finale. =====
+  function deepDive(t,motion,alpha,beat){
+    const enter=ease((t-T.deep)/1.4), exit=alpha;
+    // Descending depth rings: the world sinks past the camera.
+    for(let j=0;j<10;j++){
+      const z=state.reduced?j*2:((j*2+20-(t-T.deep)*1.6)%20+20)%20-4;
+      ring(3.2,z-3,[.06,0,.2],j*.09,.12*enter*exit,true);
+    }
+    // Sonar pings ripple outward from the core, unanswered.
+    const ping=((t-T.deep)%3)/3;
+    ring(.5+ping*2.6,-.2,[.3,.2,0],motion*.2,(1-ping)*.3*enter*exit,true,C.warm);
+    // Bubbles rise as the camera sinks.
+    for(let i=0;i<(phone()?10:22);i++){
+      const bx=Math.sin(i*2.7)*2.2, bz=((i*1.31+14-motion*.9)%14+14)%14-2;
+      const by=1.9-((i*.83+motion*.55)%3.6);
+      dot([bx,by,bz],1.2+(i%3)*.4,i%4===0?C.warm:C.pale,.35*enter*exit);
+    }
+    if(!phone())annotation([1.4,1.1,0],'DEPTH / 418M',1,.5*exit);
+  }
+  function coral(x,y,angle,len,depth,motion,alpha){
+    if(depth<=0||len<.05)return;
+    const sway=Math.sin(motion*.8+x*2.4)*.07, a2=angle+sway;
+    const x2=x+Math.cos(a2)*len, y2=y+Math.sin(a2)*len;
+    path([[x,y,.25],[x2,y2,.25]],depth%2?C.warm:C.cyan,alpha*(.4+depth*.1),1.4);
+    coral(x2,y2,a2-.55,len*.74,depth-1,motion,alpha);
+    coral(x2,y2,a2+.55,len*.74,depth-1,motion,alpha);
+  }
+  function reefGarden(t,motion,alpha,beat){
+    const grow=ease((t-T.reef)/1.6), exit=alpha;
+    // Kelp strands sway on the current.
+    for(let i=0;i<(phone()?8:13);i++){
+      const bx=-2.6+i*.44, pts=[];
+      for(let s=0;s<=9;s++){
+        const sway=Math.sin(motion*.6+i*.9+s*.5)*.13*(s/9);
+        pts.push([bx+sway,2.2-s*.42,.3]);
+      }
+      path(pts,i%3===0?C.warm:C.cyan,.4*grow*exit,1.6);
+    }
+    // Branching corals grow up from the floor.
+    const corals=phone()?4:7;
+    for(let i=0;i<corals;i++)
+      coral(-2.2+i*.75,2.0,-Math.PI/2+(i%2?.3:-.3),.34,4,motion,.5*grow*exit);
+    // Plankton drift through the light.
+    for(let i=0;i<(phone()?14:30);i++){
+      const px=Math.sin(i*4.1)*2.9, py=Math.cos(i*2.6)*1.9;
+      dot([px,py,((i*1.37+16-motion*1.1)%12+12)%12-2],.8,C.pale,.3*grow*exit);
+    }
+    // Caustic light arcs near the surface.
+    for(let i=0;i<3;i++){
+      const yy=-1.7-i*.3;
+      path([[Math.sin(motion*.5+i)*1.5-2.4,yy,.2],[Math.sin(motion*.5+i)*1.5+2.4,yy,.2]],C.cyan,.14*grow*exit);
+    }
+  }
+  function drawSmallFish(x,y,s,heading,color,alpha,wag){
+    if(alpha<=.01)return;
+    ctx.save();ctx.translate(x,y);ctx.rotate(heading);
+    ctx.fillStyle=rgba(color,alpha);
+    ctx.beginPath();
+    ctx.moveTo(s*.95,0);
+    ctx.quadraticCurveTo(0,-s*.55,-s*.55,-s*.26);
+    ctx.quadraticCurveTo(-s*.8,0,-s*.55,s*.26);
+    ctx.quadraticCurveTo(0,s*.55,s*.95,0);
+    ctx.fill();
+    const w2=Math.sin(wag)*s*.28;
+    ctx.beginPath();
+    ctx.moveTo(-s*.55,0);ctx.lineTo(-s*1.15,-s*.36+w2);ctx.lineTo(-s*1.15,s*.36+w2);
+    ctx.closePath();ctx.fill();
+    ctx.restore();
+  }
+  function fishSchool(t,motion,alpha,beat){
+    const enter=ease((t-T.school)/1.3), exit=alpha;
+    const n=phone()?22:42;
+    const tx=Math.sin(motion*.42)*1.5, ty=Math.cos(motion*.31)*.85;
+    // One odd fish glows red for a few seconds. Nobody mentions it.
+    const redOn=!state.reduced&&t-T.school>1.4&&t-T.school<5.2;
+    for(let i=0;i<n;i++){
+      const ph=i*2.399, sp=.42+((i*7)%5)*.1;
+      const a=motion*sp+ph;
+      const r=.9+((i*13)%7)*.16;
+      const px=tx+Math.cos(a)*r, py=ty+Math.sin(a*1.31)*r*.6;
+      const z=((i*1.9+18-motion*1.15)%16+16)%16-2.6;
+      const red=redOn&&i===7;
+      const q=project([px,py,z]);
+      if(!q)continue;
+      drawSmallFish(q[0],q[1],Math.max(4,q[2]*.11),a+Math.PI/2,red?[255,93,93]:(i%5===0?C.warm:C.cyan),(red?1:.75)*enter*exit,state.time*9+i);
+    }
+  }
+  function echoSignals(t,motion,alpha){
+    const enter=ease((t-T.echo)/1.2), exit=alpha;
+    // The opening signal, replayed as ghosts.
+    const u=(t-T.echo)/3.4;
+    for(let k=0;k<3;k++){
+      const uu=clamp(u*1.2-k*.22);
+      if(uu<=0)continue;
+      ring(1.58,0,[.88,.15,.15],motion*.18,.22*(1-uu)*enter*exit,true);
+      ring(2.06,.1,[.12,.7,.2],motion*.09,.14*(1-uu)*enter*exit);
+    }
+    // Ghost models of the first assembly orbit, flickering.
+    const flick=.55+.45*Math.sin(t*17);
+    for(let i=0;i<6;i++){
+      const a=i/6*TAU+motion*.06;
+      model(names[i],[Math.cos(a)*2.1,Math.sin(a)*2.1,.5],.2,[.2,a,motion*.05],.22*flick*enter*exit,i%2?C.cyan:C.warm);
+    }
+    // A reversed sweep collapses inward, pulling toward the title.
+    const rev=clamp((t-T.echo)/2.6);
+    for(let i=0;i<8;i++)
+      ring(3.4-rev*2.6,.3+i*.12,[.1,.2,0],-motion*.1,.08*(1-rev)*enter*exit,true);
+  }
+  function finaleBurst(t,motion,alpha,beat){
+    const enter=ease((t-T.finale)/1.2), exit=alpha;
+    const u=clamp((t-T.finale)/Math.max(1,T.handoff-T.finale));
+    // Everything returns at once: rings, models, a mini network, beat confetti.
+    ring(1.1,0,[.2,.3,0],motion*.25,.4*enter*exit,true,C.warm);
+    ring(2.3,.4,[.1,.1,0],-motion*.18,.22*enter*exit,true);
+    const count=phone()?8:14;
+    for(let i=0;i<count;i++){
+      const a=i/count*TAU+motion*.2, r=1.9+Math.sin(u*Math.PI)*.3;
+      const p=[Math.cos(a)*r,Math.sin(a)*r*.8,.3];
+      model(names[i%names.length],p,.3,[.2,a,motion*.1],.6*enter*exit,i%3===0?C.warm:C.cyan);
+      path([p,[p[0]*.4,p[1]*.4,.3]],C.dim,.2*enter*exit);
+    }
+    const mini=nodes.slice(0,40).map(v=>rotate(v.map(n=>n*.36),motion*.14,motion*.18,0));
+    for(const [a,b] of links){if(b>=40)break;path([mini[a],mini[b]],C.cyan,.09*enter*exit);}
+    mini.forEach((v,i)=>dot(v,.8,i%6===0?C.warm:C.pale,(.3+beat*.2)*enter*exit));
+    for(let j=0;j<5;j++)ring(2.6+j*.26,j*.3-.6,[0,0,.15],motion*.1+j*.13,.11*enter*exit,true,j%2?C.warm:C.cyan);
+    if(beat>.05)for(let i=0;i<(phone()?10:20);i++){
+      const a=i*2.399+motion, r=1.3+((i*.37+motion*.4)%1)*1.7;
+      dot([Math.cos(a)*r,Math.sin(a*1.3)*r*.8,.6],1.1,i%3?C.pale:C.warm,beat*.5*enter*exit);
+    }
+  }
+  // ===== The hidden signal from the deep (extended cut only). =====
+  // Type "fish" during the extended cut, or tap the tiny pixel fin drifting
+  // through the reef and the school, and the deep answers with three locals:
+  // a red fish, a blue bass, and a fin made of pixels. Each is its own thing.
+  const FIN_MAP=['....##....','...####...','...####...','..######..','..######..','.########.','.########.','##########','##########'];
+  const FIN_PIXELS=[];
+  FIN_MAP.forEach((row,r)=>[...row].forEach((ch,c)=>{if(ch==='#')FIN_PIXELS.push({c,r,dx:Math.sin(r*3.7+c*1.3)*46,dy:Math.cos(r*1.9+c*2.7)*34,delay:(r*10+c)%9/9});}));
+  let finTap=null, eggKeys='';
+  function eggChime(freq,dur,delay){
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+      eggChime.ctx=eggChime.ctx||new AC();const ac=eggChime.ctx;
+      const t0=ac.currentTime+(delay||0),o=ac.createOscillator(),g=ac.createGain();
+      o.type='sine';o.frequency.value=freq;
+      g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.12,t0+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+      o.connect(g);g.connect(ac.destination);o.start(t0);o.stop(t0+dur+.05);
+    }catch(e){}
+  }
+  function startEgg(){
+    if(!state.extended||state.phase!=='playing'||state.egg>=0)return;
+    state.egg=0;state.eggStart=performance.now();
+    eggChime(880,.5);eggChime(1174.66,.7,.12);
+  }
+  function finDrift(t,alpha){
+    if(state.reduced||state.egg>=0){finTap=null;return;}
+    // A small fin of raw pixels drifts along the bottom of the scene.
+    const span=Math.max(1,T.school-T.reef);
+    const u=clamp((t-T.reef)/(span*1.35));
+    const b=composition&&composition.box?composition.box:{left:0,right:w,bottom:h};
+    const x=b.left+u*(b.width||w), y=b.bottom-14-Math.sin(u*Math.PI*2)*8;
+    FIN_PIXELS.forEach(p=>{
+      ctx.fillStyle=rgba(C.cyan,alpha*.5);
+      ctx.fillRect(x+(p.c-5)*3.2,y+(p.r-4.5)*3.2,2.6,2.6);
+    });
+    finTap={x,y};
+  }
+  function drawRedFish(x,y,s){
+    const wag=Math.sin(state.time*10)*.35;
+    ctx.save();ctx.translate(x,y);
+    ctx.fillStyle=rgba([255,93,93],.95);
+    ctx.beginPath();
+    ctx.moveTo(26*s,0);
+    ctx.quadraticCurveTo(6*s,-14*s,-14*s,-8*s);
+    ctx.quadraticCurveTo(-20*s,0,-14*s,8*s);
+    ctx.quadraticCurveTo(6*s,14*s,26*s,0);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-14*s,0);ctx.lineTo(-30*s,(-10+wag*10)*s);ctx.lineTo(-24*s,0);ctx.lineTo(-30*s,(10+wag*10)*s);
+    ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(6,12,18,.9)';
+    ctx.beginPath();ctx.arc(16*s,-3*s,2.4*s,0,TAU);ctx.fill();
+    ctx.restore();
+  }
+  function drawBlueBass(x,y,s){
+    ctx.save();ctx.translate(x,y);
+    ctx.fillStyle=rgba([93,139,255],.95);
+    // Rounder body, big mouth, spiky dorsal fin: a bass, not a minnow.
+    ctx.beginPath();
+    ctx.moveTo(30*s,4*s);
+    ctx.quadraticCurveTo(24*s,-20*s,-4*s,-16*s);
+    ctx.quadraticCurveTo(-24*s,-12*s,-26*s,0);
+    ctx.quadraticCurveTo(-24*s,12*s,-4*s,16*s);
+    ctx.quadraticCurveTo(24*s,20*s,30*s,4*s);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-8*s,-15*s);
+    for(let i=0;i<4;i++){
+      ctx.lineTo((-8+i*7)*s,(-25-(i%2)*4)*s);
+      ctx.lineTo((-1+i*7)*s,-15*s);
+    }
+    ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(-24*s,0);ctx.lineTo(-38*s,-12*s);ctx.lineTo(-34*s,0);ctx.lineTo(-38*s,12*s);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(6,12,18,.85)';ctx.lineWidth=2*s;
+    ctx.beginPath();ctx.moveTo(29*s,5*s);ctx.quadraticCurveTo(20*s,9*s,12*s,7*s);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(10*s,-6*s);ctx.quadraticCurveTo(7*s,2*s,10*s,8*s);ctx.stroke();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(19*s,-6*s,3*s,0,TAU);ctx.fill();
+    ctx.fillStyle='rgba(6,12,18,.9)';ctx.beginPath();ctx.arc(19.5*s,-6*s,1.6*s,0,TAU);ctx.fill();
+    ctx.restore();
+  }
+  function drawEgg(){
+    const p=(performance.now()-state.eggStart)/1000;
+    if(p>6){state.egg=-1;return;}
+    ctx.fillStyle='rgba(3,7,12,.58)';ctx.fillRect(0,0,w,h);
+    ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.font="12px 'IBM Plex Mono',monospace";
+    ctx.fillStyle=rgba(C.warm,.95);ctx.fillText('SIGNAL FROM THE DEEP',cx,h*.14);
+    // RED: a sleek courier that races across the frame, trailing light.
+    const redU=clamp((p-.5)/2.2);
+    if(redU>0&&redU<1){
+      const x=-90+(w+180)*ease(redU), y=h*.26+Math.sin(redU*8)*10;
+      for(let k=4;k>=1;k--){ctx.fillStyle=rgba([255,93,93],.10*(1-k/5));ctx.beginPath();ctx.arc(x-k*26,y,7-k,0,TAU);ctx.fill();}
+      drawRedFish(x,y,1.15);
+      ctx.fillStyle=rgba(C.pale,.85);ctx.fillText('RED',x,y-46);
+    }
+    // BLUE BASS: a local that rises from below with its mouth open.
+    const bassU=clamp((p-1.6)/2.2);
+    if(bassU>0&&bassU<1){
+      const y=h*.68+(1-ease(bassU))*h*.25;
+      drawBlueBass(cx-w*.16+Math.sin(p*2)*20,y,1.1);
+      ctx.fillStyle=rgba(C.pale,.85);ctx.fillText('BLUE BASS',cx-w*.16,y+52);
+    }
+    // PIXEL FIN: a fin assembles from raw pixels, shimmers, then dissolves.
+    const finU=clamp((p-3.1)/1.4), finOut=clamp((5.6-p)/.7);
+    if(finU>0&&finOut>0){
+      const cell=Math.min(9,w*.011), fx=cx+w*.17, fy=h*.5;
+      FIN_PIXELS.forEach(px=>{
+        const u2=clamp((finU-px.delay*.35)/.65);
+        const jx=(1-ease(u2))*px.dx, jy=(1-ease(u2))*px.dy;
+        const x=fx+(px.c-4.5)*cell+jx, y=fy+(px.r-4)*cell+jy;
+        const shimmer=.55+.45*Math.abs(Math.sin(p*6+px.c+px.r));
+        const col=(px.r+px.c)%3===0?C.pale:(px.r+px.c)%3===1?C.cyan:C.warm;
+        ctx.fillStyle=rgba(col,.9*finOut*shimmer);
+        ctx.fillRect(x,y,cell-.9,cell-.9);
+      });
+      ctx.fillStyle=rgba(C.pale,.85);ctx.fillText('PIXEL FIN',fx,fy+9*cell+18);
+    }
+    ctx.textBaseline='middle';
+  }
   function resolveSequence(t,motion,alpha){
     const elapsed=t-T.resolve, index=state.reduced?2:Math.min(2,Math.floor(elapsed));
     const word=score.words[Math.max(0,index)], local=state.reduced?1:elapsed-index;
@@ -370,6 +624,12 @@
       }
     }
     if(layers.warp>0)warpCorridor(t,motion,layers.warp,lift,beat);
+    if(layers.deep>0)deepDive(t,motion,layers.deep,beat);
+    if(layers.reef>0)reefGarden(t,motion,layers.reef,beat);
+    if(layers.school>0)fishSchool(t,motion,layers.school,beat);
+    if(layers.echo>0)echoSignals(t,motion,layers.echo);
+    if(layers.finale>0)finaleBurst(t,motion,layers.finale,beat);
+    if(!poster&&(layers.reef>0||layers.school>0))finDrift(t,Math.max(layers.reef,layers.school));
     if(layers.resolve>0)resolveSequence(t,motion,layers.resolve);
     if(!poster)drawImpact(fx,actual);
     // Six independently projected, extruded letters assemble from different axes.
@@ -399,10 +659,13 @@
     }
     // Small engineering readouts belong to the spatial artwork, not app diagnostics.
     if(!phone()&&ringIn>.8){
-      annotation([-1.2,-1.15,0],t>=T.network&&t<T.warp?'NETWORK / 110 NODES':'GEODESIC / 30 EDGES',-1,.55*ringOut);
+      const readout=t>=T.deep&&T.deep!==undefined&&t<T.school?'SONAR / ACTIVE':
+        t>=T.network&&t<T.warp?'NETWORK / 110 NODES':'GEODESIC / 30 EDGES';
+      annotation([-1.2,-1.15,0],readout,-1,.55*ringOut);
       annotation([1.1,.95,0],'FIRST SIGNAL / 120 BPM',1,.4*ringOut);
     }
     ctx.restore();
+    if(!poster&&state.egg>=0)drawEgg();
     ctx.globalAlpha=1;
   }
   function syncAppViewport(){
@@ -585,6 +848,20 @@
     status('Intro complete.');$('pause').hidden=true;$('sound').hidden=true;
     if(state.ready)revealApp();else showRecovery(state.appFailed);
   }
+  // The extended cut swaps the score before playback begins; the same renderer
+  // and timing drive both, and every dependent readout updates with it.
+  function selectScore(extended){
+    if(state.phase!=='ready'||!EXTENDED_SCORE)return;
+    state.extended=!!extended;
+    score=state.extended?EXTENDED_SCORE:BASE_SCORE;
+    timeline=window.Sp1derTiming.create(score);T=timeline.times;
+    $('ledeDuration').textContent=String(score.duration);
+    $('extendedDuration').textContent=String(score.duration);
+    $('extended').setAttribute('aria-pressed',String(state.extended));
+    audio.src=score.audio;
+    state.time=0;state.stage=-1;state.offset=0;state.egg=-1;
+    updateStage(0);syncControls();resize();
+  }
   $('startSound').addEventListener('click',()=>start(true));
   $('startSilent').addEventListener('click',()=>start(false));
   $('skip').addEventListener('click',finish);
@@ -596,6 +873,15 @@
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&!state.finishWanted){e.preventDefault();finish();}
     if(e.code==='Space'&&e.target===document.body&&['playing','paused'].includes(state.phase)){e.preventDefault();togglePause(false);}
+    // The hidden signal: type "fish" during the extended cut.
+    if(state.extended&&/^[a-z]$/i.test(e.key)){
+      eggKeys=(eggKeys+e.key.toLowerCase()).slice(-4);
+      if(eggKeys==='fish')startEgg();
+    }
+  });
+  document.addEventListener('pointerdown',e=>{
+    // Or tap the tiny pixel fin drifting through the reef and the school.
+    if(state.extended&&finTap&&state.egg<0&&Math.hypot(e.clientX-finTap.x,e.clientY-finTap.y)<28)startEgg();
   });
   audio.addEventListener('ended',()=>{if(state.mode==='audio'&&!state.finishWanted){state.time=score.duration;updateStage(state.time);finish();}});
   audio.addEventListener('waiting',()=>{if(state.mode==='audio'&&state.phase==='playing')status('Sync held. Buffering audio…');});
@@ -611,11 +897,20 @@
   // Read-only observability for beta QA. Playback is driven by the real controls.
   window.Sp1derIntroBeta=Object.freeze({
     getState:()=>({phase:state.phase,clock:state.mode,time:playbackTime(),stage:state.stage,reduced:state.reduced,appReady:state.ready,appFailed:state.appFailed}),
-    duration:score.duration,
     getEffects:()=>timeline.effects(playbackTime(),state.reduced),
     getStory:()=>timeline.story(playbackTime(),state.reduced),
-    getComposition:()=>composition?JSON.parse(JSON.stringify(composition)):null
+    getComposition:()=>composition?JSON.parse(JSON.stringify(composition)):null,
+    get duration(){return score.duration;},
+    get extended(){return state.extended;},
+    get egg(){return state.egg;}
   });
   syncControls();resize();
+  // The extended cut stays hidden unless its score was embedded (e.g. raw file
+  // or stripped builds). ?extended=1 in the URL selects it up front.
+  if(EXTENDED_SCORE){
+    $('extended').hidden=false;
+    $('extended').addEventListener('click',()=>selectScore(!state.extended));
+    try{if(/[?&]extended=1\b/.test(location.search))selectScore(true);}catch(e){}
+  }
   if(document.fonts)document.fonts.ready.then(()=>{if(state.phase==='ready')drawWorld(8.5,true);});
 }());

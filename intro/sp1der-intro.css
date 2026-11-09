@@ -44,3 +44,4 @@ h1{font:500 clamp(56px,6.6vw,100px)/.95 var(--font-display);letter-spacing:-.025
 .timeline{margin:8px 0}
 }
 @media(prefers-reduced-motion:reduce){#cinema{transition:none}}
+#extended{margin-top:12px;min-height:40px;padding:9px 14px;font-size:13px;letter-spacing:.02em;border:1px solid #23414e;background:rgba(9,18,24,.6);color:#9fc3ce;border-radius:8px;cursor:pointer}#extended[aria-pressed="true"]{border-color:#edbb7c;color:#edbb7c;background:rgba(237,187,124,.08)}
