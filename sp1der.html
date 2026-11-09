@@ -1700,6 +1700,7 @@
     .role-badge.role-developer { text-transform: none; }
 </style>
 <style id="default-dark-blue"></style>
+<style id="workspaceRoleStyles">#workspaceRoleTabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0;position:sticky;top:0;background:var(--bg-0);padding:12px 0;z-index:5}#workspaceRoleTabs [aria-selected="true"]{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}#workspaceTools [hidden],#workspaceRoleTabs [hidden]{display:none!important}.workspace-tier-heading{font-size:1.05rem;margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}#workspaceTools section{min-width:0}#workspaceTools input,#workspaceTools textarea{max-width:100%}</style>
 <!-- sp1der-phone:start -->
 <script id="sp1der-phone-controls">
 /* Embedded into every standalone Sp1der entry by scripts/build-sp1der-phone.cjs.
@@ -2426,7 +2427,6 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 }
 </style>
 <!-- sp1der-phone:end -->
-<style id="workspaceRoleStyles">#workspaceRoleTabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0;position:sticky;top:0;background:var(--bg-0);padding:12px 0;z-index:5}#workspaceRoleTabs [aria-selected="true"]{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}#workspaceTools [hidden],#workspaceRoleTabs [hidden]{display:none!important}.workspace-tier-heading{font-size:1.05rem;margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}#workspaceTools section{min-width:0}#workspaceTools input,#workspaceTools textarea{max-width:100%}</style>
 </head>
 <body>
 
@@ -3212,6 +3212,14 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
             <h2 style="text-align:center;">Commands</h2>
             <div id="commandHelpContent" style="max-height:400px;overflow-y:auto;"></div>
             <button class="composer-btn" onclick="closeModal('commandHelpModal')" style="width:100%;margin-top:12px;opacity:0.6;">Close</button>
+        </div>
+    </div>
+
+    <!-- SP1DER MANAGER LOGIN MODAL -->
+    <div class="modal-overlay" id="managerLoginModal" role="dialog" aria-modal="true">
+        <div class="modal-card" style="max-width:460px;text-align:left;">
+            <h2 style="text-align:center;">Sp1der Manager</h2>
+            <div id="managerLoginBody"></div>
         </div>
     </div>
 
@@ -4814,6 +4822,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 { usage:'/dbstatus', desc:'Show the current message server.' }, { usage:'/dbrotate', desc:'Switch to the next message server.', staff:true }, { usage:'/mute', desc:'Dim the current chat feed locally.' }, { usage:'/unmute', desc:'Restore the current chat feed locally.' }, { usage:'/poll <question>', desc:'Post a quick poll.' }, { usage:'/purge', desc:'Clear the local chat feed.', staff:true }, { usage:'/announce <message>', desc:'Send an announcement (staff).', staff:true }, { usage:'/server', desc:'Open the server command-center login.', group:'Staff and Server Tools', access:'Login required' },
                 { usage:'/manage', desc:'Alias for /server.', group:'Staff and Server Tools', access:'Login required' },
                 { usage:'/commandcenter', desc:'Alias for /server.', group:'Staff and Server Tools', access:'Login required' },
+                ...SP1DER_FX_COMMANDS.map(c => ({ usage: c.usage, desc: c.desc, group: c.group, staff: true })),
                 { usage:'@help', desc:'Show the Aegis AI command list.', ai:true }
             ].map(c => ({
                 ...c,
@@ -6447,11 +6456,876 @@ Furball found a sunbeam and is not moving for anyone.`;
         function openLightbox(url) { $('lightboxImg').src = url; $('imageLightbox').classList.add('active'); }
         function closeLightbox() { $('imageLightbox').classList.remove('active'); }
 
+        /* ===== SP1DER FX CORE ENGINE (v4.7) =====
+           One self-contained effect player shared by the Sp1der chat tab, the arcade hub
+           and every game-window bridge. Every handler cleans itself up automatically.
+           Payload text is always inserted with textContent, never innerHTML. */
+        function sp1derFxEngineCore(effect, payload) {
+            payload = payload && typeof payload === 'object' ? payload : {};
+            var LAYER_ID = 'sp1derFxLayer';
+            var FX_ATTR = 'data-sp1derfx';
+            function clearAll() {
+                var l = document.getElementById(LAYER_ID); if (l) l.remove();
+                var styles = document.querySelectorAll('style[' + FX_ATTR + ']');
+                for (var i = 0; i < styles.length; i++) styles[i].remove();
+                var r = document.documentElement;
+                try { r.style.filter = ''; r.style.transform = ''; r.style.transition = ''; } catch (e) {}
+                var b = document.body;
+                if (b) { try { b.style.filter = ''; b.style.transform = ''; } catch (e) {} }
+                var f = document.getElementById('sp1derFxGameFreeze'); if (f) f.remove();
+                var bl = document.getElementById('sp1derFxGameBlur'); if (bl) bl.remove();
+            }
+            if (effect === 'stop' || effect === 'unlockscreen') { clearAll(); return; }
+            if (effect === 'gameresume') { var fz = document.getElementById('sp1derFxGameFreeze'); if (fz) fz.remove(); return; }
+            if (effect === 'gameunblur') { var bu = document.getElementById('sp1derFxGameBlur'); if (bu) bu.remove(); return; }
+            if (effect === 'gamehub' || effect === 'gameclose') {
+                var hubMsg = effect === 'gamehub' ? 'Staff sent you back to the arcade hub.' : 'Your games were closed by staff.';
+                try {
+                    var hv = document.createElement('div');
+                    hv.style.cssText = 'position:fixed;inset:0;background:rgba(8,8,14,0.9);z-index:2147483647;display:flex;align-items:center;justify-content:center;color:#eee;font:700 18px -apple-system,Arial,sans-serif;text-align:center;padding:20px;';
+                    hv.textContent = hubMsg;
+                    (document.body || document.documentElement).appendChild(hv);
+                    setTimeout(function () { try { window.close(); } catch (e) {} }, 1400);
+                } catch (e) {}
+                return;
+            }
+            function layer() {
+                var l = document.getElementById(LAYER_ID);
+                if (!l) {
+                    l = document.createElement('div');
+                    l.id = LAYER_ID;
+                    l.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;';
+                    (document.body || document.documentElement).appendChild(l);
+                }
+                return l;
+            }
+            function fxStyle(css) {
+                var s = document.createElement('style');
+                s.setAttribute(FX_ATTR, '1');
+                s.textContent = css;
+                (document.head || document.documentElement).appendChild(s);
+                return s;
+            }
+            function el(tag, css, text) {
+                var e = document.createElement(tag);
+                if (css) e.style.cssText = css;
+                if (text !== undefined) e.textContent = String(text);
+                return e;
+            }
+            function fullOverlay(bg) {
+                var o = el('div', 'position:fixed;inset:0;background:' + (bg || 'rgba(5,5,10,0.96)') + ';z-index:2147483647;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;pointer-events:auto;');
+                layer().appendChild(o);
+                return o;
+            }
+            function filterFx(css, ms, alsoBody) {
+                var r = document.documentElement;
+                r.style.transition = 'filter 0.6s ease, transform 0.6s ease';
+                r.style.filter = css;
+                if (alsoBody && document.body) document.body.style.filter = css;
+                setTimeout(function () {
+                    try { r.style.filter = ''; if (alsoBody && document.body) document.body.style.filter = ''; } catch (e) {}
+                }, ms);
+            }
+            function transformFx(css, ms) {
+                var r = document.documentElement;
+                r.style.transition = 'transform 0.8s ease';
+                r.style.transform = css;
+                setTimeout(function () { try { r.style.transform = ''; } catch (e) {} }, ms);
+            }
+            function shakeFx(strong, ms) {
+                var key = strong ? 'sp1derFxEarthquake' : 'sp1derFxShake';
+                fxStyle('@keyframes ' + key + '{0%{transform:translate(0,0)}12%{transform:translate(' + (strong ? -14 : -6) + 'px,' + (strong ? 10 : 4) + 'px)}25%{transform:translate(' + (strong ? 12 : 6) + 'px,' + (strong ? -12 : -5) + 'px)}37%{transform:translate(' + (strong ? -10 : -5) + 'px,' + (strong ? -8 : 3) + 'px)}50%{transform:translate(' + (strong ? 14 : 7) + 'px,' + (strong ? 12 : 5) + 'px)}62%{transform:translate(' + (strong ? -12 : -6) + 'px,' + (strong ? 10 : -4) + 'px)}75%{transform:translate(' + (strong ? 10 : 5) + 'px,' + (strong ? -12 : -5) + 'px)}87%{transform:translate(' + (strong ? -8 : -4) + 'px,' + (strong ? 8 : 3) + 'px)}100%{transform:translate(0,0)}}');
+                var b = document.body;
+                if (b) { b.style.animation = key + ' ' + (strong ? '0.45s' : '0.35s') + ' linear infinite'; setTimeout(function () { try { b.style.animation = ''; } catch (e) {} }, ms); }
+            }
+            function soundFx(kind) {
+                try {
+                    var AC = window.AudioContext || window.webkitAudioContext;
+                    if (!AC) return;
+                    var ac = new AC();
+                    var t0 = ac.currentTime;
+                    function tone(type, f0, f1, at, dur, vol) {
+                        var o = ac.createOscillator(), g = ac.createGain();
+                        o.type = type;
+                        o.frequency.setValueAtTime(f0, t0 + at);
+                        if (f1 && f1 !== f0) o.frequency.linearRampToValueAtTime(f1, t0 + at + dur);
+                        g.gain.setValueAtTime(0.0001, t0 + at);
+                        g.gain.exponentialRampToValueAtTime(vol || 0.12, t0 + at + 0.02);
+                        g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
+                        o.connect(g); g.connect(ac.destination);
+                        o.start(t0 + at); o.stop(t0 + at + dur + 0.05);
+                    }
+                    if (kind === 'siren') { for (var i = 0; i < 4; i++) { tone('sine', 500, 950, i * 0.9, 0.45, 0.14); tone('sine', 950, 500, i * 0.9 + 0.45, 0.45, 0.14); } }
+                    else if (kind === 'alarm') { for (var j = 0; j < 6; j++) tone('square', 880, 880, j * 0.5, 0.22, 0.08); }
+                    else if (kind === 'fanfare') { tone('triangle', 523, 523, 0, 0.16); tone('triangle', 659, 659, 0.16, 0.16); tone('triangle', 784, 784, 0.32, 0.16); tone('triangle', 1047, 1047, 0.48, 0.5, 0.16); }
+                    else if (kind === 'quack') { tone('sawtooth', 640, 180, 0, 0.18, 0.1); tone('sawtooth', 520, 160, 0.22, 0.18, 0.1); }
+                    else if (kind === 'boing') { tone('sine', 600, 120, 0, 0.35, 0.14); tone('sine', 120, 500, 0.35, 0.3, 0.12); }
+                    setTimeout(function () { try { ac.close(); } catch (e) {} }, 4500);
+                } catch (e) {}
+            }
+            function particleRain(glyphOrCss, count, ms, css) {
+                var frag = document.createDocumentFragment();
+                for (var i = 0; i < count; i++) {
+                    (function (d) {
+                        var p = el('div', 'position:absolute;top:-40px;pointer-events:none;' + css, glyphOrCss);
+                        p.style.left = Math.random() * 100 + '%';
+                        p.style.animationDelay = (Math.random() * 2.5).toFixed(2) + 's';
+                        frag.appendChild(p);
+                    })(i);
+                }
+                var holder = el('div', 'position:fixed;inset:0;overflow:hidden;pointer-events:none;');
+                holder.appendChild(frag);
+                layer().appendChild(holder);
+                setTimeout(function () { holder.remove(); }, ms);
+            }
+            switch (effect) {
+                case 'matrix': {
+                    fxStyle('@keyframes sp1derFxNone{}');
+                    var mo = fullOverlay('#020702');
+                    var cv = document.createElement('canvas');
+                    cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+                    var tag = el('div', 'position:relative;z-index:2;font:700 26px monospace;color:#00ff66;text-shadow:0 0 18px #00ff66;letter-spacing:3px;', 'SP1DER MATRIX');
+                    var skip = el('button', 'position:relative;z-index:2;background:transparent;border:1px solid #00ff66;color:#00ff66;border-radius:8px;padding:8px 22px;cursor:pointer;font:700 13px monospace;', 'wake up');
+                    skip.onclick = function () { mo.remove(); };
+                    mo.append(cv, tag, skip);
+                    try {
+                        var ctx = cv.getContext('2d');
+                        var cols = [], fontSize = 16;
+                        function size() { cv.width = cv.offsetWidth; cv.height = cv.offsetHeight; cols = new Array(Math.floor(cv.width / fontSize)).fill(1); }
+                        size(); window.addEventListener('resize', size);
+                        var iv = setInterval(function () {
+                            ctx.fillStyle = 'rgba(2,7,2,0.08)'; ctx.fillRect(0, 0, cv.width, cv.height);
+                            ctx.fillStyle = '#00ff66'; ctx.font = fontSize + 'px monospace';
+                            for (var c = 0; c < cols.length; c++) {
+                                var ch = String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96));
+                                ctx.fillText(ch, c * fontSize, cols[c] * fontSize);
+                                if (cols[c] * fontSize > cv.height && Math.random() > 0.975) cols[c] = 0;
+                                cols[c]++;
+                            }
+                        }, 50);
+                        setTimeout(function () { clearInterval(iv); window.removeEventListener('resize', size); }, 16000);
+                        setTimeout(function () { if (mo.parentNode) mo.remove(); }, 18000);
+                    } catch (e) {}
+                    return;
+                }
+                case 'lock': {
+                    var code = String(payload.code || '');
+                    var lo = fullOverlay('#0b0b14');
+                    lo.style.transition = 'background 0.4s';
+                    var lockTitle = el('div', 'font:800 30px -apple-system,Arial,sans-serif;color:#ff0055;letter-spacing:2px;', 'SCREEN LOCKED');
+                    var lockBy = el('div', 'font:13px -apple-system,Arial,sans-serif;color:#9a9aa5;', 'Locked by Sp1der staff');
+                    var lockInput = document.createElement('input');
+                    lockInput.type = 'password';
+                    lockInput.placeholder = 'unlock code';
+                    lockInput.style.cssText = 'background:#17171f;border:1px solid #ff0055;color:#eee;border-radius:8px;padding:10px 14px;width:180px;text-align:center;font-size:15px;outline:none;';
+                    var lockMsg = el('div', 'font:12px -apple-system,Arial,sans-serif;color:#9a9aa5;min-height:16px;', '');
+                    var lockBtn = el('button', 'background:#ff0055;color:#fff;border:none;border-radius:8px;padding:10px 26px;cursor:pointer;font:700 14px -apple-system,Arial,sans-serif;', 'Unlock');
+                    function tryUnlock() {
+                        if (code && lockInput.value === code) { lo.remove(); }
+                        else { lockMsg.textContent = 'Wrong code' + (code ? '' : ' — no code was set, waiting for staff to unlock you.'); lockInput.value = ''; }
+                    }
+                    lockBtn.onclick = tryUnlock;
+                    lockInput.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') tryUnlock(); });
+                    lo.append(lockTitle, lockBy, lockInput, lockBtn, lockMsg);
+                    setTimeout(function () { if (lo.parentNode) lo.remove(); }, 180000);
+                    return;
+                }
+                case 'bluescreen': {
+                    var bo = fullOverlay('#0078d7');
+                    bo.style.color = '#fff';
+                    bo.style.font = '15px -apple-system,Arial,sans-serif';
+                    bo.style.alignItems = 'flex-start';
+                    bo.style.justifyContent = 'flex-start';
+                    bo.style.padding = '8vh 10vw';
+                    bo.style.textAlign = 'left';
+                    var sad = el('div', 'font-size:90px;font-weight:200;', ':(');
+                    var bmsg = el('div', 'font-size:22px;line-height:1.5;max-width:640px;', 'Sp1der_OS ran into a problem and needs to restart. Some fun has been lost. Error code: SP1DER_TROLL.');
+                    var bpct = el('div', 'font-size:16px;margin-top:20px;', '0% complete');
+                    bo.append(sad, bmsg, bpct);
+                    var p = 0;
+                    var piv = setInterval(function () { p += Math.floor(Math.random() * 14) + 3; if (p > 100) p = 100; bpct.textContent = p + '% complete'; if (p >= 100) clearInterval(piv); }, 900);
+                    setTimeout(function () { if (bo.parentNode) bo.remove(); clearInterval(piv); }, 15000);
+                    return;
+                }
+                case 'fakeupdate': {
+                    var uo = fullOverlay('#0b0b14');
+                    var ut = el('div', 'font:800 20px -apple-system,Arial,sans-serif;color:#8b5cf6;', 'Sp1der Update');
+                    var ud = el('div', 'font:13px -apple-system,Arial,sans-serif;color:#9a9aa5;', 'Installing the latest fun. Do not turn off your computer.');
+                    var barOuter = el('div', 'width:min(360px,70vw);height:10px;background:#22222c;border-radius:99px;overflow:hidden;');
+                    var barInner = el('div', 'height:100%;width:0%;background:linear-gradient(90deg,#8b5cf6,#ff0055);border-radius:99px;transition:width 0.5s ease;');
+                    barOuter.appendChild(barInner);
+                    var upct = el('div', 'font:12px monospace;color:#9a9aa5;', '0%');
+                    uo.append(ut, ud, barOuter, upct);
+                    var up = 0;
+                    var uiv = setInterval(function () {
+                        up = Math.min(100, up + Math.floor(Math.random() * 9) + 2);
+                        barInner.style.width = up + '%'; upct.textContent = up + '%';
+                        if (up >= 100) { clearInterval(uiv); ud.textContent = 'Just kidding. Nothing was installed.'; }
+                    }, 500);
+                    setTimeout(function () { if (uo.parentNode) uo.remove(); clearInterval(uiv); }, 13000);
+                    return;
+                }
+                case 'loading': {
+                    var loa = fullOverlay('#0b0b14');
+                    var spin = el('div', 'width:54px;height:54px;border-radius:50%;border:5px solid #26262f;border-top-color:#8b5cf6;animation:sp1derFxSpin 0.9s linear infinite;');
+                    fxStyle('@keyframes sp1derFxSpin{to{transform:rotate(360deg)}}');
+                    var lt = el('div', 'font:14px -apple-system,Arial,sans-serif;color:#9a9aa5;', 'Loading sp1der.exe ...');
+                    loa.append(spin, lt);
+                    setTimeout(function () { lt.textContent = 'It is never loading.'; }, 8000);
+                    setTimeout(function () { if (loa.parentNode) loa.remove(); }, 11000);
+                    return;
+                }
+                case 'fakenews': {
+                    fxStyle('@keyframes sp1derFxTicker{0%{transform:translateX(100vw)}100%{transform:translateX(-100%)}}');
+                    var nb = el('div', 'position:fixed;left:0;right:0;bottom:0;background:#b80000;color:#fff;z-index:2147483647;pointer-events:none;font:700 16px -apple-system,Arial,sans-serif;display:flex;align-items:center;height:44px;overflow:hidden;');
+                    var nlab = el('div', 'background:#fff;color:#b80000;padding:0 12px;height:100%;display:flex;align-items:center;flex-shrink:0;letter-spacing:1px;', 'BREAKING');
+                    var nmsg = el('div', 'white-space:nowrap;padding:0 20px;animation:sp1derFxTicker 14s linear infinite;', String(payload.msg || 'Staff reports: absolutely nothing is happening.'));
+                    nb.append(nlab, nmsg);
+                    layer().appendChild(nb);
+                    setTimeout(function () { nb.remove(); }, 15000);
+                    return;
+                }
+                case 'app': {
+                    var url = String(payload.url || '');
+                    var ao = fullOverlay('#000');
+                    if (/^https?:\/\//i.test(url)) {
+                        var fr = document.createElement('iframe');
+                        fr.src = url;
+                        fr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
+                        fr.setAttribute('allow', 'fullscreen');
+                        ao.appendChild(fr);
+                    } else {
+                        ao.appendChild(el('div', 'font:800 24px -apple-system,Arial,sans-serif;color:#8b5cf6;text-align:center;padding:20px;', 'No valid program URL was provided.'));
+                    }
+                    var ax = el('button', 'position:absolute;top:10px;right:10px;z-index:2;background:rgba(0,0,0,0.6);color:#fff;border:1px solid #8b5cf6;border-radius:8px;padding:6px 14px;cursor:pointer;font:700 12px -apple-system,Arial,sans-serif;opacity:0;transition:opacity 0.4s;pointer-events:none;', 'X');
+                    ao.appendChild(ax);
+                    setTimeout(function () { ax.style.opacity = '1'; ax.style.pointerEvents = 'auto'; }, 9000);
+                    ax.onclick = function () { ao.remove(); };
+                    setTimeout(function () { if (ao.parentNode) ao.remove(); }, 30000);
+                    return;
+                }
+                case 'jumpscare': {
+                    var jo = fullOverlay('#000');
+                    jo.appendChild(el('div', 'font:900 min(22vw,180px) -apple-system,Arial,sans-serif;color:#ff0055;transform:scale(0.3);transition:transform 0.25s cubic-bezier(.2,2.2,.4,1);text-shadow:0 0 40px #ff0055;', 'BOO!'));
+                    setTimeout(function () { try { jo.firstChild.style.transform = 'scale(1)'; } catch (e) {} }, 30);
+                    shakeFx(false, 2600);
+                    setTimeout(function () { if (jo.parentNode) jo.remove(); }, 3000);
+                    return;
+                }
+                case 'rickroll': {
+                    var ro = fullOverlay('linear-gradient(160deg,#1a0b2e,#0b0b14)');
+                    ro.appendChild(el('div', 'font:800 28px -apple-system,Arial,sans-serif;color:#ff6b1a;', '\uD83C\uDFB6 Never gonna give you up'));
+                    var lyrics = ['Never gonna give you up', 'Never gonna let you down', 'Never gonna run around and desert you', 'Never gonna make you cry', 'Never gonna say goodbye', 'Never gonna tell a lie and hurt you'];
+                    var rl = el('div', 'font:16px -apple-system,Arial,sans-serif;color:#eee;min-height:24px;', lyrics[0]);
+                    ro.appendChild(rl);
+                    var ri = 0;
+                    var riv = setInterval(function () { ri = (ri + 1) % lyrics.length; rl.textContent = lyrics[ri]; }, 2200);
+                    ro.appendChild(el('div', 'font:13px -apple-system,Arial,sans-serif;color:#9a9aa5;', 'staff chose this fate for you'));
+                    setTimeout(function () { clearInterval(riv); if (ro.parentNode) ro.remove(); }, 14000);
+                    return;
+                }
+                case 'clippy': {
+                    var ctips = ['It looks like you are trying to avoid homework.', 'Did you know? Staff can see everything. (Not really.)', 'Would you like help with that? Too bad.', 'You have been chosen. Do not resist the fun.', 'Tip: press Alt+F4 for free robux. (Do not.)', 'This assistant will self-destruct. Eventually.'];
+                    var cc = el('div', 'position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fffbe6;color:#333;border:1px solid #d9c94a;border-radius:10px 10px 10px 0;padding:12px 14px;max-width:240px;font:13px -apple-system,Arial,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,0.35);pointer-events:auto;');
+                    var cb = el('div', 'font-weight:800;margin-bottom:6px;color:#8b5cf6;', 'Sp1der Assistant');
+                    var cmsg = el('div', '', ctips[0]);
+                    cc.append(cb, cmsg);
+                    layer().appendChild(cc);
+                    var ci = 0;
+                    var civ = setInterval(function () { ci = (ci + 1) % ctips.length; cmsg.textContent = ctips[ci]; }, 4000);
+                    setTimeout(function () { clearInterval(civ); cc.remove(); }, 24000);
+                    return;
+                }
+                case 'duck': {
+                    soundFx('quack');
+                    var dk = el('div', 'position:fixed;bottom:8px;left:-80px;z-index:2147483647;font-size:44px;pointer-events:none;transition:left 9s linear;', '\uD83E\uDD86');
+                    layer().appendChild(dk);
+                    setTimeout(function () { dk.style.left = '110vw'; }, 50);
+                    setTimeout(function () { dk.remove(); }, 9500);
+                    return;
+                }
+                case 'spiders': {
+                    var sps = [];
+                    for (var s = 0; s < 8; s++) {
+                        var sp = el('div', 'position:fixed;z-index:2147483647;font-size:' + (20 + Math.floor(Math.random() * 22)) + 'px;pointer-events:none;transition:top 2.4s ease,left 2.4s ease;', '\uD83D\uDD77');
+                        sp.style.top = Math.random() * 90 + '%';
+                        sp.style.left = Math.random() * 95 + '%';
+                        layer().appendChild(sp); sps.push(sp);
+                    }
+                    var siv = setInterval(function () {
+                        sps.forEach(function (sp) { sp.style.top = Math.random() * 90 + '%'; sp.style.left = Math.random() * 95 + '%'; });
+                    }, 2500);
+                    setTimeout(function () { clearInterval(siv); sps.forEach(function (sp) { sp.remove(); }); }, 16000);
+                    return;
+                }
+                case 'confetti': {
+                    fxStyle('@keyframes sp1derFxFall{to{transform:translateY(105vh) rotate(720deg)}}');
+                    var colors = ['#ff0055', '#8b5cf6', '#00d4ff', '#ffd166', '#06d6a0'];
+                    var holder2 = el('div', 'position:fixed;inset:0;overflow:hidden;pointer-events:none;');
+                    for (var cf = 0; cf < 120; cf++) {
+                        var cp = el('div', 'position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:sp1derFxFall ' + (2.4 + Math.random() * 2.4) + 's linear infinite;', '');
+                        cp.style.left = Math.random() * 100 + '%';
+                        cp.style.background = colors[cf % colors.length];
+                        cp.style.animationDelay = (Math.random() * 2).toFixed(2) + 's';
+                        holder2.appendChild(cp);
+                    }
+                    layer().appendChild(holder2);
+                    setTimeout(function () { holder2.remove(); }, 12000);
+                    return;
+                }
+                case 'fireworks': {
+                    fxStyle('@keyframes sp1derFxBurst{0%{transform:scale(0.2);opacity:1}100%{transform:scale(3.4);opacity:0}}');
+                    var fh = el('div', 'position:fixed;inset:0;overflow:hidden;pointer-events:none;');
+                    layer().appendChild(fh);
+                    var fiv = setInterval(function () {
+                        var fw = el('div', 'position:absolute;width:8px;height:8px;border-radius:50%;animation:sp1derFxBurst 1.1s ease-out forwards;', '');
+                        fw.style.left = (10 + Math.random() * 80) + '%';
+                        fw.style.top = (10 + Math.random() * 55) + '%';
+                        fw.style.background = ['#ff0055', '#ffd166', '#00d4ff', '#8b5cf6', '#06d6a0'][Math.floor(Math.random() * 5)];
+                        fw.style.boxShadow = '0 0 18px currentColor';
+                        fh.appendChild(fw);
+                        setTimeout(function () { fw.remove(); }, 1200);
+                    }, 420);
+                    setTimeout(function () { clearInterval(fiv); fh.remove(); }, 12000);
+                    return;
+                }
+                case 'snow': {
+                    fxStyle('@keyframes sp1derFxSnow{to{transform:translateY(105vh)}}');
+                    particleRain('\u2744', 90, 15000, 'font-size:' + (10 + Math.floor(Math.random() * 14)) + 'px;color:#dff3ff;animation:sp1derFxSnow ' + (5 + Math.random() * 6).toFixed(1) + 's linear infinite;');
+                    return;
+                }
+                case 'hearts': {
+                    fxStyle('@keyframes sp1derFxHeart{to{transform:translateY(-110vh) scale(1.4);opacity:0.2}}');
+                    particleRain('\u2764', 45, 12000, 'font-size:' + (16 + Math.floor(Math.random() * 20)) + 'px;animation:sp1derFxHeart ' + (4 + Math.random() * 4).toFixed(1) + 's linear infinite;');
+                    return;
+                }
+                case 'emojirain': {
+                    fxStyle('@keyframes sp1derFxEmoji{to{transform:translateY(108vh) rotate(360deg)}}');
+                    var em = String(payload.msg || payload.emoji || '\uD83D\uDE80').slice(0, 4);
+                    particleRain(em, 70, 12000, 'font-size:' + (18 + Math.floor(Math.random() * 18)) + 'px;animation:sp1derFxEmoji ' + (3 + Math.random() * 4).toFixed(1) + 's linear infinite;');
+                    return;
+                }
+                case 'starfield': {
+                    var so = fullOverlay('#000');
+                    var scv = document.createElement('canvas');
+                    scv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+                    so.appendChild(scv);
+                    var note = el('div', 'position:relative;z-index:2;font:700 15px monospace;color:#8b5cf6;letter-spacing:3px;', 'TO INFINITY');
+                    so.appendChild(note);
+                    try {
+                        var sctx = scv.getContext('2d');
+                        var stars = [];
+                        function ssize() { scv.width = scv.offsetWidth; scv.height = scv.offsetHeight; }
+                        ssize();
+                        for (var st = 0; st < 160; st++) stars.push({ x: Math.random() * 2 - 1, y: Math.random() * 2 - 1, z: Math.random() });
+                        var siv2 = setInterval(function () {
+                            sctx.fillStyle = '#000'; sctx.fillRect(0, 0, scv.width, scv.height);
+                            sctx.fillStyle = '#fff';
+                            for (var i2 = 0; i2 < stars.length; i2++) {
+                                var s2 = stars[i2];
+                                s2.z -= 0.008; if (s2.z <= 0) s2.z = 1;
+                                var px = s2.x / s2.z * (scv.width / 2) + scv.width / 2;
+                                var py = s2.y / s2.z * (scv.height / 2) + scv.height / 2;
+                                var r = Math.max(0, 2.2 * (1 - s2.z));
+                                sctx.beginPath(); sctx.arc(px, py, r, 0, 7); sctx.fill();
+                            }
+                        }, 33);
+                        setTimeout(function () { clearInterval(siv2); if (so.parentNode) so.remove(); }, 15000);
+                    } catch (e) { setTimeout(function () { if (so.parentNode) so.remove(); }, 15000); }
+                    return;
+                }
+                case 'invert': filterFx('invert(1)', 20000); return;
+                case 'blur': filterFx('blur(6px)', 20000); return;
+                case 'gray': filterFx('grayscale(1)', 25000); return;
+                case 'dark': filterFx('brightness(0.16)', 20000); return;
+                case 'vaporwave': filterFx('saturate(2.6) hue-rotate(290deg) contrast(1.1)', 20000); return;
+                case 'mirror': transformFx('scaleX(-1)', 20000); return;
+                case 'flip': transformFx('rotate(180deg)', 20000); return;
+                case 'rotate': transformFx('rotate(7deg) scale(1.02)', 18000); return;
+                case 'zoom': transformFx('scale(1.55)', 15000); return;
+                case 'rainbow': {
+                    fxStyle('@keyframes sp1derFxRainbow{to{filter:hue-rotate(360deg)}}');
+                    document.documentElement.style.animation = 'sp1derFxRainbow 2.2s linear infinite';
+                    setTimeout(function () { try { document.documentElement.style.animation = ''; } catch (e) {} }, 20000);
+                    return;
+                }
+                case 'glitch': {
+                    fxStyle('@keyframes sp1derFxGlitch{0%,100%{filter:none;transform:none}10%{filter:invert(1) hue-rotate(90deg);transform:translate(-7px,2px)}20%{filter:contrast(2.4);transform:translate(6px,-3px)}30%{filter:none;transform:skewX(9deg)}45%{filter:invert(0.8);transform:translate(-4px,4px) skewY(-4deg)}60%{filter:saturate(4);transform:translate(8px,1px)}75%{filter:none;transform:translate(-6px,-2px)}}');
+                    document.documentElement.style.animation = 'sp1derFxGlitch 0.7s steps(2) infinite';
+                    setTimeout(function () { try { document.documentElement.style.animation = ''; } catch (e) {} }, 9000);
+                    return;
+                }
+                case 'wobble': {
+                    fxStyle('@keyframes sp1derFxWobble{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.6deg)}}');
+                    document.documentElement.style.animation = 'sp1derFxWobble 1.6s ease-in-out infinite';
+                    setTimeout(function () { try { document.documentElement.style.animation = ''; } catch (e) {} }, 15000);
+                    return;
+                }
+                case 'disco': {
+                    fxStyle('@keyframes sp1derFxDisco{0%{background:rgba(255,0,85,0.22)}25%{background:rgba(0,212,255,0.22)}50%{background:rgba(139,92,246,0.25)}75%{background:rgba(6,214,160,0.22)}100%{background:rgba(255,209,102,0.22)}}');
+                    var dd = el('div', 'position:fixed;inset:0;z-index:2147483646;pointer-events:none;animation:sp1derFxDisco 0.5s linear infinite;');
+                    layer().appendChild(dd);
+                    setTimeout(function () { dd.remove(); }, 15000);
+                    return;
+                }
+                case 'shock': shakeFx(false, 4000); return;
+                case 'earthquake': shakeFx(true, 8000); return;
+                case 'cursor': {
+                    var curs = ['\uD83E\uDD86', '\uD83D\uDD77', '\uD83C\uDF54', '\uD83D\uDE08', '\uD83E\uDD8B', '\uD83D\uDC26', '\u26A1'];
+                    var ci2 = 0;
+                    var civ2 = setInterval(function () {
+                        try { document.body.style.cursor = 'url("data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><text y="24" font-size="24">' + curs[ci2 % curs.length] + '</text></svg>') + '") 4 4, auto'; } catch (e) {}
+                        ci2++;
+                    }, 320);
+                    setTimeout(function () { clearInterval(civ2); try { document.body.style.cursor = ''; } catch (e) {} }, 15000);
+                    return;
+                }
+                case 'spam': {
+                    var sm = String(payload.msg || 'hi :)');
+                    for (var sp2 = 0; sp2 < 5; sp2++) {
+                        (function (idx) {
+                            setTimeout(function () {
+                                var po = fullOverlay('rgba(8,8,14,' + (0.72 + idx * 0.05) + ')');
+                                po.appendChild(el('div', 'font:800 13px -apple-system,Arial,sans-serif;color:#ff0055;letter-spacing:1.5px;text-transform:uppercase;', 'popup ' + (idx + 1) + ' of 5'));
+                                po.appendChild(el('div', 'font:17px -apple-system,Arial,sans-serif;color:#eee;max-width:420px;text-align:center;line-height:1.5;', sm));
+                                var pok = el('button', 'background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:8px 24px;cursor:pointer;font:700 13px -apple-system,Arial,sans-serif;', 'OK');
+                                pok.onclick = function () { po.remove(); };
+                                po.appendChild(pok);
+                            }, idx * 1600);
+                        })(sp2);
+                    }
+                    return;
+                }
+                case 'toasts': {
+                    var tm = String(payload.msg || 'toast toast toast');
+                    for (var t2 = 0; t2 < 6; t2++) {
+                        (function (idx) {
+                            setTimeout(function () {
+                                var tt = el('div', 'position:fixed;right:16px;bottom:' + (16 + idx * 62) + 'px;z-index:2147483647;background:#17171f;border:1px solid #8b5cf6;color:#eee;border-radius:10px;padding:12px 16px;font:13px -apple-system,Arial,sans-serif;max-width:280px;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,0.4);', tm);
+                                layer().appendChild(tt);
+                                setTimeout(function () { tt.remove(); }, 4200);
+                            }, idx * 700);
+                        })(t2);
+                    }
+                    return;
+                }
+                case 'message': {
+                    var mo2 = fullOverlay('rgba(6,6,12,0.94)');
+                    mo2.appendChild(el('div', 'font:800 12px -apple-system,Arial,sans-serif;color:#8b5cf6;letter-spacing:2px;text-transform:uppercase;', 'New message from ' + (payload.from || 'Staff')));
+                    var mcard = el('div', 'background:#17171f;border:1px solid #26262f;border-radius:12px;padding:18px 22px;max-width:min(440px,84vw);font:15px -apple-system,Arial,sans-serif;color:#eee;line-height:1.55;', String(payload.msg || ''));
+                    mo2.appendChild(mcard);
+                    var mok = el('button', 'background:#8b5cf6;color:#fff;border:none;border-radius:8px;padding:9px 26px;cursor:pointer;font:700 13px -apple-system,Arial,sans-serif;', 'Read');
+                    mok.onclick = function () { mo2.remove(); };
+                    mo2.appendChild(mok);
+                    setTimeout(function () { if (mo2.parentNode) mo2.remove(); }, 60000);
+                    return;
+                }
+                case 'siren': soundFx('siren'); return;
+                case 'alarm': soundFx('alarm'); return;
+                case 'fanfare': soundFx('fanfare'); return;
+                case 'quack': soundFx('quack'); return;
+                case 'boing': soundFx('boing'); return;
+                case 'gamewin': {
+                    var go = fullOverlay('rgba(4,16,10,0.9)');
+                    go.appendChild(el('div', 'font-size:64px;', '\uD83C\uDFC6'));
+                    go.appendChild(el('div', 'font:800 30px -apple-system,Arial,sans-serif;color:#06d6a0;', 'VICTORY!'));
+                    go.appendChild(el('div', 'font:13px -apple-system,Arial,sans-serif;color:#9a9aa5;', 'Staff declares you the winner.'));
+                    setTimeout(function () { if (go.parentNode) go.remove(); }, 8000);
+                    return;
+                }
+                case 'gamelose': {
+                    var glo = fullOverlay('rgba(20,4,8,0.9)');
+                    glo.appendChild(el('div', 'font-size:64px;', '\uD83D\uDC80'));
+                    glo.appendChild(el('div', 'font:800 30px -apple-system,Arial,sans-serif;color:#ff0055;', 'GAME OVER'));
+                    glo.appendChild(el('div', 'font:13px -apple-system,Arial,sans-serif;color:#9a9aa5;', 'Staff declares you the loser.'));
+                    setTimeout(function () { if (glo.parentNode) glo.remove(); }, 8000);
+                    return;
+                }
+                case 'gamegod': {
+                    var gg = el('div', 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:2147483647;background:linear-gradient(90deg,#8b5cf6,#00d4ff);color:#fff;border-radius:99px;padding:10px 26px;font:800 14px -apple-system,Arial,sans-serif;box-shadow:0 6px 24px rgba(139,92,246,0.5);pointer-events:none;', '\u2728 GOD MODE ENABLED (staff says so)');
+                    layer().appendChild(gg);
+                    setTimeout(function () { gg.remove(); }, 9000);
+                    return;
+                }
+                case 'gameslow': {
+                    var gs = el('div', 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#17171f;border:1px solid #ffd166;color:#ffd166;border-radius:99px;padding:10px 26px;font:800 14px -apple-system,Arial,sans-serif;pointer-events:none;', '\uD83D\uDC0C SLOW-MO ACTIVATED');
+                    layer().appendChild(gs);
+                    shakeFx(false, 1200);
+                    setTimeout(function () { gs.remove(); }, 9000);
+                    return;
+                }
+                case 'gameboost': {
+                    var gb = el('div', 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#17171f;border:1px solid #00d4ff;color:#00d4ff;border-radius:99px;padding:10px 26px;font:800 14px -apple-system,Arial,sans-serif;pointer-events:none;', '\uD83D\uDE80 SPEED BOOST ACTIVATED');
+                    layer().appendChild(gb);
+                    setTimeout(function () { gb.remove(); }, 9000);
+                    return;
+                }
+                case 'gamescore': {
+                    var gsc = el('div', 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#17171f;border:1px solid #06d6a0;color:#06d6a0;border-radius:99px;padding:10px 26px;font:800 14px -apple-system,Arial,sans-serif;pointer-events:none;', 'HIGH SCORE SET: ' + String(payload.msg || '999999').slice(0, 12));
+                    layer().appendChild(gsc);
+                    setTimeout(function () { gsc.remove(); }, 9000);
+                    return;
+                }
+                case 'gamefreeze': {
+                    var old = document.getElementById('sp1derFxGameFreeze'); if (old) old.remove();
+                    var gf = el('div', 'position:fixed;inset:0;background:rgba(4,4,10,0.88);z-index:2147483647;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;pointer-events:auto;', '');
+                    gf.id = 'sp1derFxGameFreeze';
+                    gf.appendChild(el('div', 'font-size:52px;', '\u23F8'));
+                    gf.appendChild(el('div', 'font:800 24px -apple-system,Arial,sans-serif;color:#ff0055;letter-spacing:2px;', 'PAUSED BY STAFF'));
+                    gf.appendChild(el('div', 'font:12px -apple-system,Arial,sans-serif;color:#9a9aa5;', 'This overlay stays until staff resumes you.'));
+                    (document.body || document.documentElement).appendChild(gf);
+                    return;
+                }
+                case 'gameblur': {
+                    var oldb = document.getElementById('sp1derFxGameBlur'); if (oldb) oldb.remove();
+                    var gbl = el('style', '', '');
+                    gbl.id = 'sp1derFxGameBlur';
+                    gbl.textContent = 'html,body{filter:blur(7px)!important;transition:filter 0.6s}';
+                    (document.head || document.documentElement).appendChild(gbl);
+                    return;
+                }
+                case 'gamerestart': { try { window.location.reload(); } catch (e) {} return; }
+                default: return;
+            }
+        }
+
+
+        /* ===== SP1DER FX COMMANDS + MANAGER (v4.7) =====
+           Fun staff tools that reach any Sp1der surface: the chat tab, the arcade hub and
+           every open game window. Effects travel as fresh notifications (popupAction 'fx:<name>')
+           and are also broadcast over the arcade channel so they land over running games. */
+        const SP1DER_FX_GROUP_TAKEOVER = 'Sp1der FX: Takeovers';
+        const SP1DER_FX_GROUP_VISUAL = 'Sp1der FX: Visual';
+        const SP1DER_FX_GROUP_SOUND = 'Sp1der FX: Sounds';
+        const SP1DER_FX_GROUP_MSG = 'Sp1der FX: Messages';
+        const SP1DER_FX_GROUP_GAME = 'Sp1der FX: Game Control';
+        const SP1DER_FX_COMMANDS = [
+            { cmd: 'matrix', usage: '/matrix <@user|everyone>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Force a fullscreen matrix-rain HTML program over anything they have open, games included.' },
+            { cmd: 'lockscreen', fx: 'lock', usage: '/lockscreen <@user|everyone> [code]', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Lock their screen until they type the unlock code (or 3 minutes pass). You choose the code.' },
+            { cmd: 'unlockscreen', usage: '/unlockscreen <@user|everyone>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Force-remove a screen lock you sent.' },
+            { cmd: 'bluescreen', usage: '/bluescreen <@user|everyone>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Fake blue-screen-of-death takeover.' },
+            { cmd: 'fakeupdate', usage: '/fakeupdate <@user|everyone>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Fake "installing update" takeover screen.' },
+            { cmd: 'loading', usage: '/loading <@user|everyone>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Infinite loading screen that never loads.' },
+            { cmd: 'fakenews', usage: '/fakenews <@user|everyone> <message>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Scrolling BREAKING NEWS banner with your message.', msg: true },
+            { cmd: 'forceapp', usage: '/forceapp <@user|everyone> <https://...|matrix>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Force any HTML program to run fullscreen over their page. Pass a URL, or "matrix" for the built-in matrix screen.', msg: true },
+            { cmd: 'spam', usage: '/spam <@user|everyone> <message>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Five stacked popups in a row.', msg: true },
+            { cmd: 'toasts', usage: '/toasts <@user|everyone> <message>', group: SP1DER_FX_GROUP_TAKEOVER, desc: 'Flood of toast notifications.', msg: true },
+            { cmd: 'invert', usage: '/invert <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Invert their colors for 20 seconds.' },
+            { cmd: 'blur', usage: '/blur <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Blur everything for 20 seconds.' },
+            { cmd: 'gray', usage: '/gray <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Drain all color for 25 seconds.' },
+            { cmd: 'dark', usage: '/dark <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Blackout their screen light for 20 seconds.' },
+            { cmd: 'mirror', usage: '/mirror <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Mirror-flip their whole page.' },
+            { cmd: 'flip', usage: '/flip <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Flip their page upside down.' },
+            { cmd: 'rotate', usage: '/rotate <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Tilt their page sideways.' },
+            { cmd: 'zoom', usage: '/zoom <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Zoom way in for 15 seconds.' },
+            { cmd: 'rainbow', usage: '/rainbow <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Cycling rainbow hue for 20 seconds.' },
+            { cmd: 'glitch', usage: '/glitch <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Hard glitch effects for 9 seconds.' },
+            { cmd: 'wobble', usage: '/wobble <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Wobble their page for 15 seconds.' },
+            { cmd: 'disco', usage: '/disco <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Disco light show for 15 seconds.' },
+            { cmd: 'vaporwave', usage: '/vaporwave <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'A e s t h e t i c filter for 20 seconds.' },
+            { cmd: 'starfield', usage: '/starfield <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Hyperspace starfield takeover.' },
+            { cmd: 'snow', usage: '/snow <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Snowfall over their page.' },
+            { cmd: 'confetti', usage: '/confetti <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Confetti celebration.' },
+            { cmd: 'fireworks', usage: '/fireworks <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Fireworks bursts for 12 seconds.' },
+            { cmd: 'hearts', usage: '/hearts <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Floating hearts.' },
+            { cmd: 'emojirain', usage: '/emojirain <@user|everyone> <emoji>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Rain any emoji of your choice.', msg: true },
+            { cmd: 'shock', usage: '/shock <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Shake their screen for 4 seconds.' },
+            { cmd: 'earthquake', usage: '/earthquake <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Much bigger shake for 8 seconds.' },
+            { cmd: 'cursor', usage: '/cursor <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Their cursor becomes random emoji for 15 seconds.' },
+            { cmd: 'jumpscare', usage: '/jumpscare <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'A friendly BOO with a shake.' },
+            { cmd: 'rickroll', usage: '/rickroll <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Never gonna give them up.' },
+            { cmd: 'clippy', usage: '/clippy <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Annoying assistant with unhelpful tips.' },
+            { cmd: 'duck', usage: '/duck <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'A duck walks across their screen. With quack.' },
+            { cmd: 'spiders', usage: '/spiders <@user|everyone>', group: SP1DER_FX_GROUP_VISUAL, desc: 'Spiders crawl all over their page.' },
+            { cmd: 'siren', usage: '/siren <@user|everyone>', group: SP1DER_FX_GROUP_SOUND, desc: 'Siren sound for 4 seconds.' },
+            { cmd: 'alarm', usage: '/alarm <@user|everyone>', group: SP1DER_FX_GROUP_SOUND, desc: 'Alarm beeps for 3 seconds.' },
+            { cmd: 'fanfare', usage: '/fanfare <@user|everyone>', group: SP1DER_FX_GROUP_SOUND, desc: 'Victory fanfare.' },
+            { cmd: 'quack', usage: '/quack <@user|everyone>', group: SP1DER_FX_GROUP_SOUND, desc: 'A single dignified quack.' },
+            { cmd: 'boing', usage: '/boing <@user|everyone>', group: SP1DER_FX_GROUP_SOUND, desc: 'Boing.' },
+            { cmd: 'msg', fx: 'message', usage: '/msg <@user|everyone> <message>', group: SP1DER_FX_GROUP_MSG, desc: 'Send a DM-style message popup from Staff.', msg: true },
+            { cmd: 'gamefreeze', usage: '/gamefreeze <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Pause overlay over their running game until you resume.' },
+            { cmd: 'gameresume', usage: '/gameresume <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Remove your pause overlay.' },
+            { cmd: 'gamerestart', usage: '/gamerestart <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Reload their game windows.' },
+            { cmd: 'gameclose', usage: '/gameclose <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Close their game windows.' },
+            { cmd: 'gamehub', usage: '/gamehub <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Force them back to the arcade hub.' },
+            { cmd: 'gameblur', usage: '/gameblur <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Blur their game until unblurred.' },
+            { cmd: 'gameunblur', usage: '/gameunblur <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Remove the game blur.' },
+            { cmd: 'gamewin', usage: '/gamewin <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Force a VICTORY screen over their game.' },
+            { cmd: 'gamelose', usage: '/gamelose <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Force a GAME OVER screen over their game.' },
+            { cmd: 'gamegod', usage: '/gamegod <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'GOD MODE banner over their game.' },
+            { cmd: 'gameslow', usage: '/gameslow <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'SLOW-MO banner over their game.' },
+            { cmd: 'gameboost', usage: '/gameboost <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'SPEED BOOST banner over their game.' },
+            { cmd: 'gamescore', usage: '/gamescore <@user|everyone> <score>', group: SP1DER_FX_GROUP_GAME, desc: 'Fake HIGH SCORE SET banner with any score.', msg: true },
+            { cmd: 'fxstop', fx: 'stop', usage: '/fxstop <@user|everyone>', group: SP1DER_FX_GROUP_GAME, desc: 'Clear every effect you sent them.' },
+            { cmd: 'globalfx', usage: '/globalfx <effect>', group: SP1DER_FX_GROUP_GAME, desc: 'Run any FX effect above on everyone online at once (e.g. /globalfx confetti).' },
+            { cmd: 'manager', usage: '/manager', group: 'Sp1der Manager', desc: 'Open the Sp1der Manager console: staff login with email verification, then it opens in about:blank. Works while you are on any Sp1der tool or game.' },
+            { cmd: 'fxhelp', usage: '/fxhelp', group: 'Sp1der Manager', desc: 'Open the command guide (all Sp1der FX commands listed with usage).' }
+        ];
+        const SP1DER_FX_NO_TARGET = ['manager', 'fxhelp', 'globalfx'];
+        function sp1derFxBroadcast(effect, payload) {
+            try { arcadeBroadcast('SP1DER_FX', { effect: effect, payload: payload || {} }); } catch (e) {}
+            try {
+                arcadeForwardTargets().forEach(function (w) {
+                    try { w.postMessage({ type: 'SP1DER_FX', effect: effect, payload: payload || {} }, '*'); } catch (e) {}
+                });
+            } catch (e) {}
+        }
+        function closeMyArcadeGamesWith(msg) {
+            try {
+                arcadeForwardTargets().forEach(function (w) {
+                    try { w.postMessage({ type: 'SP1DER_ARCADE_END', message: msg }, '*'); } catch (e) {}
+                });
+                arcadeBroadcast('SP1DER_ARCADE_END', { message: msg });
+                toast(msg);
+            } catch (e) {}
+        }
+        function sp1derFxPlay(effect, payload) {
+            try {
+                if (effect === 'gamehub') closeMyArcadeGamesWith('Staff sent you back to the arcade hub.');
+                else if (effect === 'gameclose') closeMyArcadeGamesWith('Your games were closed by staff.');
+                else if (effect === 'gamerestart') { /* forward to game windows only, never reload this tab */ }
+                else { try { sp1derFxEngineCore(effect, payload); } catch (e) {} }
+                sp1derFxBroadcast(effect, payload);
+            } catch (e) {}
+        }
+        async function sp1derFxSend(effect, targetRef, payload) {
+            const ref = String(targetRef || '').trim();
+            const isAll = !ref || ref === '@everyone' || ref === 'everyone' || ref === '@all' || ref === 'all' || ref === '*';
+            let uids = null;
+            if (isAll) {
+                uids = Object.keys(onlineUsers || {}).filter(function (k) { const u = onlineUsers[k]; return u && u.online === true; }).slice(0, 100);
+                if (!uids.length) { toast('Nobody is online right now.'); return; }
+            } else {
+                const uid = await resolveTargetUid(ref);
+                if (!uid) { toast('No user found named "' + ref.replace(/^@/, '') + '".'); return; }
+                uids = [uid];
+            }
+            const base = { popup: true, popupAction: 'fx:' + effect, fxPayload: payload || {}, fromUid: currentUser.uid, fromName: adminMyName(), createdAt: sv(), read: false };
+            try {
+                for (const uid of uids) await db.collection('notifications').add(Object.assign({ uid: uid }, base));
+                let note = 'Sent /' + effect + ' to ' + (isAll ? 'everyone online (' + uids.length + ')' : ref.replace(/^@/, ''));
+                if (payload && payload.code) note += ' — unlock code: ' + payload.code;
+                toast(note);
+            } catch (e) { toast('Failed: ' + (e.message || e)); }
+        }
+        async function handleSp1derFxCommand(cmd, args) {
+            if (cmd === 'manager' || cmd === 'mgr' || cmd === 'sp1dermanager') {
+                if (!canUseStaffCmds()) { toast('Staff only'); return true; }
+                openManagerLogin(); return true;
+            }
+            if (cmd === 'fxhelp') {
+                openCommandHelp();
+                try { toast('Sp1der FX ready: ' + SP1DER_FX_COMMANDS.length + ' commands + Manager'); } catch (e) {}
+                return true;
+            }
+            const hit = SP1DER_FX_COMMANDS.find(function (c) { return c.cmd === cmd; });
+            if (!hit) return false;
+            if (!canUseStaffCmds()) { toast('Staff only'); return true; }
+            if (cmd === 'globalfx') {
+                const fxName = String(args[0] || '').toLowerCase().replace(/^\//, '');
+                const valid = SP1DER_FX_COMMANDS.find(function (c) { return c.cmd === fxName && SP1DER_FX_NO_TARGET.indexOf(c.cmd) < 0; });
+                if (!valid) { toast('Usage: /globalfx <effect> — e.g. /globalfx confetti. See /fxhelp.'); return true; }
+                await sp1derFxSend(fxName, 'everyone', args[1] ? { msg: args.slice(1).join(' ') } : {});
+                return true;
+            }
+            let payload = {};
+            if (hit.msg) {
+                const msgParts = args.slice(1);
+                if (!msgParts.length) { toast('Usage: ' + hit.usage); return true; }
+                payload.msg = msgParts.join(' ');
+            }
+            if (cmd === 'lockscreen') {
+                payload.code = String(args[1] || '').replace(/[^0-9a-zA-Z]/g, '').slice(0, 8) || String(Math.floor(1000 + Math.random() * 9000));
+            }
+            if (cmd === 'forceapp') {
+                payload.url = /^https?:\/\//i.test(payload.msg || '') ? payload.msg : (String(payload.msg || '').toLowerCase() === 'matrix' ? 'matrix' : '');
+                if (!payload.url) { toast('Usage: /forceapp <@user|everyone> <https://...|matrix>'); return true; }
+            }
+            await sp1derFxSend(hit.fx || cmd, args[0], payload);
+            return true;
+        }
+        /* ---------- Sp1der Manager: staff login with email verification, opens in about:blank ---------- */
+        function openManagerLogin() {
+            if (!currentUser) { toast('Sign in first.'); return; }
+            const m = $('managerLoginModal'); if (m) m.classList.add('active');
+            managerLoginRender();
+        }
+        function closeManagerLogin() { const m = $('managerLoginModal'); if (m) m.classList.remove('active'); }
+        function managerLoginRender() {
+            const body = $('managerLoginBody'); if (!body) return;
+            const verified = !!(currentUser && currentUser.emailVerified);
+            const email = (currentUser && currentUser.email) || '';
+            body.innerHTML = '';
+            const title = document.createElement('div');
+            title.style.cssText = 'text-align:center;font-size:0.95rem;color:var(--text);margin-bottom:6px;';
+            title.textContent = 'Secure staff login';
+            const sub = document.createElement('div');
+            sub.style.cssText = 'text-align:center;font-size:0.8rem;color:var(--text-dim);margin-bottom:14px;';
+            sub.textContent = 'The Manager runs every Sp1der FX command from one console, over any tool or game.';
+            const status = document.createElement('div');
+            status.style.cssText = 'text-align:center;font-size:0.8rem;font-weight:700;margin-bottom:12px;color:' + (verified ? 'var(--primary,#06d6a0)' : 'var(--danger,#ff0055)') + ';';
+            status.textContent = verified ? 'Email verified: ' + email : 'Email NOT verified: ' + email;
+            body.append(title, sub, status);
+            if (!verified) {
+                const note = document.createElement('p');
+                note.style.cssText = 'font-size:0.8rem;color:var(--text-dim);line-height:1.5;text-align:center;margin:0 0 12px;';
+                note.textContent = 'Verify this account email to unlock the Manager. Open the email Firebase sent when you signed up, or resend it below.';
+                const send = document.createElement('button');
+                send.className = 'composer-btn primary'; send.style.width = '100%'; send.style.marginBottom = '8px';
+                send.textContent = 'Resend verification email';
+                send.onclick = async function () {
+                    send.disabled = true; send.textContent = 'Sending...';
+                    try { await currentUser.sendEmailVerification(); toast('Verification email sent to ' + email); send.textContent = 'Email sent — check your inbox'; }
+                    catch (e) { toast('Failed: ' + (e.message || e)); send.disabled = false; send.textContent = 'Resend verification email'; }
+                };
+                const recheck = document.createElement('button');
+                recheck.className = 'composer-btn'; recheck.style.width = '100%'; recheck.style.marginBottom = '8px';
+                recheck.textContent = "I've verified — check again";
+                recheck.onclick = async function () {
+                    recheck.disabled = true; recheck.textContent = 'Checking...';
+                    try { await currentUser.reload(); } catch (e) {}
+                    recheck.disabled = false; recheck.textContent = "I've verified — check again";
+                    managerLoginRender();
+                };
+                body.append(note, send, recheck);
+            } else {
+                const label = document.createElement('div');
+                label.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-bottom:6px;';
+                label.textContent = 'Enter your account password to unlock the Manager:';
+                const input = document.createElement('input');
+                input.type = 'password'; input.autocomplete = 'current-password'; input.placeholder = 'Password';
+                input.style.cssText = 'width:100%;box-sizing:border-box;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm,8px);padding:10px;font-size:0.9rem;margin-bottom:12px;';
+                const err = document.createElement('div');
+                err.style.cssText = 'min-height:16px;font-size:0.78rem;color:var(--danger,#ff0055);margin-bottom:8px;text-align:center;';
+                const go = document.createElement('button');
+                go.className = 'composer-btn primary'; go.style.width = '100%';
+                go.textContent = 'Sign in and open Manager';
+                const submit = async function () {
+                    if (!input.value) { err.textContent = 'Enter your password.'; return; }
+                    go.disabled = true; go.textContent = 'Checking...'; err.textContent = '';
+                    try {
+                        const cred = firebase.auth.EmailAuthProvider.credential(email, input.value);
+                        await currentUser.reauthenticateWithCredential(cred);
+                        input.value = '';
+                        closeManagerLogin();
+                        openSp1derManager();
+                    } catch (e) {
+                        err.textContent = (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential')) ? 'Wrong password.' : ((e && e.message) || 'Sign-in failed.');
+                    }
+                    go.disabled = false; go.textContent = 'Sign in and open Manager';
+                };
+                go.onclick = submit;
+                input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submit(); });
+                body.append(label, input, err, go);
+            }
+            const cancel = document.createElement('button');
+            cancel.className = 'composer-btn'; cancel.style.width = '100%'; cancel.style.marginTop = '8px';
+            cancel.textContent = 'Cancel';
+            cancel.onclick = closeManagerLogin;
+            body.appendChild(cancel);
+        }
+        function openSp1derManager() {
+            const w = window.open('about:blank', '_blank', 'width=1180,height=800,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
+            if (!w) { toast('Popup blocked — allow popups for Sp1der and run /manager again.'); return; }
+            try {
+                w.document.open();
+                w.document.write(sp1derManagerPageHtml());
+                w.document.close();
+                toast('Sp1der Manager opened in about:blank.');
+            } catch (e) { toast('Failed to open Manager: ' + (e.message || e)); }
+        }
+        function sp1derManagerPageHtml() {
+            const cmdsJson = JSON.stringify(SP1DER_FX_COMMANDS).replace(/</g, '\\u003c');
+            const who = adminMyName();
+            return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sp1der Manager</title><style>' +
+                '*{box-sizing:border-box;margin:0;padding:0}' +
+                'body{background:radial-gradient(1200px 700px at 70% -10%,#1c1233,#0b0b12 55%);color:#eee;font:14px -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;min-height:100vh}' +
+                'header{display:flex;align-items:center;gap:14px;padding:18px 26px;border-bottom:1px solid #23232e;background:rgba(12,12,20,0.85);position:sticky;top:0;z-index:5;backdrop-filter:blur(8px)}' +
+                'header h1{font-size:19px;letter-spacing:3px;color:#8b5cf6;text-shadow:0 0 18px rgba(139,92,246,0.5)}' +
+                'header .who{font-size:12px;color:#9a9aa5}header .cnt{margin-left:auto;font-size:12px;color:#00d4ff;background:#101018;border:1px solid #23232e;padding:6px 12px;border-radius:99px}' +
+                '.bar{display:flex;gap:10px;flex-wrap:wrap;padding:16px 26px;border-bottom:1px solid #23232e;position:sticky;top:69px;background:rgba(11,11,18,0.92);z-index:4;backdrop-filter:blur(8px)}' +
+                '.bar input{background:#14141c;border:1px solid #2c2c38;color:#eee;border-radius:10px;padding:10px 14px;font-size:13px;outline:none;transition:border-color .2s}' +
+                '.bar input:focus{border-color:#8b5cf6}' +
+                '#target{flex:1.1;min-width:180px}#msgin{flex:2;min-width:220px}#search{flex:1.2;min-width:160px}' +
+                'main{padding:20px 26px 60px;max-width:1250px;margin:0 auto}' +
+                'section{margin-bottom:26px}section h2{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#9a9aa5;margin-bottom:10px;display:flex;align-items:center;gap:8px}' +
+                'section h2::before{content:"";width:8px;height:8px;border-radius:2px;background:#8b5cf6;box-shadow:0 0 10px #8b5cf6}' +
+                '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}' +
+                '.card{background:#13131b;border:1px solid #23232e;border-radius:12px;padding:13px 14px;transition:transform .15s,border-color .15s,box-shadow .15s;cursor:pointer}' +
+                '.card:hover{transform:translateY(-2px);border-color:#8b5cf6;box-shadow:0 8px 22px rgba(139,92,246,0.25)}' +
+                '.card b{display:block;font-size:13px;color:#eee;margin-bottom:5px;font-family:monospace}' +
+                '.card span{font-size:11.5px;color:#8b8b96;line-height:1.45;display:block}' +
+                '.selfbar{display:flex;gap:10px;flex-wrap:wrap}' +
+                '.selfbar button,.console button{background:#13131b;border:1px solid #2c2c38;color:#eee;border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;transition:border-color .2s}' +
+                '.selfbar button:hover,.console button:hover{border-color:#00d4ff}' +
+                '.console{display:flex;gap:10px;padding:14px;background:#101018;border:1px solid #23232e;border-radius:14px;margin-top:8px}' +
+                '.console input{flex:1;background:#14141c;border:1px solid #2c2c38;color:#eee;border-radius:10px;padding:10px 14px;font-family:monospace;font-size:13px;outline:none}' +
+                '.console input:focus{border-color:#8b5cf6}' +
+                '#status{position:fixed;left:26px;bottom:20px;font-size:12px;color:#06d6a0;opacity:0;transition:opacity .3s;z-index:9}' +
+                '#status.err{color:#ff5577}' +
+                '.hint{font-size:11.5px;color:#8b8b96;margin:4px 0 0}' +
+                '</style></head><body><header><h1>&#128375; SP1DER MANAGER</h1><span class="who">staff: ' + who + ' &middot; runs over any Sp1der tool or game</span><span class="cnt" id="cnt"></span></header>' +
+                '<div class="bar"><input id="target" placeholder="target: username or everyone" value="everyone"><input id="msgin" placeholder="message / URL / emoji / score (for commands that need one)"><input id="search" placeholder="search commands..."></div>' +
+                '<main id="main"></main>' +
+                '<div id="status"></div>' +
+                '<script>var CMDS=' + cmdsJson + ';var GROUPS={"Sp1der FX: Takeovers":"Screen Takeovers","Sp1der FX: Visual":"Visual FX","Sp1der FX: Sounds":"Sounds","Sp1der FX: Messages":"Messages","Sp1der FX: Game Control":"Game Control","Sp1der Manager":"Manager"};' +
+                'var main=document.getElementById("main");' +
+                'function status(t,err){var s=document.getElementById("status");s.textContent=t;s.className=err?"err":"";s.style.opacity=1;setTimeout(function(){s.style.opacity=0},2600);}' +
+                'function run(cmd,needsMsg){var target=document.getElementById("target").value.trim()||"everyone";var msg=document.getElementById("msgin").value.trim();' +
+                'if(needsMsg&&!msg){status("That command needs a message in the message box.",true);return;}' +
+                'var command="/"+cmd+" "+target+(needsMsg?" "+msg:"");' +
+                'try{window.opener.postMessage({type:"SP1DER_MGR_CMD",command:command},"*");status("Sent: "+command);}catch(e){status("Not connected to Sp1der.",true);}}' +
+                'function selfCmd(a){try{window.opener.postMessage({type:"SP1DER_MGR_SELF",action:a},"*");status("My games: "+a);}catch(e){status("Not connected to Sp1der.",true);}}' +
+                'function render(q){q=(q||"").toLowerCase();main.innerHTML="";' +
+                'var n=0;' +
+                'for(var g in GROUPS){var list=CMDS.filter(function(c){return c.group===g&&(!q||c.cmd.indexOf(q)>=0||(c.desc||"").toLowerCase().indexOf(q)>=0)});if(!list.length)continue;' +
+                'var sec=document.createElement("section");var h=document.createElement("h2");h.textContent=GROUPS[g];sec.appendChild(h);' +
+                'if(g==="Sp1der Manager"){var bar=document.createElement("div");bar.className="console";' +
+                'var ci=document.createElement("input");ci.id="cons";ci.placeholder="/any-command args...";var cb=document.createElement("button");cb.textContent="Run";' +
+                'cb.onclick=function(){var v=ci.value.trim();if(!v){status("Type a command.",true);return;}try{window.opener.postMessage({type:"SP1DER_MGR_CMD",command:v},"*");status("Sent: "+v);}catch(e){status("Not connected to Sp1der.",true);}};' +
+                'ci.addEventListener("keydown",function(e){if(e.key==="Enter")cb.click();});' +
+                'bar.append(ci,cb);sec.appendChild(bar);var hint=document.createElement("div");hint.className="hint";hint.textContent="Runs any slash command in Sp1der — FX, moderation, everything.";sec.appendChild(hint);}' +
+                'if(g==="Sp1der FX: Game Control"){var sb=document.createElement("div");sb.className="selfbar";["freeze","resume","restart","close","hub"].forEach(function(a){var b=document.createElement("button");b.textContent="My games: "+a;b.onclick=function(){selfCmd(a)};sb.appendChild(b);});sec.appendChild(sb);var h2=document.createElement("div");h2.className="hint";h2.textContent="The buttons above control YOUR arcade games instantly (no target needed).";sec.appendChild(h2);}' +
+                'var grid=document.createElement("div");grid.className="grid";' +
+                'list.forEach(function(c){n++;var card=document.createElement("div");card.className="card";' +
+                'var b=document.createElement("b");b.textContent="/"+c.cmd;var s=document.createElement("span");s.textContent=c.desc||"";' +
+                'card.append(b,s);card.onclick=function(){run(c.cmd,!!c.msg)};grid.appendChild(card);});' +
+                'sec.appendChild(grid);main.appendChild(sec);}' +
+                'document.getElementById("cnt").textContent=n+" commands";}' +
+                'document.getElementById("search").addEventListener("input",function(){render(this.value)});' +
+                'window.addEventListener("message",function(e){var d=e&&e.data;if(!d||d.type!=="SP1DER_MGR_RESULT")return;status(d.ok?"Command accepted by Sp1der.":"Sp1der did not recognize that command.",!d.ok);});' +
+                'render("");' +
+                '<\/script></body></html>';
+        }
+        /* Manager bridge: the about:blank console talks back to this page. */
+        window.addEventListener('message', function (e) {
+            const d = e && e.data;
+            if (!d || typeof d !== 'object') return;
+            if (d.type === 'SP1DER_MGR_CMD') {
+                if (!canUseStaffCmds()) {
+                    try { e.source.postMessage({ type: 'SP1DER_MGR_RESULT', ok: false }, '*'); } catch (err) {}
+                    return;
+                }
+                handleCommand(String(d.command || ''), selectedChannelId || 'global').then(function (ok) {
+                    try { e.source.postMessage({ type: 'SP1DER_MGR_RESULT', ok: !!ok }, '*'); } catch (err) {}
+                });
+            } else if (d.type === 'SP1DER_MGR_SELF') {
+                if (!canUseStaffCmds()) return;
+                const a = String(d.action || '');
+                if (a === 'freeze') sp1derFxBroadcast('gamefreeze', {});
+                else if (a === 'resume') sp1derFxBroadcast('gameresume', {});
+                else if (a === 'restart') sp1derFxBroadcast('gamerestart', {});
+                else if (a === 'close') closeMyArcadeGamesWith('Games closed from the Manager.');
+                else if (a === 'hub') closeMyArcadeGamesWith('Back to the arcade hub.');
+            }
+        });
+
         /* ===== 10. COMMANDS ===== */
         async function handleCommand(text, channelId, moderationAlreadyChecked = false) {
             text = text.trim(); if (!text.startsWith('/')) return false;
             const parts = text.slice(1).split(/\s+/); const cmd = parts[0].toLowerCase(); const args = parts.slice(1);
             if (await handleFurballCommand(cmd, args, channelId, moderationAlreadyChecked)) return true;
+            if (await handleSp1derFxCommand(cmd, args)) return true;
             const myUid = currentUser ? currentUser.uid : '';
             const chDb = getChDb();
             switch (cmd) {
@@ -7574,6 +8448,10 @@ Furball found a sunbeam and is not moving for anyone.`;
                     if (!n || n.popup !== true || seenPopupIds.has(n._id)) return;
                     seenPopupIds.add(n._id);
                     if (Date.now() - tsOf(n) > 180000) return; // only fresh popups
+                    if (n.popupAction && String(n.popupAction).indexOf('fx:') === 0) {
+                        try { sp1derFxPlay(String(n.popupAction).slice(3), n.fxPayload); } catch (e) {}
+                        return;
+                    }
                     if (n.popupAction === 'arcadeEnd') { try { closeMyArcadeGames(); } catch (e) {} }
                     showOwnerPopup(n);
                 });
