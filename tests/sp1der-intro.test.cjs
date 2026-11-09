@@ -65,8 +65,8 @@ test('raw GitHub launcher injects a real document base instead of matching a scr
 });
 test('score has nine ordered stages and a real versioned 34-second MP3',()=>{
   assert.deepEqual(score.stages.map(s=>s.at),[0,4,8,12,16,20,26,29,32]);
-  assert.equal(score.duration,34);assert.equal(score.version,5);
-  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v5.mp3');
+  assert.equal(score.duration,34);assert.equal(score.version,6);
+  assert.equal(score.audio,'assets/intro/sp1der-intro-beta-v6.mp3');
   const data=fs.readFileSync(path.join(root,score.audio));
   assert.ok(data.length>500000&&data.length<650000);
   assert.equal(data.subarray(0,3).toString(),'ID3');
@@ -75,25 +75,31 @@ test('score has nine ordered stages and a real versioned 34-second MP3',()=>{
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v2.mp3')).size>500000);
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v3.mp3')).size>500000);
   assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v4.mp3')).size>500000);
+  assert.ok(fs.statSync(path.join(root,'assets/intro/sp1der-intro-beta-v5.mp3')).size>500000);
   assert.match(read('sp1der-intro.html'),/34<\/span> seconds/);
-  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 05/);
+  assert.match(read('sp1der-intro.html'),/INTRO BETA \/ 06/);
   assert.match(read('fishes-arcade.html'),/34-second intro/);
 });
-test('extended cut doubles the journey with its own score, audio and hit grid',()=>{
+test('extended cut runs its own longer score, audio and hit grid',()=>{
   const ext=JSON.parse(read('intro/sequence-extended.json'));
-  assert.equal(ext.duration,68);assert.equal(ext.duration,score.duration*2);
+  assert.equal(ext.duration,58.5);assert.ok(ext.duration>score.duration);
   assert.equal(ext.version,score.version);
-  assert.equal(ext.audio,'assets/intro/sp1der-intro-beta-v5-extended.mp3');
-  assert.deepEqual(ext.stages.map(s=>s.at),[0,4,8,12,16,20,26,32,38,44,47,51,55,61]);
+  assert.equal(ext.audio,'assets/intro/sp1der-intro-beta-v6-extended.mp3');
+  assert.deepEqual(ext.stages.map(s=>s.at),[0,4,8,12,16,20,26,32,38,44,47,51,54.5,56.5]);
   assert.deepEqual(ext.stages.map(s=>s.id),['signal','assembly','ignition','orbital','network','deep','reef','school','warp','resolve','echo','identity','finale','handoff']);
   const data=fs.readFileSync(path.join(root,ext.audio));
-  assert.ok(data.length>1000000&&data.length<1400000);
+  assert.ok(data.length>800000&&data.length<1100000);
   assert.equal(data.subarray(0,3).toString(),'ID3');
   const tl=require('../intro/timing.js').create(ext);
-  assert.equal(tl.events.filter(e=>e.kind==='impact').length,23);
+  assert.equal(tl.events.filter(e=>e.kind==='impact').length,21);
   assert.equal(tl.events.filter(e=>e.kind==='pulse').length,99);
   assert.deepEqual(tl.events.filter(e=>e.kind==='lock').map(e=>e.at),[51,51.5,52,52.5,53,53.5]);
   assert.ok(tl.events.every((e,i,a)=>e.at>=0&&e.at<ext.duration&&(!i||e.at>=a[i-1].at)));
+  // The ending closes right after the title: one celebration hit, one soft
+  // final accent, and nothing scheduled between the last lock and the fade.
+  const tail=tl.events.filter(e=>e.at>53.5).map(e=>[e.kind,e.at]);
+  assert.deepEqual(tail,[['impact',54.5],['impact',56.5]]);
+  assert.ok(ext.duration-56.5<2.5);
   // Narrative captions stay inside their stages in the extended cut too.
   for(const [i,stage] of ext.stages.entries()){
     assert.equal(tl.story(stage.at).detail,stage.detail);

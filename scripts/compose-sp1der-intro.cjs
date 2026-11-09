@@ -67,18 +67,42 @@ function compose(score) {
     const level = .022 + frac(i) * .044;
     event(at, .38, t => level * (tone(f, t) + .2 * tone(f * 2, t)) * Math.exp(-t * 9), step % 2 ? .6 : -.6);
   }
-  // 3) Driving bass line from ignition on: root/fifth/octave eighths that gain weight.
+  // 3) Driving bass line from ignition on: root/fifth/octave eighths that gain
+  // weight. The pattern rotates by two steps every other bar, so the long
+  // middle of the extended cut varies instead of looping one figure.
   for (let at = timeline.times.ignition; at < timeline.times.identity + 5 * timeline.beat; at += timeline.beat / 2) {
     const i = stageIndexAt(at), step = Math.round(at / (timeline.beat / 2));
-    const f = rootOf(i) * BASS_PATTERN(i)[step % 8];
+    const rot = (Math.floor(at / (timeline.beat * 4)) % 2) * 2;
+    const f = rootOf(i) * BASS_PATTERN(i)[(step + rot) % 8];
     const level = .062 + frac(i) * .04;
     event(at, .3, t => level * (tone(f, t) + .3 * tone(f * 2.002, t)) * Math.min(1, t / .006) * Math.exp(-t * 7));
+  }
+  // 3b) Extended cut only: offbeat chord stabs from the network on, so the
+  // long mid-section keeps stacking texture instead of sitting on the bass.
+  if (timeline.times.deep !== undefined) {
+    for (let at = timeline.times.network; at < timeline.times.identity; at += timeline.beat) {
+      const i = stageIndexAt(at), root = rootOf(i);
+      const level = .03 + frac(i) * .028;
+      [root * 2, root * 3, fifthOf(i) * 2].forEach((f, n) => event(at + timeline.beat / 2, .22, t =>
+        level * tone(f, t) * Math.min(1, t / .004) * Math.exp(-t * 16), n === 1 ? .3 : -.3));
+    }
   }
   // 4) Off-beat shaker from orbital on, gaining presence every stage.
   for (let at = timeline.times.orbital + timeline.beat / 2; at < timeline.times.identity + 5 * timeline.beat; at += timeline.beat) {
     const i = stageIndexAt(at);
     let air = 0;
     event(at, .12, t => { air = air * .82 + noise() * .18; return (.022 + frac(i) * .04) * air * Math.exp(-t * 30); }, .35);
+  }
+  // 4b) Extended cut only: a double-time sixteenth arpeggio from the deep on,
+  // doubling the plucked arp so the shoal and transit keep gaining energy.
+  if (timeline.times.reef !== undefined) {
+    for (let at = timeline.times.deep; at < arpEnd; at += timeline.beat / 4) {
+      const i = stageIndexAt(at), step = Math.round(at / (timeline.beat / 4));
+      const title = at >= timeline.times.identity;
+      const f = (title ? ARP_TITLE : ARP)[step % 6] * 2;
+      const level = .015 + frac(i) * .024;
+      event(at, .2, t => level * tone(f, t) * Math.exp(-t * 12), step % 2 ? .45 : -.45);
+    }
   }
   // 5) Sixteenth-note drive from network on: the upbeat push into the title.
   for (let at = timeline.times.network; at < timeline.times.identity + 5 * timeline.beat; at += timeline.beat / 4) {

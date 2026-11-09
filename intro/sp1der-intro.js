@@ -256,7 +256,7 @@
     const ping=((t-T.deep)%3)/3;
     ring(.5+ping*2.6,-.2,[.3,.2,0],motion*.2,(1-ping)*.3*enter*exit,true,C.warm);
     // Bubbles rise as the camera sinks.
-    for(let i=0;i<(phone()?10:22);i++){
+    for(let i=0;i<(phone()?14:32);i++){
       const bx=Math.sin(i*2.7)*2.2, bz=((i*1.31+14-motion*.9)%14+14)%14-2;
       const by=1.9-((i*.83+motion*.55)%3.6);
       dot([bx,by,bz],1.2+(i%3)*.4,i%4===0?C.warm:C.pale,.35*enter*exit);
@@ -274,8 +274,8 @@
   function reefGarden(t,motion,alpha,beat){
     const grow=ease((t-T.reef)/1.6), exit=alpha;
     // Kelp strands sway on the current.
-    for(let i=0;i<(phone()?8:13);i++){
-      const bx=-2.6+i*.44, pts=[];
+    for(let i=0;i<(phone()?10:17);i++){
+      const bx=-2.7+i*.35, pts=[];
       for(let s=0;s<=9;s++){
         const sway=Math.sin(motion*.6+i*.9+s*.5)*.13*(s/9);
         pts.push([bx+sway,2.2-s*.42,.3]);
@@ -283,11 +283,11 @@
       path(pts,i%3===0?C.warm:C.cyan,.4*grow*exit,1.6);
     }
     // Branching corals grow up from the floor.
-    const corals=phone()?4:7;
+    const corals=phone()?5:9;
     for(let i=0;i<corals;i++)
       coral(-2.2+i*.75,2.0,-Math.PI/2+(i%2?.3:-.3),.34,4,motion,.5*grow*exit);
     // Plankton drift through the light.
-    for(let i=0;i<(phone()?14:30);i++){
+    for(let i=0;i<(phone()?20:46);i++){
       const px=Math.sin(i*4.1)*2.9, py=Math.cos(i*2.6)*1.9;
       dot([px,py,((i*1.37+16-motion*1.1)%12+12)%12-2],.8,C.pale,.3*grow*exit);
     }
@@ -315,8 +315,13 @@
   }
   function fishSchool(t,motion,alpha,beat){
     const enter=ease((t-T.school)/1.3), exit=alpha;
-    const n=phone()?22:42;
+    const n=phone()?30:58;
     const tx=Math.sin(motion*.42)*1.5, ty=Math.cos(motion*.31)*.85;
+    // Drifting motes keep the water itself alive around the shoal.
+    for(let i=0;i<(phone()?12:26);i++){
+      const mx=Math.sin(i*3.1+motion*.14)*3.1, my=Math.cos(i*1.7+motion*.1)*1.9;
+      dot([mx,my,((i*1.23+10-motion*.7)%10+10)%10-2],.7,C.pale,.2*enter*exit);
+    }
     // One odd fish glows red for a few seconds. Nobody mentions it.
     const redOn=!state.reduced&&t-T.school>1.4&&t-T.school<5.2;
     for(let i=0;i<n;i++){
@@ -467,14 +472,12 @@
       const x=-90+(w+180)*ease(redU), y=h*.26+Math.sin(redU*8)*10;
       for(let k=4;k>=1;k--){ctx.fillStyle=rgba([255,93,93],.10*(1-k/5));ctx.beginPath();ctx.arc(x-k*26,y,7-k,0,TAU);ctx.fill();}
       drawRedFish(x,y,1.15);
-      ctx.fillStyle=rgba(C.pale,.85);ctx.fillText('RED',x,y-46);
     }
     // BLUE BASS: a local that rises from below with its mouth open.
     const bassU=clamp((p-1.6)/2.2);
     if(bassU>0&&bassU<1){
       const y=h*.68+(1-ease(bassU))*h*.25;
       drawBlueBass(cx-w*.16+Math.sin(p*2)*20,y,1.1);
-      ctx.fillStyle=rgba(C.pale,.85);ctx.fillText('BLUE BASS',cx-w*.16,y+52);
     }
     // PIXEL FIN: a fin assembles from raw pixels, shimmers, then dissolves.
     const finU=clamp((p-3.1)/1.4), finOut=clamp((5.6-p)/.7);
@@ -489,7 +492,6 @@
         ctx.fillStyle=rgba(col,.9*finOut*shimmer);
         ctx.fillRect(x,y,cell-.9,cell-.9);
       });
-      ctx.fillStyle=rgba(C.pale,.85);ctx.fillText('PIXEL FIN',fx,fy+9*cell+18);
     }
     ctx.textBaseline='middle';
   }
