@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Project Sp1der — 4.7.6</title>
+    <title>Project Sp1der — 4.7.7</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -8734,6 +8734,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.7.7', date: '2026-11-09', author: 'fish01-jpg', title: 'Role recovery from your own messages', changes: ["Fixed - a fresh sign-in could come back as a plain member while the main database is over its daily quota:", "If the account document cannot be read and no cached role exists, the role is now recovered from the user's own most recent staff-tagged message (a message records the sender's role at send time) and written to the account mirror, so the owner and staff keep their rank and the admin panel during database outages", "Only staff roles from messages sent in the last 60 days can be recovered this way"] },
             { version: '4.7.6', date: '2026-11-09', author: 'fish01-jpg', title: 'Owner rank checks + phantom ranks fixed', changes: ["Fixed - the owner was told a target had an equal or higher rank:", "The owner can now manage owner-level accounts too (the rank checks only blocked equal or higher ranks for staff below owner level; the fixed allowlisted developer and AI accounts remain fully protected)", "Chat messages no longer feed their embedded role into the role store - a message only records the rank the sender had at that moment, and those snapshots could resurrect an outdated rank (or demote the owner from their own older messages), which made the checks disagree with the database", "Rank error messages now show the actual ranks involved (for example: you: Owner, target: Admin) so it is always visible why an action was blocked", "Fresh sign-ins while the main database is over its daily quota recover the account role from a device cache and write it back to the account mirror, so the owner no longer drops to plain member until the quota resets"] },
             { version: '4.7.5', date: '2026-11-09', author: 'fish01-jpg', title: 'One Role Authority — the ROLE_STORE', changes: ["Fixed - /role was inconsistent and tags did not change:", "The role was stored in six different places at once (your session profile, cached chat profiles, the role embedded in each message, presence, the main database and the account mirror) with no ordering between them, so different parts of the app could disagree about a user's role at the same time", "All role reads and writes now go through one authority, the ROLE_STORE: every source feeds it with a revision stamp and the newest revision wins everywhere - command checks, the sidebar, the admin panel and chat name tags all agree", "Staff role changes are now broadcast to every signed-in viewer through a live role feed, so name tags update for everyone within seconds, not just for the person whose role changed", "Message-embedded roles are kept but are now the lowest-priority source, so a user's old messages can no longer pin an outdated badge"] },
             { version: '4.7.4', date: '2026-11-09', author: 'fish01-jpg', title: 'Role Changes Now Apply Live — Staff Commands and Tags Update Instantly', changes: ["Fixed - the panel said a role was set but nothing changed:", "Role, tier, ban and mute changes only reached a user the next time they signed in, so their staff commands, the tier manager and their name tag kept using the old role", "Every signed-in client now listens live to its own account document on the message servers and applies staff changes the moment they are made: commands unlock immediately, the sidebar updates and the chat re-renders with the new name tag", "Bans and mutes from the account mirror now show immediately too", "The sign-in mirror save no longer includes role or tier, so a stale main-database profile can never overwrite a staff change on the mirror", "Other viewers now also load profiles from the account mirror when the main database is over quota, so role badges stay fresh for everyone"] },
@@ -11928,6 +11929,30 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                             userProfile.role = cachedRole;
                             ROLE_STORE.set(user.uid, cachedRole, Date.now(), 'cache');
                             try { ACCT_MIRROR.save(user.uid, { role: cachedRole }); } catch (e) {}
+                        } else {
+                            /* v4.7.7: last resort — the role lives only in the main database, which can be
+                               over its daily quota for a whole day. Recover it from the user's own most
+                               recent staff-tagged message (the role is embedded at send time), then write it
+                               to the mirror so every session and device recovers it too. Only staff roles
+                               within the last 60 days count, so an ancient rank cannot come back. */
+                            try {
+                                for (let dbi = 0; dbi < msgDbs.length; dbi++) {
+                                    let snap = null;
+                                    try { snap = await tierWithTimeout(msgDbs[dbi].collection('messages').where('uid', '==', user.uid).limit(25).get(), 6000); } catch (e) { snap = null; }
+                                    if (!snap || snap.empty) { try { snap = await tierWithTimeout(msgDbs[dbi].collection('messages').where('sender', '==', user.uid).limit(25).get(), 6000); } catch (e) { snap = null; } }
+                                    if (!snap) continue;
+                                    const mine = snap.docs.map(d => d.data()).filter(m => m.timestamp ? ((m.timestamp.toDate ? m.timestamp.toDate().getTime() : new Date(m.timestamp).getTime()) > Date.now() - 60 * 864e5) : false);
+                                    mine.sort((a, b) => (b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime()) : 0) - (a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime()) : 0));
+                                    const hit = mine.find(m => ['moderator', 'watchdog', 'admin', 'founder', 'owner', 'developer', 'aegis'].includes(String(m.role || '').toLowerCase()));
+                                    if (hit) {
+                                        const rr = String(hit.role).toLowerCase();
+                                        userProfile.role = rr;
+                                        ROLE_STORE.set(user.uid, rr, Date.now(), 'recovery');
+                                        try { ACCT_MIRROR.save(user.uid, { role: rr }); } catch (e) {}
+                                        break;
+                                    }
+                                }
+                            } catch (e) {}
                         }
                     }
                     userProfile.uid = user.uid; userProfile.email = user.email;
