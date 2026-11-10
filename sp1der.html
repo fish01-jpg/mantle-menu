@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Project Sp1der — 4.7.4</title>
+    <title>Project Sp1der — 4.7.5</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -4159,7 +4159,9 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         }
         function accountRole(profile) {
             profile = profile || {};
-            return fixedDeveloper(profile.email, profile.uid) ? 'developer' : String(profile.role || 'member').toLowerCase();
+            /* v4.7.5: the ROLE_STORE is the single authority — a profile object may be a stale copy. */
+            const stored = ROLE_STORE.get(profile.uid);
+            return fixedDeveloper(profile.email, profile.uid) ? 'developer' : (stored || String(profile.role || 'member').toLowerCase());
         }
         function roleLabel(role, chatTag = false) {
             const r = String(role || 'member').trim().toLowerCase();
@@ -4167,7 +4169,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
             if (r === 'admin' || r === 'administrator') return 'Admin';
             return role || 'member';
         }
-        const getRole = () => currentUser && fixedDeveloper(currentUser.email, currentUser.uid) ? 'developer' : String((userProfile && userProfile.role) || '').toLowerCase() === 'developer' ? 'developer' : currentUser && isOwnerEmail(currentUser.email) ? 'owner' : (currentUser && String(currentUser.email || '').toLowerCase() === AI_EMAIL ? 'aegis' : String((userProfile && userProfile.role) || 'member').toLowerCase());
+        const getRole = () => currentUser && fixedDeveloper(currentUser.email, currentUser.uid) ? 'developer' : String((userProfile && userProfile.role) || '').toLowerCase() === 'developer' ? 'developer' : currentUser && isOwnerEmail(currentUser.email) ? 'owner' : (currentUser && String(currentUser.email || '').toLowerCase() === AI_EMAIL ? 'aegis' : (ROLE_STORE.get(currentUser && currentUser.uid) || String((userProfile && userProfile.role) || 'member').toLowerCase()));
         const isStaffUser = () => ['owner','developer','founder','aegis','admin','administrator','watchdog','moderator','mod'].includes(getRole());
         const canUseOwnerCmds = () => !!currentAdminUser || ['owner','developer','founder','aegis','admin','administrator'].includes(getRole());
         const canUseStaffCmds = () => canUseOwnerCmds() || ['watchdog','moderator','mod'].includes(getRole());
@@ -5003,6 +5005,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                     snap.forEach(doc => { const m = doc.data() || {}, uid = messageDisplayUid(m); if (uid && !found[uid]) add({ uid: uid, username: m.username || m.displayName || 'Unknown', email: '', role: m.role || 'member' }); });
                 } catch (e) {}
             }
+            Object.values(found).forEach(u => ROLE_STORE.set(u.uid, u.role, 0, 'directory'));
             return Object.values(found).map(u => normalizeAccountDisplayName(u));
         }
         async function findUserByEmailOrName(term) {
@@ -5946,6 +5949,8 @@ Furball found a sunbeam and is not moving for anyone.`;
                 return ts >= clearCutoff;
             };
             const visibleMsgs = msgs.filter(m => shouldShowMessage(m, channelId, myUid) && cutoffApplied(m));
+            /* v4.7.5: message-embedded roles feed the ROLE_STORE (oldest source — only fills gaps). */
+            visibleMsgs.forEach(m => { const mUid = messageDisplayUid(m); if (mUid && m.role) ROLE_STORE.set(mUid, m.role, m.timestamp ? (m.timestamp.toDate ? m.timestamp.toDate().getTime() : new Date(m.timestamp).getTime()) : 0, 'message'); });
             if (!visibleMsgs.length) {
                 feed.innerHTML = clearCutoff ? '<div class="chat-empty">Chat cleared. New messages will appear below.</div>' : '<div class="chat-empty">No messages yet.</div>';
                 return;
@@ -6177,10 +6182,10 @@ Furball found a sunbeam and is not moving for anyone.`;
                     const refs = chunk.map(uid => db.collection('users').doc(uid));
                     const docs = await Promise.all(refs.map(ref => ref.get().catch(() => null)));
                     const missing = [];
-                    docs.forEach((doc, j) => { if (doc && doc.exists) { channelProfilesCache[doc.id] = normalizeAccountDisplayName(doc.data()); } else missing.push(chunk[j]); });
+                    docs.forEach((doc, j) => { if (doc && doc.exists) { const pd = doc.data(); ROLE_STORE.set(doc.id, pd.role, Date.now(), 'profile'); channelProfilesCache[doc.id] = normalizeAccountDisplayName(pd); } else missing.push(chunk[j]); });
                     /* v4.7.4: main database over quota — load the missing profiles from the account mirror
                        so name tags and role badges stay fresh for other viewers too. */
-                    for (const muid of missing.slice(0, 10)) { try { const m = await ACCT_MIRROR.get(muid); if (m) channelProfilesCache[muid] = normalizeAccountDisplayName(m); } catch (e) {} }
+                    for (const muid of missing.slice(0, 10)) { try { const m = await ACCT_MIRROR.get(muid); if (m) { ROLE_STORE.set(muid, m.role, +m.rev || 0, 'mirror'); channelProfilesCache[muid] = normalizeAccountDisplayName(m); } } catch (e) {} }
                 }
             } catch(e) { /* silent - profiles will use defaults */ }
         }
@@ -8726,6 +8731,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.7.5', date: '2026-11-09', author: 'fish01-jpg', title: 'One Role Authority — the ROLE_STORE', changes: ["Fixed - /role was inconsistent and tags did not change:", "The role was stored in six different places at once (your session profile, cached chat profiles, the role embedded in each message, presence, the main database and the account mirror) with no ordering between them, so different parts of the app could disagree about a user's role at the same time", "All role reads and writes now go through one authority, the ROLE_STORE: every source feeds it with a revision stamp and the newest revision wins everywhere - command checks, the sidebar, the admin panel and chat name tags all agree", "Staff role changes are now broadcast to every signed-in viewer through a live role feed, so name tags update for everyone within seconds, not just for the person whose role changed", "Message-embedded roles are kept but are now the lowest-priority source, so a user's old messages can no longer pin an outdated badge"] },
             { version: '4.7.4', date: '2026-11-09', author: 'fish01-jpg', title: 'Role Changes Now Apply Live — Staff Commands and Tags Update Instantly', changes: ["Fixed - the panel said a role was set but nothing changed:", "Role, tier, ban and mute changes only reached a user the next time they signed in, so their staff commands, the tier manager and their name tag kept using the old role", "Every signed-in client now listens live to its own account document on the message servers and applies staff changes the moment they are made: commands unlock immediately, the sidebar updates and the chat re-renders with the new name tag", "Bans and mutes from the account mirror now show immediately too", "The sign-in mirror save no longer includes role or tier, so a stale main-database profile can never overwrite a staff change on the mirror", "Other viewers now also load profiles from the account mirror when the main database is over quota, so role badges stay fresh for everyone"] },
             { version: '4.7.3', date: '2026-11-09', author: 'fish01-jpg', title: 'Sign Out Fixed + Offline Accounts Visible While the Main Database Is Full', changes: ["Fixed - the Sign Out buttons did nothing:", "Sign-out waited on presence writes to the main account database, and when that database is over its daily quota Firebase queues writes and retries forever - so the sign-out chain never ran", "Sign-out now sends the keep-alive beacon, waits at most 1.5 seconds and then signs you out immediately", "", "Fixed - offline accounts were invisible and could not be given a different rank:", "Every user list read the main account database, so when it hit its quota the management user list, /tier, /devmanagetier and the role commands could only see people who were online", "A compact copy of each account now lives on a healthy message server (the account mirror): sign-in loads it when the main profile read fails, staff changes write through to it, and the user lists fall back to it plus a scan of every message server - so offline accounts show up and can be ranked, banned or muted", "Role changes, bans and mutes now also apply instantly via the mirror when the main database is over quota, and the main-database write is queued and lands at the daily reset (you are told when this happens)", "Rank-change dialogs no longer hang on a full database - writes are bounded with timeouts"] },
             { version: '4.7.2', date: '2026-11-09', author: 'fish01-jpg', title: 'Chat Fixed on Full Servers + Square Shop Tiers, /devmanagetier, Anti-Alt', changes: ["Fixed - chat sends were freezing when servers hit their daily limit:", "The daily message counter waited on the main account database, which had hit its quota - and Firebase silently retries quota errors forever, so every send hung before the message was written", "The counter is now local-first and instant; cloud sync runs in the background and never blocks a send", "Sends now have an 8-second timeout: a stuck write is cancelled and cleaned up instead of hanging forever, so it can never appear later as a duplicate", "The write/read limit popups now count down from 6 seconds and auto-switch chat to the next server that is not maxed, then re-send your message; Close cancels the switch and the manual buttons still work", "Full servers are remembered for the day (until the midnight Pacific reset): chat starts on a healthy server and skips known-full servers when switching", "Server tiers are now bought through the Fitz's 3D Printing Square shop - the price of the item you buy decides your tier (Pro is a $6.00 item, Ultra is a $12.00 item); each purchase is split 4 equal ways between server costs, the owner and the two developers", "New /mytier command shows your tier, today's usage and how to upgrade with direct links to the shop items", "New /tierlist command shows everyone's tier, and PRO/ULTRA chips now show next to names in chat", "New /claimtier <order number> command sends your Square order to staff for verification - each order number can only be claimed once, so one purchase grants one account", "New /devmanagetier command for staff: email-verified login with password confirmation, then grant/remove tiers, approve or deny purchase claims and see the roster; the old /tier command still works and now keeps the public roster in sync", "Anti-alt protection: free-tier daily allowances are shared per browser device, so making alt accounts no longer resets the free chat limit", "The tiers page now explains the shop purchase flow, prices and the split"] },
@@ -10268,6 +10274,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                     db.collection('users').doc(target.uid).set(written,{merge:true}).catch(()=>{});
                 }
                 ACCT_MIRROR.save(target.uid,written);
+                if (action !== 'unlock') ACCT_MIRROR.broadcastRole(target.uid, role, (userProfile && userProfile.username) || 'staff'); /* v4.7.5: every viewer updates live */
                 Object.assign(target,written);
                 if(action!=='unlock'){try{await tierWithTimeout(db.collection('presence').doc(target.uid).set({role},{merge:true}),4000);}catch(e){}}
                 adminLogAdd(action+' '+label+' ('+target.uid+'): '+oldRole+' → '+nextRole);
@@ -10495,6 +10502,17 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 try { const d = await tierWithTimeout(this.mirrorDb().collection(this.coll).doc(String(uid)).get(), 6000); if (d.exists) return Object.assign({ uid: d.id }, d.data()); } catch (e) {}
                 return null;
             },
+            /* v4.7.5: broadcast a role change so every signed-in viewer updates tags and checks live. */
+            broadcastRole: function (uid, role, by) {
+                const dbm = this.mirrorDb(), entry = { uid: String(uid), role: String(role).toLowerCase(), rev: Date.now(), by: by || '' };
+                try {
+                    dbm.collection(this.coll).doc('_roleFeed').get().then(d => {
+                        const cur = (d.exists && Array.isArray(d.data().entries)) ? d.data().entries : [];
+                        cur.push(entry);
+                        dbm.collection(this.coll).doc('_roleFeed').set({ entries: cur.slice(-50) }).catch(() => {});
+                    }).catch(() => { dbm.collection(this.coll).doc('_roleFeed').set({ entries: [entry] }).catch(() => {}); });
+                } catch (e) {}
+            },
             byTerm: async function (term) {
                 const q = String(term || '').replace(/^@/, '').trim().toLowerCase(); if (!q) return null;
                 const dbm = this.mirrorDb();
@@ -10509,11 +10527,68 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 return out;
             }
         };
+        /* ===== v4.7.5: ROLE STORE — the single authority for account roles =====
+           Roles used to live in six places at once (session profile, cached chat profiles,
+           message-embedded roles, presence, the main database and the mirror) with no ordering,
+           so /role could say "set" while tags and checks still used an old copy. Every source now
+           feeds this one store with a revision stamp; the newest revision wins everywhere. */
+        const ROLE_STORE = {
+            data: {}, /* uid -> { role, rev, src } */
+            set: function (uid, role, rev, src) {
+                if (!uid || !role) return;
+                role = String(role).toLowerCase();
+                if (role === 'mod') role = 'moderator';
+                if (!['member', 'moderator', 'watchdog', 'admin', 'founder', 'owner', 'developer', 'aegis'].includes(role)) return;
+                uid = String(uid);
+                const cur = this.data[uid];
+                const newRev = +rev || 0;
+                if (cur && cur.rev > newRev) return; /* keep the newer copy */
+                this.data[uid] = { role: role, rev: newRev, src: src || '' };
+            },
+            get: function (uid) {
+                if (!uid) return null;
+                const e = this.data[String(uid)];
+                return e ? e.role : null;
+            }
+        };
         /* Read an account document from the main database, falling back to the mirror when the main
            database is over its daily quota. */
         async function getUserDocAnywhere(uid) {
-            try { const d = await tierWithTimeout(db.collection('users').doc(String(uid)).get(), 6000); if (d.exists) return Object.assign({ uid: d.id }, d.data()); return null; } catch (e) {}
-            return ACCT_MIRROR.get(uid);
+            try { const d = await tierWithTimeout(db.collection('users').doc(String(uid)).get(), 6000); if (d.exists) { const doc = Object.assign({ uid: d.id }, d.data()); ROLE_STORE.set(uid, doc.role, Date.now(), 'profile'); return doc; } return null; } catch (e) {}
+            const mirrored = await ACCT_MIRROR.get(uid);
+            if (mirrored) ROLE_STORE.set(uid, mirrored.role, +mirrored.rev || 0, 'mirror');
+            return mirrored;
+        }
+        /* ===== v4.7.5: ROLE FEED WATCHER =====
+           A staff role change is broadcast on the account mirror; every client watches that feed and
+           updates the ROLE_STORE, the cached chat profiles and (for the target) their own session. */
+        let roleFeedUnsubs = [];
+        function stopRoleFeedWatch() { roleFeedUnsubs.forEach(u => { try { u(); } catch (e) {} }); roleFeedUnsubs = []; }
+        function startRoleFeedWatch() {
+            if (!currentUser || roleFeedUnsubs.length) return;
+            msgDbs.forEach(dbm => {
+                try {
+                    const unsub = dbm.collection(ACCT_MIRROR.coll).doc('_roleFeed').onSnapshot(doc => {
+                        try { if (doc.exists) applyRoleFeed(doc.data() || {}); } catch (e) {}
+                    }, () => {});
+                    roleFeedUnsubs.push(unsub);
+                } catch (e) {}
+            });
+        }
+        function applyRoleFeed(data) {
+            const entries = Array.isArray(data.entries) ? data.entries : [];
+            let reRender = false;
+            entries.forEach(e => {
+                if (!e || !e.uid || !e.role) return;
+                ROLE_STORE.set(e.uid, e.role, +e.rev || 0, 'feed');
+                if (currentUser && String(e.uid) === String(currentUser.uid)) {
+                    applyMirrorAccount({ role: e.role, rev: +e.rev || 0 }); /* own role: unlock commands and update the tag live */
+                } else {
+                    const p = channelProfilesCache[e.uid];
+                    if (p && String(p.role || '').toLowerCase() !== String(e.role).toLowerCase()) { p.role = e.role; reRender = true; }
+                }
+            });
+            if (reRender && selectedChannelId) { try { openChannel(selectedChannelId); } catch (e) {} }
         }
         /* ===== v4.7.4: LIVE ACCOUNT WATCHER =====
            Staff role/tier/ban/mute changes used to only reach a user the next time they signed in,
@@ -10545,7 +10620,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             const changed = [];
             /* role */
             const newRole = String(data.role || '').toLowerCase();
-            const curRole = accountRole(userProfile || {});
+            ROLE_STORE.set(currentUser.uid, newRole, rev, 'mirror');
+            const curRole = String((userProfile && userProfile.role) || 'member').toLowerCase(); /* compare the session copy directly so the ROLE_STORE cannot short-circuit the sync */
             if (newRole && ['member', 'moderator', 'watchdog', 'admin', 'founder', 'owner', 'developer', 'aegis'].includes(newRole) && newRole !== curRole && !fixedDeveloper(currentUser.email, currentUser.uid) && !isOwnerEmail(currentUser.email)) {
                 userProfile = Object.assign({}, userProfile || {}, { role: newRole });
                 changed.push('role is now ' + roleLabel(newRole));
@@ -11823,6 +11899,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     _preHydrationSettings = JSON.parse(JSON.stringify(settings)); /* snapshot for keeping edits made while the profile loads */
                     try { const doc = await db.collection('users').doc(user.uid).get(); if (doc.exists) { cloudProfile = doc.data(); channelProfilesCache[user.uid] = cloudProfile; } } catch (e) { profileReadOk = false; }
                     if (!cloudProfile && !profileReadOk) { /* v4.7.3: main database over quota — load the account from the mirror */ try { const mirrored = await ACCT_MIRROR.get(user.uid); if (mirrored) { cloudProfile = mirrored; profileReadOk = true; acctMirrorLastRev = Math.max(acctMirrorLastRev, +mirrored.rev || 0); } } catch (e) {} }
+                    if (cloudProfile) ROLE_STORE.set(user.uid, cloudProfile.role, Date.now(), 'profile');
                     if (authGen !== _authGeneration || !auth.currentUser || auth.currentUser.uid !== user.uid) return; /* a newer sign-in or sign-out superseded this one */
                     if (profileReadOk) _cloudReadUid = user.uid; /* this account's cloud profile was read successfully - it is now safe to save changes for it */
                     if (cloudProfile) { userProfile = Object.assign({}, defaultProfileFromUser(user, local.username), local, cloudProfile); } else { userProfile = Object.assign({}, defaultProfileFromUser(user, local.username), local); }
@@ -11864,13 +11941,13 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     if (_pic && $('sidebarAvatar')) { $('sidebarAvatar').innerHTML = '<img src="' + _pic + '" style="width:100%;height:100%;object-fit:cover;">'; }
                     else if ($('sidebarAvatar')) { $('sidebarAvatar').textContent = ((userProfile.username || user.email)[0] || '?').toUpperCase(); }
                     startPresence(); loadChannels(); checkFirstTime(); updateFeedbackTabHighlight();
-                    startAccountMirrorWatch(); /* v4.7.4: apply staff role/tier/ban/mute changes live */
+                    startAccountMirrorWatch(); startRoleFeedWatch(); /* v4.7.4/4.7.5: apply staff role/tier/ban/mute changes live */
                     try { Sp1derIndicators.initBell(); } catch (e) {}
                     try { Sp1derIndicators.sync(); } catch (e) {}
                     try {  } catch (e) {}
                 } else {
                     currentUser = null; userProfile = null; refreshAdminAccess();
-                    stopAccountMirrorWatch();
+                    stopAccountMirrorWatch(); stopRoleFeedWatch();
                     $('sidebarUserName').textContent = 'Guest'; $('sidebarUserStatus').textContent = 'Not signed in'; $('sidebarAvatar').textContent = '?';
                     $('sidebarUserStatus').classList.remove('title-furry');
                     /* Reset customization to defaults on sign-out so one account's look never leaks into the next session. */
