@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fishes Arcade — Server Tiers (BETA)</title>
+<title>Fishes Arcade — Server Tiers (LIVE)</title>
 <style>
     :root {
         --bg: #0a0618; --bg2: #120a28; --card: #171033;
@@ -67,7 +67,7 @@
 </style>
 </head>
 <body>
-    <div class="beta-banner"><span class="dot"></span> BETA — things may change or break</div>
+    <div class="beta-banner" style="background:rgba(68,209,160,0.10);border-color:var(--success);color:var(--success);"><span class="dot" style="background:var(--success);"></span> LIVE — tiers are fully rolled out</div>
     <h1>Server <span>Tiers</span></h1>
     <p class="sub">Tiers control how much server data each account can use. Every account starts on <b>Free</b>. Upgrade by buying an item from the <a href="https://fitzs-3d-printing.square.site/s/shop" style="color:var(--primary);">Fitz's 3D Printing shop</a> — <b>the price you pay decides your tier</b> (the item itself is random). Allowances reset each day; your tier stays on your account.</p>
     <div class="tiers">
@@ -76,10 +76,10 @@
             <div class="t-name">Free</div>
             <div class="t-tag">Everyone starts here</div>
             <ul>
-                <li><span class="yes">&#10003;</span><span><b>150</b> chat messages a day</span></li>
+                <li><span class="yes">&#10003;</span><span><b>225</b> chat messages a day</span></li>
                 <li><span class="yes">&#10003;</span><span><b>500</b> server reads a day (loading chats, profiles, lists)</span></li>
                 <li><span class="yes">&#10003;</span><span><b>100</b> server writes a day (messages, reactions, profile saves)</span></li>
-                <li><span class="yes">&#10003;</span><span><b>5</b> game fetches a day (each time a game loads from our servers / GitHub)</span></li>
+                <li><span class="yes">&#10003;</span><span><b>8</b> game fetches a day (each time a game loads from our servers / GitHub)</span></li>
                 <li><span class="yes">&#10003;</span><span><b>1</b> profile sync a day</span></li>
                 <li><span class="yes">&#10003;</span><span>Full access to the arcade and chat</span></li>
             </ul>
@@ -89,10 +89,10 @@
             <div class="t-tag">For regulars &mdash; $6.00</div>
             <div style="margin-bottom:10px;"><a href="https://fitzs-3d-printing.square.site/product/mini-octopus/7?cp=true&sa=true&sbp=false&q=false" style="color:var(--primary);font-size:0.8rem;font-weight:700;">Buy a $6.00 item &rarr;</a></div>
             <ul>
-                <li><span class="yes">&#10003;</span><span><b>600</b> chat messages a day</span></li>
+                <li><span class="yes">&#10003;</span><span><b>900</b> chat messages a day</span></li>
                 <li><span class="yes">&#10003;</span><span><b>2,000</b> server reads a day</span></li>
                 <li><span class="yes">&#10003;</span><span><b>400</b> server writes a day</span></li>
-                <li><span class="yes">&#10003;</span><span><b>20</b> game fetches a day</span></li>
+                <li><span class="yes">&#10003;</span><span><b>30</b> game fetches a day</span></li>
                 <li><span class="yes">&#10003;</span><span><b>3</b> profile syncs a day</span></li>
                 <li><span class="yes">&#10003;</span><span>Full access to the arcade and chat</span></li>
             </ul>
@@ -115,19 +115,24 @@
     <div class="note">
         <div class="from">A note from the owner</div>
         <p>Hey — real talk about why this page exists. I want to keep the servers <b>free for everyone</b>, but the servers cost money and some people talk <b>a lot</b>, which uses a lot of data and makes me pay a little bit to keep it all running.</p>
-        <p>So this is just a test: basic use stays completely free, and if you blow past the Free limits every day, the Pro tier is there for the heavy users. Nothing is set in stone — this is a beta, and the numbers may change as I see how it goes.</p>
+        <p>So here is the deal: basic use stays completely free, and if you blow past the Free limits every day, the Pro tier is there for the heavy users. The numbers are now live, and they may still be tuned as I see how much the community actually uses.</p>
     </div>
     <div class="how">
-        <h2>How it works (BETA)</h2>
+        <h2>How it works</h2>
         <p><b>How to upgrade:</b> buy any item from the shop for the price of your tier — <b>$6.00 for Pro</b> (for example the <a href="https://fitzs-3d-printing.square.site/product/mini-octopus/7?cp=true&sa=true&sbp=false&q=false" style="color:var(--primary);">Mini Octopus</a> or the <a href="https://fitzs-3d-printing.square.site/product/dodecagonal-pyramid/6?cp=true&sa=true&sbp=false&q=false" style="color:var(--primary);">Dodecagonal Pyramid</a>), or <b>$12.00 for Ultra</b> (the <a href="https://fitzs-3d-printing.square.site/product/Fitzs_nameplate/1?cp=true&sa=true&sbp=false&q=false" style="color:var(--gold);">name plate</a> at its largest size). The item is random — only the price matters. You actually get the printed item too.</p>
         <p><b>Where the money goes:</b> each purchase is split 4 equal ways — server costs, the owner and the two developers. So a $6.00 Pro purchase is $1.50 each, and a $12.00 Ultra purchase is $3.00 each.</p>
+        <p><b>What tiers actually do:</b> a tier sets your daily allowances — chat messages, server reads and writes, game fetches and profile syncs. Free covers normal chatting and gaming. Pro quadruples the messages and multiplies the rest, and Ultra removes the caps entirely. Paid tiers also add a <b>PRO</b> or <b>ULTRA</b> chip next to your name in chat so everyone can see your support. Your tier stays on your account forever — allowances reset daily (midnight Pacific), your tier does not.</p>
         <p><b>After you buy:</b> run <code>/claimtier <order number></code> in chat (the order number is on your Square receipt). Staff verify the order and set your tier. Each order number can only be claimed once, so one purchase grants one account.</p>
-        <p><b>Seeing tiers:</b> run <code>/mytier</code> to see your own tier and today's usage, and <code>/tierlist</code> to see who holds which tier. Paid tiers also show as a PRO or ULTRA chip next to your name in chat.</p>
-        <p><b>For staff:</b> manage tiers with <code>/devmanagetier</code> (requires a staff account with a verified email and password confirmation). The older <code>/tier @user <free|pro|ultra></code> command still works.</p>
+        <p><b>Everyone commands (no staff rank needed):</b></p>
+        <ul style="list-style:none;margin:0 0 10px;">
+            <li style="padding:6px 0;border-top:1px solid rgba(44,31,82,0.6);font-size:0.85rem;color:var(--dim);"><code>/claimtier <order number></code> — claim a shop purchase so staff can verify it and set your tier</li>
+            <li style="padding:6px 0;border-top:1px solid rgba(44,31,82,0.6);font-size:0.85rem;color:var(--dim);"><code>/mytier</code> — see your current tier, today's usage and how much you have left</li>
+            <li style="padding:6px 0;border-top:1px solid rgba(44,31,82,0.6);font-size:0.85rem;color:var(--dim);"><code>/tierlist</code> — see who holds which tier</li>
+        </ul>
         <p><b>Fair play:</b> free-tier daily allowances are shared per browser, so making alt accounts does not reset your free daily limit.</p>
-        <p>This page is a beta: the numbers above are the current limits and they may be tuned as we see how much server data the community actually uses.</p>
+        <p>The numbers above are the current live limits and they may be tuned as we see how much server data the community actually uses.</p>
     </div>
     <button class="back" onclick="if (window.opener && !window.opener.closed) { try { window.close(); } catch (e) { window.history.back(); } } else if (window.history.length > 1) { window.history.back(); } else { window.close(); }">Back to the Arcade</button>
-    <div class="foot">FISHES ARCADE &middot; SERVER TIERS &middot; BETA</div>
+    <div class="foot">FISHES ARCADE &middot; SERVER TIERS &middot; LIVE</div>
 </body>
 </html>
