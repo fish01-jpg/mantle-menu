@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Project Sp1der — 4.7.5</title>
+    <title>Project Sp1der — 4.7.6</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -5949,8 +5949,11 @@ Furball found a sunbeam and is not moving for anyone.`;
                 return ts >= clearCutoff;
             };
             const visibleMsgs = msgs.filter(m => shouldShowMessage(m, channelId, myUid) && cutoffApplied(m));
-            /* v4.7.5: message-embedded roles feed the ROLE_STORE (oldest source — only fills gaps). */
-            visibleMsgs.forEach(m => { const mUid = messageDisplayUid(m); if (mUid && m.role) ROLE_STORE.set(mUid, m.role, m.timestamp ? (m.timestamp.toDate ? m.timestamp.toDate().getTime() : new Date(m.timestamp).getTime()) : 0, 'message'); });
+            /* v4.7.6: message-embedded roles NO LONGER feed the ROLE_STORE. A message stores the role
+               the sender had when it was sent — a historical snapshot. Feeding those into the store let a
+               user's old messages resurrect an outdated rank (and demote the owner from their own older
+               messages), which is why rank checks disagreed with the database. Messages stay a display
+               fallback only, used when no profile is known for the sender. */
             if (!visibleMsgs.length) {
                 feed.innerHTML = clearCutoff ? '<div class="chat-empty">Chat cleared. New messages will appear below.</div>' : '<div class="chat-empty">No messages yet.</div>';
                 return;
@@ -8731,6 +8734,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.7.6', date: '2026-11-09', author: 'fish01-jpg', title: 'Owner rank checks + phantom ranks fixed', changes: ["Fixed - the owner was told a target had an equal or higher rank:", "The owner can now manage owner-level accounts too (the rank checks only blocked equal or higher ranks for staff below owner level; the fixed allowlisted developer and AI accounts remain fully protected)", "Chat messages no longer feed their embedded role into the role store - a message only records the rank the sender had at that moment, and those snapshots could resurrect an outdated rank (or demote the owner from their own older messages), which made the checks disagree with the database", "Rank error messages now show the actual ranks involved (for example: you: Owner, target: Admin) so it is always visible why an action was blocked", "Fresh sign-ins while the main database is over its daily quota recover the account role from a device cache and write it back to the account mirror, so the owner no longer drops to plain member until the quota resets"] },
             { version: '4.7.5', date: '2026-11-09', author: 'fish01-jpg', title: 'One Role Authority — the ROLE_STORE', changes: ["Fixed - /role was inconsistent and tags did not change:", "The role was stored in six different places at once (your session profile, cached chat profiles, the role embedded in each message, presence, the main database and the account mirror) with no ordering between them, so different parts of the app could disagree about a user's role at the same time", "All role reads and writes now go through one authority, the ROLE_STORE: every source feeds it with a revision stamp and the newest revision wins everywhere - command checks, the sidebar, the admin panel and chat name tags all agree", "Staff role changes are now broadcast to every signed-in viewer through a live role feed, so name tags update for everyone within seconds, not just for the person whose role changed", "Message-embedded roles are kept but are now the lowest-priority source, so a user's old messages can no longer pin an outdated badge"] },
             { version: '4.7.4', date: '2026-11-09', author: 'fish01-jpg', title: 'Role Changes Now Apply Live — Staff Commands and Tags Update Instantly', changes: ["Fixed - the panel said a role was set but nothing changed:", "Role, tier, ban and mute changes only reached a user the next time they signed in, so their staff commands, the tier manager and their name tag kept using the old role", "Every signed-in client now listens live to its own account document on the message servers and applies staff changes the moment they are made: commands unlock immediately, the sidebar updates and the chat re-renders with the new name tag", "Bans and mutes from the account mirror now show immediately too", "The sign-in mirror save no longer includes role or tier, so a stale main-database profile can never overwrite a staff change on the mirror", "Other viewers now also load profiles from the account mirror when the main database is over quota, so role badges stay fresh for everyone"] },
             { version: '4.7.3', date: '2026-11-09', author: 'fish01-jpg', title: 'Sign Out Fixed + Offline Accounts Visible While the Main Database Is Full', changes: ["Fixed - the Sign Out buttons did nothing:", "Sign-out waited on presence writes to the main account database, and when that database is over its daily quota Firebase queues writes and retries forever - so the sign-out chain never ran", "Sign-out now sends the keep-alive beacon, waits at most 1.5 seconds and then signs you out immediately", "", "Fixed - offline accounts were invisible and could not be given a different rank:", "Every user list read the main account database, so when it hit its quota the management user list, /tier, /devmanagetier and the role commands could only see people who were online", "A compact copy of each account now lives on a healthy message server (the account mirror): sign-in loads it when the main profile read fails, staff changes write through to it, and the user lists fall back to it plus a scan of every message server - so offline accounts show up and can be ranked, banned or muted", "Role changes, bans and mutes now also apply instantly via the mirror when the main database is over quota, and the main-database write is queued and lands at the daily reset (you are told when this happens)", "Rank-change dialogs no longer hang on a full database - writes are bounded with timeouts"] },
@@ -9965,7 +9969,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         function adminMyName() { const p = userProfile || {}; return p.username || (currentUser && (currentUser.displayName || (currentUser.email || '').split('@')[0])) || 'Staff'; }
         function adminUName(u) { return u.username || u.displayName || (u.email || '').split('@')[0] || u.uid; }
         /* Rule: staff can only act on someone ranked below them, never on themselves. */
-        function adminCanManage(u) { return !!currentUser && canUseStaffCmds() && u.uid !== currentUser.uid && roleLevel(u.role) < getLevel(); }
+        function adminCanManage(u) { return !!currentUser && canUseStaffCmds() && u.uid !== currentUser.uid && (getLevel() >= 100 || roleLevel(u.role) < getLevel()); } /* v4.7.6: owner can manage equal-rank targets */
         const MOD_ACTIONS_ADMIN_ONLY = ['ban', 'unban', 'kick', 'role'];
         function modActionError(action, u) {
             if (!currentUser) return 'Sign in first';
@@ -9973,7 +9977,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             if (MOD_ACTIONS_ADMIN_ONLY.includes(action) && !canUseOwnerCmds()) return 'That needs the admin role';
             if (action === 'role' && !isAdminPanelOwner()) return 'Only an owner can change a rank';
             if (u.uid === currentUser.uid) return 'You cannot do that to yourself';
-            if (roleLevel(u.role) >= getLevel()) return 'That user has the same or a higher rank than you';
+            if (roleLevel(u.role) >= getLevel() && getLevel() < 100) return 'That user has the same or a higher rank than you (you: ' + roleLabel(getRole()) + ', target: ' + roleLabel(u.role) + ')'; /* v4.7.6: the owner can act on equal-rank targets */
             return '';
         }
         /* One entry point for every moderation action (buttons and chat commands both use it). */
@@ -10007,7 +10011,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 case 'warn': fields = { modMsg: { id: mid, kind: 'warn', text: reason || 'Please follow the community rules.', from: me, at: now }, warnings: firebase.firestore.FieldValue.increment(1) }; doneMsg = 'Warning sent to ' + name; logMsg = 'Warned ' + name + (reason ? ': ' + reason : ''); break;
                 case 'poke': fields = { modMsg: { id: mid, kind: 'poke', text: me + ' poked you!', from: me, at: now } }; doneMsg = 'Poked ' + name; logMsg = 'Poked ' + name; break;
                 case 'message': if (!reason) { toast('Type a message in the reason box first'); return false; } fields = { modMsg: { id: mid, kind: 'message', text: reason, from: me, at: now } }; doneMsg = 'Message sent to ' + name; logMsg = 'Messaged ' + name + ': ' + reason.slice(0, 50); break;
-                case 'role': { const role = opts.role; if (roleLevel(role) >= getLevel()) { toast('You cannot assign that role'); return false; } fields = { role: role, roleGrantedBy: currentUser.uid, roleGrantedAt: now }; doneMsg = name + ' is now ' + role; logMsg = 'Set ' + name + ' to ' + role; break; }
+                case 'role': { const role = opts.role; if (roleLevel(role) > getLevel()) { toast('You cannot assign that role (' + roleLabel(role) + ' is above your ' + roleLabel(getRole()) + ' rank)'); return false; } fields = { role: role, roleGrantedBy: currentUser.uid, roleGrantedAt: now }; doneMsg = name + ' is now ' + role; logMsg = 'Set ' + name + ' to ' + role; break; }
                 default: return false;
             }
             ACCT_MIRROR.save(u.uid, fields); /* applies immediately even while the main database is over quota */
@@ -10245,12 +10249,12 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                     if(!workspaceActorSame(stamp)||!workspaceCan('management'))throw new Error('Account or access changed.');
                     if(u.uid===stamp.uid)throw new Error('You cannot target yourself.');
                     if(fixedDeveloper(u.email,u.uid)||isAdminPanelEmail(u.email))throw new Error('Fixed allowlisted accounts cannot be changed here.');
-                    if(roleLevel(accountRole(u))>=getLevel())throw new Error('Target has equal or higher rank.');
+                    if(roleLevel(accountRole(u))>=getLevel()&&getLevel()<100)throw new Error('Target has equal or higher rank (you: '+roleLabel(getRole())+', target: '+roleLabel(accountRole(u))+').'); /* v4.7.6: the owner (level 100) can manage other owner-level accounts; fixed allowlisted accounts are still blocked below */
                     if(action!=='unlock' && u.appRoleLocked)throw new Error('Unlock this role before changing it.');
                 };check(before);
                 const role=action==='demote'?'member':workspaceRoleValue(options.role);
                 if(action!=='unlock' && !['member','moderator','watchdog','admin','founder','owner','developer','aegis'].includes(role))throw new Error('Invalid role value.');
-                if(action!=='unlock' && roleLevel(role)>getLevel())throw new Error('You cannot assign that role.');
+                if(action!=='unlock' && roleLevel(role)>getLevel())throw new Error('You cannot assign that role ('+roleLabel(role)+' is above your '+roleLabel(getRole())+' rank).');
                 const label=adminUName(before),oldRole=workspaceRoleValue(accountRole(before));
                 const nextRole=action==='unlock'?oldRole:role;
                 const message=action==='unlock'?'Remove the app-level role lock; keep the current role.':action==='lock'?'Set this role and lock it in patched app controls.':'Change the stored account role.';
@@ -10527,6 +10531,16 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 return out;
             }
         };
+        /* v4.7.6: ROLE CACHE — when the main database is over its daily quota and the account mirror
+           has no role stored, a fresh sign-in used to come back as a plain member (the owner lost the
+           owner rank until the database quota reset). Roles learned from authoritative sources are
+           cached on this device and restored on sign-in, then written back to the mirror so they also
+           recover on other devices. Only entries under 30 days old are honored. */
+        const ROLE_CACHE = {
+            key: 'sp1der_role_cache',
+            get(uid) { try { const all = JSON.parse(localStorage.getItem(this.key) || '{}'); const e = all[String(uid)]; return (e && e.role && Date.now() - (+e.at || 0) < 30 * 864e5) ? e.role : null; } catch (e) { return null; } },
+            put(uid, role) { try { if (!uid || !role) return; const all = JSON.parse(localStorage.getItem(this.key) || '{}'); all[String(uid)] = { role: String(role), at: Date.now() }; localStorage.setItem(this.key, JSON.stringify(all)); } catch (e) {} }
+        };
         /* ===== v4.7.5: ROLE STORE — the single authority for account roles =====
            Roles used to live in six places at once (session profile, cached chat profiles,
            message-embedded roles, presence, the main database and the mirror) with no ordering,
@@ -10544,6 +10558,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 const newRev = +rev || 0;
                 if (cur && cur.rev > newRev) return; /* keep the newer copy */
                 this.data[uid] = { role: role, rev: newRev, src: src || '' };
+                if (['profile', 'mirror', 'feed'].includes(String(src || ''))) { try { ROLE_CACHE.put(uid, role); } catch (e) {} } /* v4.7.6: authoritative roles are cached for sign-in recovery */
             },
             get: function (uid) {
                 if (!uid) return null;
@@ -11903,6 +11918,18 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     if (authGen !== _authGeneration || !auth.currentUser || auth.currentUser.uid !== user.uid) return; /* a newer sign-in or sign-out superseded this one */
                     if (profileReadOk) _cloudReadUid = user.uid; /* this account's cloud profile was read successfully - it is now safe to save changes for it */
                     if (cloudProfile) { userProfile = Object.assign({}, defaultProfileFromUser(user, local.username), local, cloudProfile); } else { userProfile = Object.assign({}, defaultProfileFromUser(user, local.username), local); }
+                    /* v4.7.6: role recovery — the main database can be over its daily quota and older
+                       mirror entries have no role, which used to reset a fresh sign-in to plain member
+                       (the owner lost the owner rank this way). Restore the cached role and write it
+                       back to the mirror so every session and device recovers it too. */
+                    if ((!cloudProfile || !cloudProfile.role) && !isOwnerEmail(user.email) && !fixedDeveloper(user.email, user.uid)) {
+                        const cachedRole = ROLE_CACHE.get(user.uid);
+                        if (cachedRole && ['member', 'moderator', 'watchdog', 'admin', 'founder', 'owner', 'developer', 'aegis'].includes(cachedRole)) {
+                            userProfile.role = cachedRole;
+                            ROLE_STORE.set(user.uid, cachedRole, Date.now(), 'cache');
+                            try { ACCT_MIRROR.save(user.uid, { role: cachedRole }); } catch (e) {}
+                        }
+                    }
                     userProfile.uid = user.uid; userProfile.email = user.email;
                     normalizeAccountDisplayName(userProfile);
                     channelProfilesCache[user.uid] = Object.assign({}, userProfile);
