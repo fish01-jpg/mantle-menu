@@ -4436,6 +4436,11 @@ Furball found a sunbeam and is not moving for anyone.`;
            now banked locally first and flushed to the profile with retries, and the gate
            merges the local queue — progress still counts and still shows even while a
            flush is pending or failing. */
+        /* v4.7.10: main-database calls in these flows are capped with a timeout. When the main
+           database is over its daily quota the compat SDK silently retries forever, so an
+           un-capped await never settles — the arcade gate never opened, /verify hung after the
+           last CAPTCHA and the message counter never ran. Every await below is bounded. */
+        const dbOpTimeout = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('main database busy')), ms || 6000))]);
         const ARCADE_QUEUE_KEY = 'sp1derArcadeQueue';
         function arcadeQueueLoad() { try { return JSON.parse(localStorage.getItem(ARCADE_QUEUE_KEY) || '') || {}; } catch (e) { return {}; } }
         function arcadeQueueSave(q) { try { localStorage.setItem(ARCADE_QUEUE_KEY, JSON.stringify(q)); } catch (e) {} }
@@ -4475,7 +4480,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 if (sent.msg) upd.msgCount = firebase.firestore.FieldValue.increment(sent.msg);
                 if (sent.msg14) {
                     /* same rolling 2-week window as the live message counter */
-                    const snap = await ref.get();
+                    const snap = await dbOpTimeout(ref.get(), 6000);
                     const p = snap.exists ? (snap.data() || {}) : {};
                     const ws = p.msgWindowStart ? new Date(p.msgWindowStart.seconds ? p.msgWindowStart.seconds * 1000 : p.msgWindowStart).getTime() : 0;
                     const fresh = ws > 0 && (Date.now() - ws) < 14 * 24 * 3600 * 1000;
@@ -4483,7 +4488,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                     else { upd.msgCount14d = sent.msg14; upd.msgWindowStart = firebase.firestore.FieldValue.serverTimestamp(); }
                 }
                 if (sent.views.length) upd.arcadeViews = firebase.firestore.FieldValue.arrayUnion.apply(firebase.firestore.FieldValue, sent.views);
-                await ref.set(upd, { merge: true });
+                await dbOpTimeout(ref.set(upd, { merge: true }), 8000);
                 /* subtract exactly what was sent; newer queue entries survive */
                 const nq = arcadeQueueLoad();
                 nq.secTotal = Math.max(0, (nq.secTotal || 0) - sent.secTotal);
@@ -4524,12 +4529,22 @@ Furball found a sunbeam and is not moving for anyone.`;
             scheduleArcadeFlush(5000);
         }
 
+        /* v4.7.10: the fair-warning acceptance is also remembered locally, so a failed profile
+           write (main database over its daily quota) can never make the form reappear for
+           someone who already accepted it. */
+        const ARCADE_RISK_LOCAL_KEY = 'sp1derArcadeRiskLocal';
+        function isLocallyRiskAccepted() {
+            try { const v = JSON.parse(localStorage.getItem(ARCADE_RISK_LOCAL_KEY) || ''); return !!(v && v.uid && currentUser && v.uid === currentUser.uid); } catch (e) { return false; }
+        }
         async function getArcadeGateStatus() {
             if (!currentUser) return { signedIn: false, allDone: false, riskAccepted: false, items: [] };
-            /* push anything still banked locally before reading, so the checklist is current */
-            try { await flushArcadeQueue(); } catch (e) {}
+            /* push anything still banked locally before reading, so the checklist is current.
+               The flush is fire-and-forget: the checklist merges the local queue either way, so
+               waiting on it only delays the gate (and a quota-hung main database must never
+               freeze it). The profile read is capped the same way. */
+            try { flushArcadeQueue(); } catch (e) {}
             let prof = {};
-            try { const snap = await db.collection('users').doc(currentUser.uid).get(); if (snap.exists) prof = snap.data() || {}; } catch (e) {}
+            try { const snap = await dbOpTimeout(db.collection('users').doc(currentUser.uid).get(), 4000); if (snap.exists) prof = snap.data() || {}; } catch (e) {}
             const q = arcadeQueueLoad();
             /* /verify-verified accounts: full access, checklist and fair-warning form covered by the verify terms */
             if (prof.sp1derVerified === true || isLocallyVerified()) {
@@ -4540,7 +4555,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             let bypass = false;
             try { bypass = isOwner() || (prof.msgCount14d || 0) >= 50; } catch (e) {}
             if (bypass) {
-                return { signedIn: true, allDone: true, riskAccepted: prof.arcadeRiskAccepted === true,
+                return { signedIn: true, allDone: true, riskAccepted: prof.arcadeRiskAccepted === true || isLocallyRiskAccepted(),
                     items: [{ done: true, label: '👑 Owner or 50+ messages in the last 2 weeks — checklist bypassed' }] };
             }
             const created = Date.parse(currentUser.metadata.creationTime || '') || Date.now();
@@ -4559,11 +4574,12 @@ Furball found a sunbeam and is not moving for anyone.`;
                 { done: todaySec >= 300, label: 'Active at least 5 minutes today', detail: fmt(todaySec) + ' / 5:00' },
                 { done: views >= 2, label: 'Visited at least 2 different pages', detail: views + ' / 2' }
             ];
-            return { signedIn: true, items, allDone: items.every(i => i.done), riskAccepted: prof.arcadeRiskAccepted === true };
+            return { signedIn: true, items, allDone: items.every(i => i.done), riskAccepted: prof.arcadeRiskAccepted === true || isLocallyRiskAccepted() };
         }
 
         async function openFishesArcadeGate() {
             if (!currentUser) { openAuth(); return; }
+            try { const t = $('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {} /* the tour overlay sits above modals and eats their clicks */
             const st = await getArcadeGateStatus();
             if (st.allDone && st.riskAccepted) { openFishesArcade(); return; }
             const m = $('arcadeGateModal'); if (!m) return;
@@ -4586,7 +4602,9 @@ Furball found a sunbeam and is not moving for anyone.`;
         async function acceptArcadeRisk() {
             const check = $('arcadeRiskCheck');
             if (check && !check.checked) { toast('Tick the box — you have to accept the risk first.'); return; }
-            try { await db.collection('users').doc(currentUser.uid).set({ arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true }); } catch (e) {}
+            /* remember locally first so the acceptance survives even if the profile write fails */
+            try { localStorage.setItem(ARCADE_RISK_LOCAL_KEY, JSON.stringify({ uid: currentUser.uid, at: Date.now() })); } catch (e) {}
+            try { await dbOpTimeout(db.collection('users').doc(currentUser.uid).set({ arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true }), 8000); } catch (e) {}
             closeArcadeGate();
             openFishesArcade();
         }
@@ -4622,6 +4640,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         let verifyState = null;
         function openVerifyFlow() {
             if (!currentUser) { openAuth(); return; }
+            try { const t = $('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {} /* the tour overlay sits above modals and eats their clicks */
             verifyState = { step: 'terms', progress: 0, queue: null, challenge: null, savedCloud: false };
             try { const p = JSON.parse(localStorage.getItem(VERIFY_PROGRESS_KEY) || ''); if (p && p.uid === currentUser.uid && typeof p.done === 'number') verifyState.progress = Math.min(VERIFY_CAPTCHA_COUNT, Math.max(0, p.done)); } catch (e) {}
             verifyRender();
@@ -4792,9 +4811,10 @@ Furball found a sunbeam and is not moving for anyone.`;
         async function verifyFinish() {
             let saved = false;
             try {
-                await db.collection('users').doc(currentUser.uid).set({ sp1derVerified: true, sp1derVerifiedAt: Date.now(), arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true });
+                await dbOpTimeout(db.collection('users').doc(currentUser.uid).set({ sp1derVerified: true, sp1derVerifiedAt: Date.now(), arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true }), 8000);
                 saved = true;
             } catch (e) {}
+            try { localStorage.setItem(ARCADE_RISK_LOCAL_KEY, JSON.stringify({ uid: currentUser.uid, at: Date.now() })); } catch (e) {}
             if (!saved) { try { localStorage.setItem(VERIFY_LOCAL_KEY, JSON.stringify({ uid: currentUser.uid, at: Date.now() })); } catch (e) {} }
             try { localStorage.removeItem(VERIFY_PROGRESS_KEY); } catch (e) {}
             verifyState.savedCloud = saved;
@@ -5560,6 +5580,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
         function openProfile() {
             if (!currentUser) { openAuth(); return; }
+            try { const t = document.getElementById('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {}
             var p = normalizeAccountDisplayName(Object.assign({}, userProfile || {}, { email: currentUser.email }));
             var name = p.username || (currentUser.displayName || currentUser.email.split('@')[0]);
             var role = p.role || 'member';
@@ -5599,9 +5620,70 @@ Furball found a sunbeam and is not moving for anyone.`;
             }
             var c = document.getElementById('profileModalContent');
             if (c) {
-                c.innerHTML = '<div style="' + headerStyle + '">' + avatarHtml + uploadBtn + '<div style="font-size:1.2rem;font-weight:700;color:' + uColor + ';text-shadow:' + (uGlow === 'none' ? 'none' : '0 0 8px ' + glowColor) + ';">' + name + '</div>' + roleBadge + '</div><div style="text-align:left;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Bio</div><div style="font-size:0.85rem;color:var(--text);line-height:1.5;">' + bio + '</div></div>' + arcadeStatsSectionHtml(p);
+                /* v4.7.10: the full profile — tier, verification, tags, account and game info,
+                   plus every profile setting editable right here (bio, title, name look, colors). */
+                var myTier = 'free';
+                try { myTier = tierCurrent(); } catch (e) {}
+                var tierCfg = (typeof SERVER_TIERS !== 'undefined' && SERVER_TIERS[myTier]) || { label: 'Free', dailyMessages: 225, syncs: 1 };
+                var verified = (p.sp1derVerified === true) || isLocallyVerified();
+                var metaChips = '';
+                metaChips += '<span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:4px;background:' + (myTier === 'ultra' ? '#f5b83d' : myTier === 'pro' ? 'var(--primary)' : 'var(--bg-2)') + ';color:' + (myTier === 'ultra' ? '#1a1206' : myTier === 'pro' ? '#fff' : 'var(--text-dim)') + ';border:1px solid var(--border);">' + tierCfg.label.toUpperCase() + ' TIER</span>';
+                metaChips += verified ? '<span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:4px;background:#063f2a;color:#7ef0b0;border:1px solid #1c7a52;">✓ VERIFIED</span>' : '<span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:4px;background:var(--bg-2);color:var(--text-dim);border:1px solid var(--border);">NOT VERIFIED</span>';
+                if (isFurballUser() || hasFurryTitle()) metaChips += '<span class="role-badge title-furry" style="margin:0;">Furry</span>';
+                var pfRow = function (label, value) { return '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.78rem;"><span style="color:var(--text-dim);">' + label + '</span><b style="text-align:right;">' + value + '</b></div>'; };
+                var msgLimit = tierCfg.dailyMessages === Infinity ? '∞' : tierCfg.dailyMessages;
+                var accountRows = pfRow('Role', roleLabel(accountRole(p)))
+                    + pfRow('Tier', tierCfg.label + ' — ' + msgLimit + ' msgs/day, ' + tierCfg.syncs + (tierCfg.syncs === Infinity ? ' ∞' : '') + ' profile syncs/day')
+                    + pfRow('Verified', verified ? 'Yes — arcade unlocked' : 'No — run /verify in chat to unlock the arcade')
+                    + pfRow('Account', currentUser.email || '')
+                    + arcadeStatsSectionHtml(p);
+                var editFields =
+                    '<div style="text-align:left;margin-top:16px;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Profile Settings</div>' +
+                    '<label style="display:block;font-size:0.72rem;color:var(--text-dim);margin-bottom:10px;">Bio<textarea id="pfBio" rows="3" style="width:100%;margin-top:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:8px;font-size:0.82rem;font-family:inherit;resize:vertical;">' + escapeHtml(p.profileBio || '') + '</textarea></label>' +
+                    '<label style="display:block;font-size:0.72rem;color:var(--text-dim);margin-bottom:10px;">Profile title<input id="pfTitle" maxlength="40" style="width:100%;margin-top:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:8px;font-size:0.82rem;" value="' + escapeHtml(p.profileTitle || '') + '"></label>' +
+                    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
+                    '<label style="flex:1;min-width:110px;font-size:0.72rem;color:var(--text-dim);">Name color<input id="pfColor" type="color" value="' + (p.usernameColor || '#f2ecff') + '" style="width:100%;margin-top:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;height:36px;"></label>' +
+                    '<label style="flex:1;min-width:110px;font-size:0.72rem;color:var(--text-dim);">Name glow<select id="pfGlow" style="width:100%;margin-top:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:8px;font-size:0.82rem;">' + ['primary','accent','cyan','green','red','none'].map(function (g) { return '<option value="' + g + '"' + (uGlow === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') + '</select></label>' +
+                    '<label style="flex:1;min-width:110px;font-size:0.72rem;color:var(--text-dim);">Name style<select id="pfStyle" style="width:100%;margin-top:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:8px;font-size:0.82rem;">' + ['normal','bold','italic','underline','bold-italic'].map(function (st) { return '<option value="' + st + '"' + ((p.usernameStyle || 'normal') === st ? ' selected' : '') + '>' + st + '</option>'; }).join('') + '</select></label>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' +
+                    '<label style="flex:1;min-width:110px;font-size:0.72rem;color:var(--text-dim);">Card background<input id="pfBg" type="color" value="' + (p.background || '#0f0823') + '" style="width:100%;margin-top:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;height:36px;"></label>' +
+                    '<label style="flex:1;min-width:110px;font-size:0.72rem;color:var(--text-dim);">Card border<input id="pfBorder" type="color" value="' + (p.border || '#a020f0') + '" style="width:100%;margin-top:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;height:36px;"></label>' +
+                    '</div>' +
+                    '<button class="composer-btn primary" onclick="saveOwnProfileFromModal()" style="width:100%;margin-top:6px;">Save Profile</button>' +
+                    '<p style="font-size:0.68rem;color:var(--text-faint);margin:8px 0 0;line-height:1.5;">Tier, role and the Furry title are granted by staff — buy a shop item and run /claimtier to upgrade your tier. Everything here is yours to edit.</p>' +
+                    '</div>';
+                c.innerHTML = '<div style="' + headerStyle + '">' + avatarHtml + uploadBtn + '<div style="font-size:1.2rem;font-weight:700;color:' + uColor + ';text-shadow:' + (uGlow === 'none' ? 'none' : '0 0 8px ' + glowColor) + ';">' + name + '</div>' + roleBadge + '<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:6px;">' + metaChips + '</div></div>' +
+                    '<div style="text-align:left;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Bio</div><div style="font-size:0.85rem;color:var(--text);line-height:1.5;">' + bio + '</div></div>' +
+                    '<div style="text-align:left;margin-top:14px;"><div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Account, Tier & Game Info</div><div style="font-size:0.78rem;color:var(--text-dim);display:flex;flex-direction:column;gap:2px;">' + accountRows + '</div></div>' +
+                    editFields;
             }
             modal.classList.add('active');
+        }
+        /* v4.7.10: save the profile fields edited in the own-profile modal (same save path as Settings). */
+        function saveOwnProfileFromModal() {
+            if (!userProfile || !currentUser) { toast('Sign in first.'); return; }
+            var get = function (id) { var el = document.getElementById(id); return el ? el.value : null; };
+            var bio = get('pfBio'), title = get('pfTitle'), color = get('pfColor'), glow = get('pfGlow'), style = get('pfStyle'), bg = get('pfBg'), border = get('pfBorder');
+            if (bio !== null) settings.profileBio = bio;
+            if (color !== null) settings.usernameColor = color;
+            if (glow !== null) settings.usernameGlow = glow;
+            if (style !== null) settings.usernameStyle = style;
+            if (bg !== null) settings.profileBg = bg;
+            if (border !== null) settings.profileBorder = border;
+            try { localStorage.setItem('aa_settings_v3', JSON.stringify(settings)); } catch (e) {}
+            userProfile = Object.assign({}, userProfile, {
+                profileBio: bio !== null ? bio : userProfile.profileBio,
+                profileTitle: title !== null ? title : userProfile.profileTitle,
+                usernameColor: settings.usernameColor, usernameGlow: settings.usernameGlow, glow: settings.usernameGlow,
+                usernameStyle: settings.usernameStyle, background: settings.profileBg, border: settings.profileBorder
+            });
+            saveLocalProfile(userProfile);
+            channelProfilesCache[currentUser.uid] = Object.assign({}, channelProfilesCache[currentUser.uid] || {}, userProfile);
+            try { saveSettingsCloud(); } catch (e) {}
+            try { if (selectedChannelId) openChannel(selectedChannelId); } catch (e) {}
+            toast('Profile saved');
+            openProfile();
         }
         function openSettings() { populateSettingsForm(); Sp1derDeviceNotifications.refreshStatus(); $('settingsModal').classList.add('active'); }
         function closeModal(id) { const el = $(id); if (el) el.classList.remove('active'); if (id === 'spoofModal' && $('spoofBtn')&&!$('spoofBtn').disabled) $('spoofBtn').focus(); }
@@ -5988,6 +6070,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         let chatProfileRequest = 0;
         async function openChatProfile(uid, message) {
             if (!uid) return;
+            try { const t = document.getElementById('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {}
             if (currentUser && uid === currentUser.uid) { chatProfileRequest++; openProfile(); return; }
             const request = ++chatProfileRequest;
             let modal = document.getElementById('chatProfileModal');
@@ -6024,12 +6107,35 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const heading = document.createElement('h2'); heading.textContent = name;
                 heading.style.color = p.usernameColor || 'var(--text)';
                 const role = document.createElement('div'); role.className = 'role-badge'; role.textContent = roleLabel(accountRole(p));
+                /* v4.7.10: full profile — tier chip, verification badge and title tags next to the role. */
+                const metaRow = document.createElement('div');
+                metaRow.style.cssText = 'display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:6px;';
+                let chipTier = null;
+                try { chipTier = (p.tier === 'pro' || p.tier === 'ultra') ? p.tier : tierRosterGet(uid); } catch (e) {}
+                if (chipTier) {
+                    const chip = document.createElement('span');
+                    chip.style.cssText = 'display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:4px;' + (chipTier === 'ultra' ? 'background:#f5b83d;color:#1a1206;' : 'background:var(--primary);color:#fff;');
+                    chip.textContent = chipTier.toUpperCase() + ' TIER';
+                    metaRow.appendChild(chip);
+                }
+                if (p.sp1derVerified === true) {
+                    const chip = document.createElement('span');
+                    chip.style.cssText = 'display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:4px;background:#063f2a;color:#7ef0b0;border:1px solid #1c7a52;';
+                    chip.textContent = '✓ VERIFIED';
+                    metaRow.appendChild(chip);
+                }
+                if (p.cosmeticTitle === 'furry' || isFurballEmail(p.email)) {
+                    const chip = document.createElement('span');
+                    chip.className = 'role-badge title-furry'; chip.style.margin = '0';
+                    chip.textContent = 'Furry';
+                    metaRow.appendChild(chip);
+                }
                 const title = document.createElement('p'); title.textContent = p.profileTitle || '';
                 const bio = document.createElement('p'); bio.textContent = p.profileBio || 'No bio set.';
                 bio.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px;';
                 const note = document.createElement('p'); note.textContent = status || '';
                 note.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-top:12px;';
-                content.append(avatar, heading, role, title, bio, note);
+                content.append(avatar, heading, role, metaRow, title, bio, note);
                 /* v4.6.4: arcade & account stats (high scores, play time, account age, last active). */
                 const arcWrap = document.createElement('div');
                 arcWrap.innerHTML = arcadeStatsSectionHtml(p);
@@ -6359,21 +6465,13 @@ Furball found a sunbeam and is not moving for anyone.`;
                 await msgWriteWithTimeout(msgDocRef, msg);
                 DB_MANAGER.incrementWrites(1);
                 setMessageSendStatus('Sent');
-                (async () => {
-                    /* count messages total + in a rolling 2-week window (for the arcade bypass).
-                       If the counter write fails the message is still banked locally and synced later. */
-                    try {
-                        const ref = db.collection('users').doc(currentUser.uid);
-                        const snap = await ref.get();
-                        const p = snap.exists ? (snap.data() || {}) : {};
-                        const ws = p.msgWindowStart ? new Date(p.msgWindowStart.seconds ? p.msgWindowStart.seconds * 1000 : p.msgWindowStart).getTime() : 0;
-                        const fresh = ws > 0 && (Date.now() - ws) < 14 * 24 * 3600 * 1000;
-                        const upd = { msgCount: firebase.firestore.FieldValue.increment(1) };
-                        if (fresh) upd.msgCount14d = firebase.firestore.FieldValue.increment(1);
-                        else { upd.msgCount14d = 1; upd.msgWindowStart = firebase.firestore.FieldValue.serverTimestamp(); }
-                        await ref.set(upd, { merge: true });
-                    } catch (e) { arcadeQueueAdd({ msg: 1, msg14: 1 }); }
-                })();
+                /* v4.7.10: count the message in the local arcade queue the instant it is sent.
+                   The old code wrote straight to the main database and only fell back to the local
+                   queue if that write REJECTED — but a quota-hung main database never rejects, it
+                   retries forever, so the fallback never ran and the "sent at least one message"
+                   checklist forgot every message that was sent. Banking locally first is instant,
+                   never blocks the send, and the queue flushes to the profile with retries. */
+                try { arcadeQueueAdd({ msg: 1, msg14: 1 }); } catch (e) {}
                 clearComposerSafely(); if (editingMessage) { cancelEdit(); }
             } catch (e) {
                 // Quota / stuck write: retrying the same full server cannot work. Show the popup, auto-switch, resend.
@@ -9111,6 +9209,10 @@ Furball found a sunbeam and is not moving for anyone.`;
         ];
         let tourStep = 0;
         function startTour() {
+            /* v4.7.10: never start the tour on top of an open modal — the tour overlay sits above
+               modals (z-index 70000) and swallows every click, which made buttons like the /verify
+               Continue look dead. If a modal is open, wait and try again. */
+            if (document.querySelector('.modal-overlay.active')) { setTimeout(startTour, 3000); return; }
             tourStep = 0; $('tourOverlay').classList.add('active'); showTourStep();
         }
         function showTourStep() {
