@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Project Sp1der — 4.7.8</title>
+    <title>Project Sp1der — 4.7.9</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -8734,6 +8734,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.7.9', date: '2026-11-09', author: 'fish01-jpg', title: 'Tier page opens inside the app', changes: ["Fixed - the tier menu links opened the CDN copy of the page, which the school filter blocks (and the raw GitHub link shows the page code instead of the page):", "The How Tiers Work link now loads the tier page from raw.githubusercontent.com and renders it inside the app in a frame, exactly like the arcade loads its pages - no external links, no raw code"] },
             { version: '4.7.8', date: '2026-11-09', author: 'fish01-jpg', title: 'Tiers go live — fairer limits, links to the tier page', changes: ["Free-tier daily messages raised 150 to 225 and Pro 600 to 900 (+50% each) - the free tier is less cramped and Pro keeps its 4x headroom", "The My Tier and Who Has Which Tier menus now link to the full tier page (how tiers work, every limit, and the everyone commands)", "The tier page is out of beta: it explains how to get a tier through the shop, what each tier unlocks, and lists only the commands everyone can use (/claimtier, /mytier, /tierlist)"] },
             { version: '4.7.7', date: '2026-11-09', author: 'fish01-jpg', title: 'Role recovery from your own messages', changes: ["Fixed - a fresh sign-in could come back as a plain member while the main database is over its daily quota:", "If the account document cannot be read and no cached role exists, the role is now recovered from the user's own most recent staff-tagged message (a message records the sender's role at send time) and written to the account mirror, so the owner and staff keep their rank and the admin panel during database outages", "Only staff roles from messages sent in the last 60 days can be recovered this way"] },
             { version: '4.7.6', date: '2026-11-09', author: 'fish01-jpg', title: 'Owner rank checks + phantom ranks fixed', changes: ["Fixed - the owner was told a target had an equal or higher rank:", "The owner can now manage owner-level accounts too (the rank checks only blocked equal or higher ranks for staff below owner level; the fixed allowlisted developer and AI accounts remain fully protected)", "Chat messages no longer feed their embedded role into the role store - a message only records the rank the sender had at that moment, and those snapshots could resurrect an outdated rank (or demote the owner from their own older messages), which made the checks disagree with the database", "Rank error messages now show the actual ranks involved (for example: you: Owner, target: Admin) so it is always visible why an action was blocked", "Fresh sign-ins while the main database is over its daily quota recover the account role from a device cache and write it back to the account mirror, so the owner no longer drops to plain member until the quota resets"] },
@@ -10409,7 +10410,29 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
            Pro = a $6.00 item, Ultra = a $10.00+ item ($12.00 name plate). Every purchase is split
            4 equal ways: server costs, the owner and the two developers. Staff grant the tier after
            checking the Square order number with /devmanagetier (email-verified staff login). */
-        const TIER_INFO_URL = 'https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/tiers.html'; /* v4.7.8: the full tier explainer page, linked from the tier menus */
+        /* v4.7.9: raw.githubusercontent.com is the only host the school filter lets through, but it
+           serves files as plain text — opening the link directly shows the code. The tier page is
+           therefore FETCHED and rendered inside the app (same trick the arcade uses to load pages). */
+        const TIER_INFO_SOURCES = [
+            'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/tiers.html',
+            'https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/tiers.html'
+        ];
+        async function openTierInfoPage() {
+            const body = openTierModal('How Tiers Work'); if (!body) return;
+            body.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Loading the tier page...</p>';
+            for (const url of TIER_INFO_SOURCES) {
+                try {
+                    const res = await fetch(url, { cache: 'no-store' });
+                    if (!res.ok) continue;
+                    const html = await res.text();
+                    if (!html || html.indexOf('Server Tiers') === -1) continue;
+                    body.innerHTML = '<iframe id="tierInfoFrame" title="How tiers work" style="width:100%;height:54vh;border:0;border-radius:10px;background:#0a0618;" sandbox="allow-scripts allow-popups"></iframe>';
+                    $('tierInfoFrame').srcdoc = html; /* rendered page, not raw code */
+                    return;
+                } catch (e) {}
+            }
+            body.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Could not load the tier page right now. Try again later, or open Server Tiers from the arcade.</p>';
+        }
         const TIER_SHOP = {
             shopUrl: 'https://fitzs-3d-printing.square.site/s/shop',
             pro: { price: 6.00, item: 'Mini Octopus ($6.00)', url: 'https://fitzs-3d-printing.square.site/product/mini-octopus/7?cp=true&sa=true&sbp=false&q=false' },
@@ -10731,7 +10754,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
                 + '<a class="composer-btn primary" href="' + TIER_SHOP.pro.url + '" target="_blank" rel="noopener" style="text-decoration:none;">Get Pro — $6.00 item</a>'
                 + '<a class="composer-btn" href="' + TIER_SHOP.ultra.url + '" target="_blank" rel="noopener" style="text-decoration:none;">Get Ultra — $12.00 item</a>'
-                + '<a class="composer-btn" href="' + TIER_INFO_URL + '" target="_blank" rel="noopener" style="text-decoration:none;">How tiers work (full page)</a>'
+                + '<button class="composer-btn" onclick="openTierInfoPage();" style="cursor:pointer;">How tiers work (full page)</button>'
                 + '</div>'
                 + '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">'
                 + '<input id="tierClaimInput" placeholder="Square order number" style="flex:1;min-width:140px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.85rem;">'
@@ -10746,13 +10769,13 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             const roster = tierRosterCache();
             const entries = Object.keys(roster).map(uid => Object.assign({ uid: uid }, roster[uid])).filter(e => e.tier === 'pro' || e.tier === 'ultra');
             entries.sort((a, b) => (a.tier === b.tier ? String(a.username).localeCompare(String(b.username)) : (a.tier === 'ultra' ? -1 : 1)));
-            if (!entries.length) { body.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Nobody has a paid tier yet. Be the first — <a href="' + TIER_INFO_URL + '" target="_blank" rel="noopener" style="color:var(--primary);">see how tiers work</a> or run /mytier.</p>'; return; }
+            if (!entries.length) { body.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Nobody has a paid tier yet. Be the first — <a href="#" onclick="openTierInfoPage();return false;" style="color:var(--primary);">see how tiers work</a> or run /mytier.</p>'; return; }
             body.innerHTML = entries.map(e =>
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem;">'
                 + '<span>' + String(e.username || e.uid).replace(/[<>&]/g, '') + '</span>'
                 + '<span style="font-weight:700;color:' + (e.tier === 'ultra' ? '#f5b83d' : 'var(--primary)') + ';">' + e.tier.toUpperCase() + '</span></div>'
             ).join('') + '<p style="font-size:0.72rem;color:var(--text-faint);margin-top:10px;">' + (Object.keys(cloud).length ? '' : 'Showing the locally saved roster (roster server busy). ') + 'Paid tiers also show as chips next to names in chat.</p>'
-            + '<p style="font-size:0.75rem;margin-top:8px;"><a href="' + TIER_INFO_URL + '" target="_blank" rel="noopener" style="color:var(--primary);">How tiers work, limits and everyone commands →</a></p>';
+            + '<p style="font-size:0.75rem;margin-top:8px;"><a href="#" onclick="openTierInfoPage();return false;" style="color:var(--primary);">How tiers work, limits and everyone commands →</a></p>';
         }
         async function submitTierClaim(orderRef) {
             if (!currentUser) { toast('Sign in first.'); return; }
