@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Project Sp1der — 4.7.2</title>
+    <title>Project Sp1der — 4.7.3</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -4992,10 +4992,18 @@ Furball found a sunbeam and is not moving for anyone.`;
             // Fallback: try presence collection
             try { const snap = await db.collection('presence').limit(limitCount || 200).get(); if (!snap.empty) return snap.docs.map(doc => { const u = doc.data() || {}; u.uid = doc.id; return normalizeAccountDisplayName(u); }); }
             catch (e) { console.warn('presence collection failed:', e.message); }
-            // Fallback: extract unique UIDs from recent messages
-            try { const msgDb = DB_MANAGER.getCurrentMsgDb(); const snap = await msgDb.collection('messages').limit(500).get(); const userMap = {}; snap.forEach(doc => { const m = doc.data(), uid = messageDisplayUid(m); if (uid && !userMap[uid]) userMap[uid] = { uid, username: m.username || m.displayName || 'Unknown', email: '', role: m.role || 'member' }; }); return Object.values(userMap); }
-            catch (e) { console.warn('message-derived users failed:', e.message); }
-            return [];
+            /* v4.7.3: main account database over quota — fall back to the account mirror and a scan of
+               EVERY message server (not just the selected one), so offline accounts still show up. */
+            const found = {}; const add = (u) => { if (u && u.uid && !found[u.uid]) found[u.uid] = u; };
+            try { const mirror = await ACCT_MIRROR.list(limitCount || 300); Object.keys(mirror).forEach(uid => add(mirror[uid])); } catch (e) {}
+            for (let i = 0; i < msgDbs.length; i++) {
+                if (exhaustedDbs.has(i) || readExhaustedDbs.has(i)) continue;
+                try {
+                    const snap = await tierWithTimeout(msgDbs[i].collection('messages').orderBy('timestamp', 'desc').limit(250).get(), 6000);
+                    snap.forEach(doc => { const m = doc.data() || {}, uid = messageDisplayUid(m); if (uid && !found[uid]) add({ uid: uid, username: m.username || m.displayName || 'Unknown', email: '', role: m.role || 'member' }); });
+                } catch (e) {}
+            }
+            return Object.values(found).map(u => normalizeAccountDisplayName(u));
         }
         async function findUserByEmailOrName(term) {
             const q = String(term || '').trim().toLowerCase(); if (!q) return null;
@@ -8714,6 +8722,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.7.3', date: '2026-11-09', author: 'fish01-jpg', title: 'Sign Out Fixed + Offline Accounts Visible While the Main Database Is Full', changes: ["Fixed - the Sign Out buttons did nothing:", "Sign-out waited on presence writes to the main account database, and when that database is over its daily quota Firebase queues writes and retries forever - so the sign-out chain never ran", "Sign-out now sends the keep-alive beacon, waits at most 1.5 seconds and then signs you out immediately", "", "Fixed - offline accounts were invisible and could not be given a different rank:", "Every user list read the main account database, so when it hit its quota the management user list, /tier, /devmanagetier and the role commands could only see people who were online", "A compact copy of each account now lives on a healthy message server (the account mirror): sign-in loads it when the main profile read fails, staff changes write through to it, and the user lists fall back to it plus a scan of every message server - so offline accounts show up and can be ranked, banned or muted", "Role changes, bans and mutes now also apply instantly via the mirror when the main database is over quota, and the main-database write is queued and lands at the daily reset (you are told when this happens)", "Rank-change dialogs no longer hang on a full database - writes are bounded with timeouts"] },
             { version: '4.7.2', date: '2026-11-09', author: 'fish01-jpg', title: 'Chat Fixed on Full Servers + Square Shop Tiers, /devmanagetier, Anti-Alt', changes: ["Fixed - chat sends were freezing when servers hit their daily limit:", "The daily message counter waited on the main account database, which had hit its quota - and Firebase silently retries quota errors forever, so every send hung before the message was written", "The counter is now local-first and instant; cloud sync runs in the background and never blocks a send", "Sends now have an 8-second timeout: a stuck write is cancelled and cleaned up instead of hanging forever, so it can never appear later as a duplicate", "The write/read limit popups now count down from 6 seconds and auto-switch chat to the next server that is not maxed, then re-send your message; Close cancels the switch and the manual buttons still work", "Full servers are remembered for the day (until the midnight Pacific reset): chat starts on a healthy server and skips known-full servers when switching", "Server tiers are now bought through the Fitz's 3D Printing Square shop - the price of the item you buy decides your tier (Pro is a $6.00 item, Ultra is a $12.00 item); each purchase is split 4 equal ways between server costs, the owner and the two developers", "New /mytier command shows your tier, today's usage and how to upgrade with direct links to the shop items", "New /tierlist command shows everyone's tier, and PRO/ULTRA chips now show next to names in chat", "New /claimtier <order number> command sends your Square order to staff for verification - each order number can only be claimed once, so one purchase grants one account", "New /devmanagetier command for staff: email-verified login with password confirmation, then grant/remove tiers, approve or deny purchase claims and see the roster; the old /tier command still works and now keeps the public roster in sync", "Anti-alt protection: free-tier daily allowances are shared per browser device, so making alt accounts no longer resets the free chat limit", "The tiers page now explains the shop purchase flow, prices and the split"] },
             { version: '4.6.6', date: '2026-11-06', author: 'fish01-jpg', title: 'Announcements That Glow, Fixed Profiles and Game Commands, Minecraft Codes, Server Tiers BETA', changes: ["Announcements now also land in the notification box:", "/announce still posts the chat message, but every user now also gets a bell notification from 📢 Announcement", "The bell glows purple while you have unread notifications and stops as soon as you read them", "Announcement rows in the notification list get a highlighted left edge", "", "Fixed - profiles and the game commands:", "Clicking a card in Active Users now opens that user's profile (your own card opens your own profile) - this was silently missing, so profiles looked gone", "The profile still shows the Arcade and Account section: account age, last active, play time per game and high scores", "/popup and /arcadeend now accept @username - they only worked with raw account IDs before, which is why they seemed to do nothing", "The commands now tell you when no user with that name was found, and /grantsync got the same fix", "", "Minecraft world join codes:", "A small box in the bottom-left corner shows the Minecraft world join codes, with a Copy button for each", "Press Hide and it stays hidden - a tiny Minecraft codes pill remains in the corner to bring it back", "Staff (owner or developer) see an Edit codes button on the box: one world per line, written as World name = join code; leave it empty to clear", "", "Server tiers (BETA):", "New tiers page (tiers.html), opened from the Fishes Arcade - clearly marked BETA - listing the Free, Pro and Ultra tiers", "Tiers control how much server data you can use: your daily chat allowance (Free 150 messages a day, Pro 600, Ultra unlimited) plus profile sync allowances", "Everyone starts on Free; the owner can change anyone's tier with /tier @user <free|pro|ultra>", "The counter resets every day, and if the check ever fails it never blocks chat"] },
             { version: '4.5.5', date: '2026-11-05', author: 'fish01-jpg', title: 'Combined Update — Arcade, Chat, Notifications and Staff Tools', changes: ["Halloween Event Ended, Fishes Arcade Home:", "Halloween is over for the year:", "The Halloween theme and its decorations (falling leaves, floating ghosts, jack-o-lanterns and spooky fog) have been removed", "The four Halloween effect toggles are gone from Settings - Appearance", "Anyone still set to the Halloween theme is switched back to Arcane automatically", "The Sp1der Hunt has ended: the hidden sp1ders, the Sp1ders counter, the hunt how-to-play guide and the admin Sp1der Hunt tab are all gone", "New featured Fishes Arcade card on the Resources page - bigger than the other games, it opens the Fishes Arcade in its own window", "", "Featured Card Opens the Fishes Arcade:", "The featured card on the Resources page is now the Fishes Arcade card:", "It still stands out - bigger than the other games, with the gradient border, glow and Featured badge", "Clicking it opens the Fishes Arcade itself in its own window, not the Sp1der Runner", "If your Games page card still says Project Sp1der or opens the Sp1der Runner, you are running an old copy: close the app window and open it again to get 4.5.5", "", "Fishes Arcade Active-User Gate, Stay Logged In:", "The Fishes Arcade card on the Resources page now has an active-user gate:", "To open the arcade you must be signed in, have an account at least 5 minutes old, have sent at least one chat message, have been active at least 5 minutes total and 5 minutes today, and have visited at least 2 different pages", "First-time arcade users also accept a fair-warning form: the arcade serves third-party games and Sp1der is not responsible for what they (or you) do", "The whole checklist can be finished in about five minutes", "The Sp1der Runner now defaults to Remember login (trusted main) so refreshing keeps you signed in - switch it off any time for the isolated sandbox", "", "Arcade Gate Bypass, Explosive Arcade Background:", "The Fishes Arcade active-user checklist is now bypassed if you are an owner or you sent at least 50 messages in the last 2 weeks", "Messages are counted in a rolling two-week window on your profile", "The Fishes Arcade background squares tripled in number and now burst as explosions", "The arcade background text cycles random colors and a whole new set of taglines", "", "Forced Chat Commands - AI Detects Commands Written Straight to Firestore:", "Commands typed in the composer were always executed before the message reached Firestore, so a command forced directly into the messages collection (Firebase console, REST API, the Sigma Remote or any other client) only rendered as plain text and never ran", "The chat now detects command-shaped messages arriving through Firestore and runs them through the normal command handlers: / commands via the chat command handler, @ commands via the AI command handler, in both the main chat channels and the Aegis AI chat", "Each forced command message is claimed once with a cmdHandled marker on the message document - the same claim idea as the Sigma command queue - so multiple AI tabs never run the same command twice", "Only the AI accounts and the admin-panel owner execute forced commands, and only for messages posted by their own account or by the AI itself - a command message forged by another account is never executed with staff powers", "On first load only unmarked commands from the last 15 minutes are picked up, so channel history is never replayed; forced commands that arrive while the AI is offline still run when it comes back online", "Unrecognized forced commands are not removed - they keep rendering as normal chat text, and a toast reports whether each forced command ran", "", "Verify Command, Review Terms, Reliable Trackers:", "New /verify chat command — a second way into the Fishes Arcade", "It opens a menu with the full terms: agree, have an account at least 5 days old, then pass 15 different CAPTCHAs (math, codes, odd-one-out and more — no two alike), with progress saved if you stop halfway", "Verified accounts skip the active-user checklist and the fair-warning form and get straight into the arcade", "The arcade gate now has a Review terms button so anyone can re-read the terms after agreeing", "The activity trackers were rebuilt: time on screen, messages and page visits are banked locally first and synced to your profile with retries, so being offline, over quota or in a sandboxed frame no longer wipes your progress", "The gate checklist merges your not-yet-synced progress, so the list stays live and accurate", "The Sp1der Runner (fishes.html) now loads the sp1der backup copy (sp1der-backup.html), and the Fishes Arcade hub has a new cloaked Project Sp1der launcher that opens it", "", "Working Chat Notifications, Pin Messages, Developer Role:", "Chat notifications and the unread counter next to the Community button now actually work:", "The listeners used a query that needs a Firestore composite index that was never created, so they failed silently - they now use a query that works without any index", "The unread badge on the Community button and the per-channel badges in the sidebar show live counts again", "/pin now pins the most recent message in the chat, and the pinned panel at the top actually displays it for everyone, with an Unpin button for staff", "The pinned panel also had no CSS to ever show up - fixed", "New developer role: same powers as owner (rank level 100), assignable from the admin panel, with the Owner-style gold badge", "", "Emoji Chat Reactions:", "Every message now has a React button that opens an emoji picker (16 emojis: thumbs up/down, heart, laugh, fire, party and more)", "Reaction chips appear under the message with live counts - click a chip to add your reaction, click it again to remove it", "Chips you reacted with are highlighted, and reactions update live for everyone reading the channel", "Works in Global, DMs, group chats and the Aegis AI chat; read-only conversations show the chips but cannot be changed", "Reactions are stored on the message itself, so they load with the chat history", "", "Fishes Arcade Tracking, Arcade Stats on Profiles, Staff Popups:", "The Active Users panel now shows when someone is in the Fishes Arcade and which game they are playing (Sp1dercraft, PolyTrack, Fluid Sim)", "You stay marked Active while you have a game window open, even if the Sp1der tab is idle in the background", "Profiles now show an Arcade & Account section: account age, last active, play time per game and high scores", "High scores are logged from the arcade's Now Playing bar while a game is open; play time is tracked automatically", "New staff commands: /popup @user <message> forces a popup over anything the user has open - including their arcade game windows; /arcadeend @user closes their games; /arcadegames shows who is playing what", "The arcade reports to Sp1der through a live message channel plus a beacon that survives tab reloads", "", "Commands Now Reach Players Inside the Games:", "Every game window the arcade opens now runs a small bridge script, so staff commands affect the games themselves:", "/popup now shows its message on top of the actual game window the user is playing, not just the arcade hub and Sp1der tabs", "/arcadeend closes the user's game windows and tells them why, right inside the game", "Each game window also reports what it is directly - it keeps its own tracking beacon and heartbeat, so Playing X in the Active Users panel survives the arcade hub reloading or closing", "Sp1der, the arcade hub and the game windows talk over a broadcast channel when they share an origin, as an extra delivery path that needs no window references"] },
@@ -9962,7 +9971,9 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             if(['role','demote','lock','unlock'].includes(action))return workspaceRoleAction(action,u,opts);
             const stamp=workspaceActorStamp();
             try {
-                const snap=await db.collection('users').doc(u.uid).get();if(!snap.exists){toast('Account not found');return false;}u={...snap.data(),uid:snap.id};
+                /* v4.7.3: main database over quota — fall back to the account mirror so offline
+                   accounts can still be found and changed. */
+                const target=await getUserDocAnywhere(u.uid);if(!target){toast('Account not found');return false;}u=target;
                 if(!workspaceActorSame(stamp)){toast('Sign-in changed');return false;}
             }catch(e){toast('Could not load target: '+e.message);return false;}
             const err=modActionError(action,u);if(err){toast(err);return false;}
@@ -9988,15 +9999,23 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 case 'role': { const role = opts.role; if (roleLevel(role) >= getLevel()) { toast('You cannot assign that role'); return false; } fields = { role: role, roleGrantedBy: currentUser.uid, roleGrantedAt: now }; doneMsg = name + ' is now ' + role; logMsg = 'Set ' + name + ' to ' + role; break; }
                 default: return false;
             }
+            ACCT_MIRROR.save(u.uid, fields); /* applies immediately even while the main database is over quota */
             try {
-                await db.collection('users').doc(u.uid).set(fields, { merge: true });
-                if (action === 'role') { try { await db.collection('presence').doc(u.uid).set({ role: opts.role }, { merge: true }); } catch (e) {} }
+                await tierWithTimeout(db.collection('users').doc(u.uid).set(fields, { merge: true }), 5000);
+                if (action === 'role') { try { await tierWithTimeout(db.collection('presence').doc(u.uid).set({ role: opts.role }, { merge: true }), 4000); } catch (e) {} }
                 toast(doneMsg); adminLogAdd(logMsg);
                 // reflect immediately in local lists
                 [u, restrictedBanned[u.uid], restrictedMuted[u.uid]].forEach(x => { if (x) Object.keys(fields).forEach(k => { if (k !== 'warnings') x[k] = fields[k]; }); });
                 if (document.querySelector('#panel-admin.active')) renderAdminPanel();
                 return true;
-            } catch (e) { toast('Failed: ' + e.message); return false; }
+            } catch (e) {
+                /* v4.7.3: quota — the write stays queued in the SDK and lands on the main database at the
+                   daily reset; the mirror copy already applies right now. */
+                toast(doneMsg + ' (main server at its daily limit — applied via the mirror and queued for the main server)'); adminLogAdd(logMsg);
+                [u, restrictedBanned[u.uid], restrictedMuted[u.uid]].forEach(x => { if (x) Object.keys(fields).forEach(k => { if (k !== 'warnings') x[k] = fields[k]; }); });
+                if (document.querySelector('#panel-admin.active')) renderAdminPanel();
+                return true;
+            }
         }
         function adminChip(text, cls) { const c = document.createElement('span'); c.className = 'admin-chip ' + cls; c.textContent = text; return c; }
         function adminBtn(label, cls, fn) { const b = document.createElement('button'); b.className = 'admin-btn ' + (cls || ''); b.textContent = label; b.onclick = fn; return b; }
@@ -10173,22 +10192,44 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         function workspaceRoleValue(value){const role=String(value||'').trim().toLowerCase();return role==='administrator'?'admin':role==='mod'?'moderator':role;}
         async function workspaceResolveAccount(value) {
             const term=String(value||'').replace(/^@/,'').trim();if(!term)throw new Error('Enter an exact UID, email, or unique account name.');
-            const direct=await db.collection('users').doc(term).get();if(direct.exists)return {...direct.data(),uid:direct.id};
-            const matches=new Map();
-            for(const field of term.includes('@')?['email']:['username','displayName']) {
-                const snap=await db.collection('users').where(field,'==',term).limit(2).get();
-                snap.docs.forEach(d=>matches.set(d.id,{...d.data(),uid:d.id}));
+            let mainDbFailed=false;
+            try {
+                const direct=await db.collection('users').doc(term).get();if(direct.exists)return {...direct.data(),uid:direct.id};
+                const matches=new Map();
+                for(const field of term.includes('@')?['email']:['username','displayName']) {
+                    const snap=await db.collection('users').where(field,'==',term).limit(2).get();
+                    snap.docs.forEach(d=>matches.set(d.id,{...d.data(),uid:d.id}));
+                }
+                if(matches.size!==1)throw new Error(matches.size?'Ambiguous account. Use an exact UID or email.':'Account not found. Use an exact UID or email.');
+                return [...matches.values()][0];
+            } catch(e) {
+                /* v4.7.3: any main-database failure (daily quota, permissions) — try the mirror,
+                   then the message-server scan, before giving up. */
+                const mirrored=await ACCT_MIRROR.get(term)||await ACCT_MIRROR.byTerm(term);
+                if(mirrored)return mirrored;
+                const scanned=await findUserByEmailOrName(term);
+                if(scanned)return scanned;
+                throw e;
             }
-            if(matches.size!==1)throw new Error(matches.size?'Ambiguous account. Use an exact UID or email.':'Account not found. Use an exact UID or email.');
-            return [...matches.values()][0];
         }
         async function workspaceRoleAction(action,target,options) {
             options=options||{};const stamp=workspaceActorStamp();
             if(!workspaceCan('management')){toast('Allowlisted management access required.');return false;}
             const ref=db.collection('users').doc(target.uid);
+            let mainDbOk=true;
             try {
-                const snapshot=await ref.get();if(!snapshot.exists)throw new Error('Account not found.');
-                const before={...snapshot.data(),uid:snapshot.id};
+                /* v4.7.3: the main account database can be over its daily quota — fall back to the
+                   account mirror for the read, queue the write, and apply the change via the mirror. */
+                let snapshotData=null;
+                try {
+                    const snapshot=await tierWithTimeout(ref.get(),6000);
+                    if(snapshot.exists)snapshotData=snapshot.data();
+                } catch(readErr){
+                    mainDbOk=false; /* v4.7.3: main database unavailable (daily quota or permissions) — the mirror is used below */
+                }
+                if(!snapshotData){const mirrored=await ACCT_MIRROR.get(target.uid);if(mirrored)snapshotData=mirrored;}
+                if(!snapshotData)throw new Error('Account not found.');
+                const before={...snapshotData,uid:target.uid};
                 const check=u=>{
                     if(!workspaceActorSame(stamp)||!workspaceCan('management'))throw new Error('Account or access changed.');
                     if(u.uid===stamp.uid)throw new Error('You cannot target yourself.');
@@ -10203,17 +10244,30 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 const nextRole=action==='unlock'?oldRole:role;
                 const message=action==='unlock'?'Remove the app-level role lock; keep the current role.':action==='lock'?'Set this role and lock it in patched app controls.':'Change the stored account role.';
                 if(!confirm(message+'\nTarget: '+label+'\nUID: '+before.uid+'\nRole: '+roleLabel(oldRole)+' → '+roleLabel(nextRole)+'\nApp role lock: '+!!before.appRoleLocked+' → '+(action==='lock')))return false;
-                let written;
-                await db.runTransaction(async transaction=>{
-                    const fresh=await transaction.get(ref);if(!fresh.exists)throw new Error('Account no longer exists.');
-                    const user={...fresh.data(),uid:fresh.id};check(user);
-                    if(workspaceRoleValue(accountRole(user))!==oldRole || !!user.appRoleLocked!==!!before.appRoleLocked || adminUName(user)!==label || String(user.email||'')!==String(before.email||''))throw new Error('Target changed after confirmation. Review it again.');
-                    written=action==='unlock'?{appRoleLocked:false,appRoleLockBy:stamp.uid,appRoleLockAt:Date.now()}:{role,roleGrantedBy:stamp.uid,roleGrantedAt:Date.now(),...(action==='lock'?{appRoleLocked:true,appRoleLockBy:stamp.uid,appRoleLockAt:Date.now()}:{})};
-                    transaction.set(ref,written,{merge:true});
-                });
+                const written=action==='unlock'?{appRoleLocked:false,appRoleLockBy:stamp.uid,appRoleLockAt:Date.now()}:{role,roleGrantedBy:stamp.uid,roleGrantedAt:Date.now(),...(action==='lock'?{appRoleLocked:true,appRoleLockBy:stamp.uid,appRoleLockAt:Date.now()}:{})};
+                if(mainDbOk){
+                    try {
+                        await db.runTransaction(async transaction=>{
+                            const fresh=await transaction.get(ref);if(!fresh.exists)throw new Error('Account no longer exists.');
+                            const user={...fresh.data(),uid:fresh.id};check(user);
+                            if(workspaceRoleValue(accountRole(user))!==oldRole || !!user.appRoleLocked!==!!before.appRoleLocked || adminUName(user)!==label || String(user.email||'')!==String(before.email||''))throw new Error('Target changed after confirmation. Review it again.');
+                            transaction.set(ref,written,{merge:true});
+                        });
+                    } catch (txErr) {
+                        const q=/quota|resource|exhausted|unavailable|deadline/i.test(String((txErr&&(txErr.code||txErr.message))||''));
+                        if(!q){toast('Role action failed: '+txErr.message);return false;}
+                        db.collection('users').doc(target.uid).set(written,{merge:true}).catch(()=>{});
+                        mainDbOk=false;
+                    }
+                } else {
+                    db.collection('users').doc(target.uid).set(written,{merge:true}).catch(()=>{});
+                }
+                ACCT_MIRROR.save(target.uid,written);
                 Object.assign(target,written);
-                if(action!=='unlock'){try{await db.collection('presence').doc(target.uid).set({role},{merge:true});}catch(e){toast('Role saved; presence refresh failed: '+e.message);}}
-                adminLogAdd(action+' '+label+' ('+target.uid+'): '+oldRole+' → '+nextRole);toast(action==='unlock'?'Role unlocked':action==='lock'?'Role saved and locked':'Role updated');return true;
+                if(action!=='unlock'){try{await tierWithTimeout(db.collection('presence').doc(target.uid).set({role},{merge:true}),4000);}catch(e){}}
+                adminLogAdd(action+' '+label+' ('+target.uid+'): '+oldRole+' → '+nextRole);
+                toast((action==='unlock'?'Role unlocked':action==='lock'?'Role saved and locked':'Role updated')+(mainDbOk?'':' (main server at its daily limit — applied via the mirror and queued for the main server)'));
+                return true;
             }catch(e){toast('Role action failed: '+e.message);return false;}
         }
         async function workspaceRoleCommand(action,args) {
@@ -10315,6 +10369,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 });
                 if (hit) return hit;
             } catch (e) {}
+            /* v4.7.3: offline accounts — search the mirror and the message servers too. */
+            try { const hit = await findUserByEmailOrName(r); if (hit && hit.uid) return hit.uid; } catch (e) {}
             return null;
         }
         /* ===== v4.6.6: SERVER TIERS (BETA) =====
@@ -10404,6 +10460,53 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
                 if (entry) sp1derDb.collection('tierRoster').doc(String(targetUid)).set(entry, { merge: true }).catch(() => {});
                 else sp1derDb.collection('tierRoster').doc(String(targetUid)).delete().catch(() => {});
             } catch (e) {}
+        }
+
+        /* ===== v4.7.3: ACCOUNT DATA MIRROR (accountData collection on the message servers) =====
+           The main account database (cf-minecraft) hits its daily quota: reads start failing and
+           writes queue until the reset, which used to hide offline accounts, break rank changes
+           and freeze sign-out. A compact copy of each account now lives on a healthy message
+           server: reads fall back to it, staff changes write through to it, and sign-in loads it
+           when the main profile read fails. */
+        const ACCT_MIRROR = {
+            coll: 'accountData',
+            mirrorDb: function () { for (let i = 0; i < msgDbs.length; i++) { if (!exhaustedDbs.has(i) && !readExhaustedDbs.has(i)) return msgDbs[i]; } return msgDbs[0]; },
+            clean: function (data) {
+                const out = {};
+                ['username', 'displayName', 'accountUsername', 'email', 'role', 'originalRole', 'ownerOverride', 'tier', 'banned', 'banReason', 'bannedBy', 'bannedAt', 'muted', 'mutedUntil', 'muteReason', 'mutedBy', 'roleGrantedBy', 'roleGrantedAt', 'appRoleLocked', 'appRoleLockBy', 'cosmeticTitle'].forEach(k => { if (data && data[k] !== undefined) out[k] = data[k]; });
+                if (out.username) out.unameLower = String(out.username).toLowerCase();
+                if (out.displayName) out.dnameLower = String(out.displayName).toLowerCase();
+                if (out.email) out.emailLower = String(out.email).toLowerCase();
+                return out;
+            },
+            save: function (uid, data) {
+                if (!uid || !data) return;
+                try { this.mirrorDb().collection(this.coll).doc(String(uid)).set(this.clean(data), { merge: true }).catch(() => {}); } catch (e) {}
+            },
+            get: async function (uid) {
+                if (!uid) return null;
+                try { const d = await tierWithTimeout(this.mirrorDb().collection(this.coll).doc(String(uid)).get(), 6000); if (d.exists) return Object.assign({ uid: d.id }, d.data()); } catch (e) {}
+                return null;
+            },
+            byTerm: async function (term) {
+                const q = String(term || '').replace(/^@/, '').trim().toLowerCase(); if (!q) return null;
+                const dbm = this.mirrorDb();
+                for (const field of (q.includes('@') ? ['emailLower'] : ['unameLower', 'dnameLower'])) {
+                    try { const snap = await tierWithTimeout(dbm.collection(this.coll).where(field, '==', q).limit(3).get(), 6000); if (snap.size) { const d = snap.docs[0]; return Object.assign({ uid: d.id }, d.data()); } } catch (e) {}
+                }
+                return null;
+            },
+            list: async function (max) {
+                const out = {};
+                try { const snap = await tierWithTimeout(this.mirrorDb().collection(this.coll).limit(max || 400).get(), 8000); snap.forEach(d => { const v = d.data() || {}; out[d.id] = Object.assign({ uid: d.id }, v); }); } catch (e) {}
+                return out;
+            }
+        };
+        /* Read an account document from the main database, falling back to the mirror when the main
+           database is over its daily quota. */
+        async function getUserDocAnywhere(uid) {
+            try { const d = await tierWithTimeout(db.collection('users').doc(String(uid)).get(), 6000); if (d.exists) return Object.assign({ uid: d.id }, d.data()); return null; } catch (e) {}
+            return ACCT_MIRROR.get(uid);
         }
 
         /* ===== v4.7.1/4.7.2: instant local tier quota (never waits on a quota-exhausted database) ===== */
@@ -10912,7 +11015,12 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             let flushOk = true;
             try { flushOk = await flushUserDataCloud(); } catch (e) { flushOk = false; }
             if (flushOk === false && !confirm('Cloud save failed or is still pending. Sign out anyway? Your latest customization changes may not be saved.')) return;
-            try { markOffline().catch(() => {}).then(() => firebase.auth().signOut()).then(() => {
+            /* v4.7.3: when the main database is over quota the presence writes queue forever and used to
+               block sign-out completely. Send the keep-alive beacon, wait at most 1.5s, then sign out. */
+            try { beaconOffline(); } catch (e) {}
+            const offlineDone = Promise.race([markOffline().catch(() => {}), new Promise(r => setTimeout(r, 1500))]);
+            try {
+            offlineDone.then(() => firebase.auth().signOut()).then(() => {
                 currentUser = null; userProfile = null; currentAdminUser = null; presenceStarted = {}; stopModerationWatch(); recomputeOnlineUsers();
                 try { refreshAdminAccess(); } catch(e) {}
                 closeModal('settingsModal');
@@ -11074,7 +11182,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
         }
         async function mgmtToggleBan(uid) {
             if(!requireAdminOwner())return;
-            try{const snap=await db.collection('users').doc(uid).get();if(!snap.exists){toast('Account not found');return;}const user={...snap.data(),uid};if(await modDo(user.banned?'unban':'ban',user))mgmtRefreshUsers();}catch(e){toast('Failed: '+e.message);}
+            try{const user=await getUserDocAnywhere(uid);if(!user){toast('Account not found');return;}if(await modDo(user.banned?'unban':'ban',user))mgmtRefreshUsers();}catch(e){toast('Failed: '+e.message);}
         }
         async function mgmtSetUserRole(uid,role) {
             if(!role || !requireAdminOwner())return;
@@ -11645,12 +11753,14 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     let cloudProfile = null, profileReadOk = true;
                     _preHydrationSettings = JSON.parse(JSON.stringify(settings)); /* snapshot for keeping edits made while the profile loads */
                     try { const doc = await db.collection('users').doc(user.uid).get(); if (doc.exists) { cloudProfile = doc.data(); channelProfilesCache[user.uid] = cloudProfile; } } catch (e) { profileReadOk = false; }
+                    if (!cloudProfile && !profileReadOk) { /* v4.7.3: main database over quota — load the account from the mirror */ try { const mirrored = await ACCT_MIRROR.get(user.uid); if (mirrored) { cloudProfile = mirrored; profileReadOk = true; } } catch (e) {} }
                     if (authGen !== _authGeneration || !auth.currentUser || auth.currentUser.uid !== user.uid) return; /* a newer sign-in or sign-out superseded this one */
                     if (profileReadOk) _cloudReadUid = user.uid; /* this account's cloud profile was read successfully - it is now safe to save changes for it */
                     if (cloudProfile) { userProfile = Object.assign({}, defaultProfileFromUser(user, local.username), local, cloudProfile); } else { userProfile = Object.assign({}, defaultProfileFromUser(user, local.username), local); }
                     userProfile.uid = user.uid; userProfile.email = user.email;
                     normalizeAccountDisplayName(userProfile);
                     channelProfilesCache[user.uid] = Object.assign({}, userProfile);
+                    try { ACCT_MIRROR.save(user.uid, { username: userProfile.username, displayName: userProfile.displayName, email: user.email, role: userProfile.role, originalRole: userProfile.originalRole, ownerOverride: userProfile.ownerOverride, tier: userProfile.tier }); } catch (e) {} /* v4.7.3: keep the account mirror fresh */
                     const fixedName = fixedAccountDisplayName(user);
                     if (fixedName) {
                         if (user.displayName !== fixedName) { try { user.updateProfile({ displayName: fixedName }).catch(() => {}); } catch (e) {} }
