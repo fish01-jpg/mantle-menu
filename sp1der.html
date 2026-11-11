@@ -4800,8 +4800,11 @@ Furball found a sunbeam and is not moving for anyone.`;
         function verifyStartMethodChosen() { verifyRender(); }
         /* ===== reCAPTCHA method =====
            Google reCAPTCHA v2. The site key lives in the Firebase system/recaptcha doc
-           (field: siteKey), so staff can set it without touching this code. If no key is
-           set the option still shows, but the widget is replaced with a clear note. */
+           (field: siteKey), so staff can set it without touching this code. There's also
+           a hardcoded fallback key baked in below, so the widget works even when the
+           doc is missing or the main database is over quota. Site keys are public by
+           design — the secret key is NOT in this file and is never needed client-side. */
+        const SP1DER_RECAPTCHA_SITE_KEY = '6LdoiRsuAAAAAPbekttrv-GShZWXRMLytNFfIQ-0';
         let recaptchaSiteKey = '';
         async function loadRecaptchaSiteKey() {
             if (recaptchaSiteKey) return recaptchaSiteKey;
@@ -4809,6 +4812,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const snap = await dbOpTimeout(db.collection('system').doc('recaptcha').get(), 4000);
                 if (snap.exists && snap.data() && snap.data().siteKey) recaptchaSiteKey = String(snap.data().siteKey).trim();
             } catch (e) {}
+            if (!recaptchaSiteKey) recaptchaSiteKey = SP1DER_RECAPTCHA_SITE_KEY; /* fallback: always works */
             return recaptchaSiteKey;
         }
         async function verifyRenderRecaptcha(body) {
@@ -5162,7 +5166,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 { usage:'/commands', desc:'List all chat commands.' }, { usage:'/profile <@user>', desc:'View another user\'s profile.' },
                 { usage:'/theme', desc:'Toggle Arcane/Dark theme.' }, { usage:'/ip', desc:'View your IP (staff).', staff:true },
                 { usage:'/notif', desc:'Toggle notification panel.' }, { usage:'/music <query/url>', desc:'Play a YouTube track.' },
-                { usage:'/ping', desc:'Check server latency.' }, { usage:'/blank', desc:'Reopen this page inside an about:blank tab (also in the top bar and Settings > Launch).' }, { usage:'/verify', desc:'Verify your account to unlock the Fishes Arcade: read the terms, be at least 5 days old, pass 15 CAPTCHAs.' }, { usage:'/backup', desc:'Export your private DMs.' },
+                { usage:'/ping', desc:'Check server latency.' }, { usage:'/blank', desc:'Reopen this page inside an about:blank tab (also in the top bar and Settings > Launch).' }, { usage:'/verify', desc:'Verify your account to unlock the Fishes Arcade: read the terms, then pick a method — reCAPTCHA (fastest), 15 CAPTCHAs, or a short reading quiz.' }, { usage:'/backup', desc:'Export your private DMs.' },
                 { usage:'/rules', desc:'Show server rules.' }, { usage:'/members', desc:'View channel members.' },
                 { usage:'/leave <group>', desc:'Leave a group chat.' }, { usage:'/ticket', desc:'Open a support ticket.' },
                 { usage:'/genaccess <@user> <token>', desc:'Assign a rank token to someone.', owner:true },
