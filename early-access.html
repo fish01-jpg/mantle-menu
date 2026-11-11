@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0221">
+<title>✦ Early Access — Project Sp1der</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #0d0221; --bg-2: #140631; --bg-3: #1a0a3a;
+    --border: rgba(125, 87, 239, 0.28); --border-hi: rgba(125, 87, 239, 0.55);
+    --text: #f2ecff; --text-dim: #b0a8cc; --text-faint: #7d7699;
+    --accent: #7d57ef; --accent-2: #9b6dff; --gold: #f5b83d;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 70% -10%, rgba(125, 87, 239, 0.16), transparent 60%),
+                radial-gradient(900px 500px at 10% 110%, rgba(245, 184, 61, 0.07), transparent 55%),
+                var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 20px 40px;
+  }
+  .glow { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(600px 300px at 50% 0%, rgba(125, 87, 239, 0.12), transparent 70%); }
+  header { width: 100%; max-width: 980px; text-align: center; position: relative; }
+  .badge-row { display: flex; justify-content: center; margin-bottom: 14px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.68rem; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
+    color: #e8ddff; background: rgba(125, 87, 239, 0.14);
+    border: 1px solid var(--border-hi); border-radius: 999px; padding: 7px 18px;
+  }
+  .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold);
+    box-shadow: 0 0 10px rgba(245, 184, 61, 0.8); }
+  h1 { font-size: clamp(1.6rem, 4vw, 2.3rem); font-weight: 800; margin: 0 0 8px; letter-spacing: -0.5px; }
+  h1 .star { color: var(--gold); }
+  .sub { color: var(--text-dim); font-size: 0.92rem; line-height: 1.6; margin: 0 auto 30px; max-width: 560px; }
+  .grid {
+    width: 100%; max-width: 980px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px;
+  }
+  .card {
+    position: relative; text-align: left;
+    background: linear-gradient(160deg, var(--bg-2), var(--bg-3));
+    border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px 20px 20px;
+    cursor: pointer; font: inherit; color: var(--text);
+    transition: transform 0.18s var(--ease), border-color 0.18s, box-shadow 0.18s;
+    overflow: hidden;
+  }
+  .card:hover { transform: translateY(-3px); border-color: var(--border-hi);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.45), 0 0 34px rgba(125, 87, 239, 0.14); }
+  .card:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+  .card::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: var(--card-accent, var(--accent)); opacity: 0.9;
+  }
+  .icon {
+    width: 52px; height: 52px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; margin-bottom: 14px;
+    background: color-mix(in srgb, var(--card-accent, var(--accent)) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--card-accent, var(--accent)) 35%, transparent);
+  }
+  .name { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.02rem; margin: 0 0 6px; }
+  .chip {
+    font-size: 0.58rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+    background: rgba(245, 184, 61, 0.13); border: 1px solid rgba(245, 184, 61, 0.5);
+    color: var(--gold); border-radius: 999px; padding: 2px 8px;
+  }
+  .desc { color: var(--text-dim); font-size: 0.85rem; line-height: 1.55; margin: 0; }
+  .soon { cursor: default; opacity: 0.65; }
+  .soon:hover { transform: none; border-color: var(--border); box-shadow: none; }
+  .soon .icon { filter: grayscale(0.4); }
+  footer { margin-top: 34px; color: var(--text-faint); font-size: 0.76rem; text-align: center; line-height: 1.7; }
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+    background: var(--bg-3); border: 1px solid var(--border-hi); color: var(--text);
+    border-radius: 10px; padding: 11px 18px; font-size: 0.85rem;
+    opacity: 0; pointer-events: none; transition: all 0.25s var(--ease); z-index: 10;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (max-width: 640px) {
+    body { padding: 20px 14px 30px; }
+    .grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .card { padding: 16px 14px; }
+    .icon { width: 42px; height: 42px; font-size: 1.3rem; margin-bottom: 10px; }
+    .name { font-size: 0.9rem; }
+    .desc { font-size: 0.74rem; }
+  }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<header>
+  <div class="badge-row"><span class="badge"><span class="dot"></span> Early Access</span></div>
+  <h1>Project Sp1der <span class="star">✦</span> Early Access</h1>
+  <p class="sub">New features, games and experiments land here first — before everyone else gets them. Your early access is verified, so everything below is unlocked.</p>
+</header>
+
+<main class="grid" id="grid" aria-label="Early access apps and games"></main>
+
+<footer>
+  Early access features are previews — they can change or be removed at any time.<br>
+  More games get added here as they're ready.
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ==========================================================================
+     EARLY ACCESS APPS + GAMES
+     --------------------------------------------------------------------------
+     To add a game later, just add an entry to EA_APPS:
+       { id: 'mygame', icon: '🎮', name: 'My Game', desc: 'One line about it.',
+         type: 'url', url: 'https://example.com/game' }        → opens the URL in a window
+       { id: 'mygame', icon: '🎮', name: 'My Game', desc: '…',
+         type: 'file', file: 'mygame.html', check: 'My Game' }  → fetched from the repo like Meet
+     type 'sp1der' opens the full Sp1der app; 'meet' is the Sp1der Meet app.
+     ========================================================================== */
+  var EA_APPS = [
+    { id: 'sp1der', icon: '🕷️', name: 'Sp1der', chip: 'FULL APP', accent: '#8b5cf6',
+      desc: 'The full Project Sp1der app — chat, games, everything — straight from the early access line.',
+      type: 'sp1der' },
+    { id: 'sp1der-meet', icon: '📹', name: 'Sp1der Meet', chip: 'VIDEO', accent: '#3478f6',
+      desc: 'Start or join a video meeting and invite your friends.',
+      type: 'meet' },
+    { id: 'coming-soon', icon: '🎮', name: 'More games soon', accent: '#7d7699', soon: true,
+      desc: 'New games and features will appear here first — that\'s what early access is for.',
+      type: 'none' }
+  ];
+
+  /* CDN sources for files that live in the mantle-menu repo (same list the arcade uses) */
+  var REPO_SOURCES = function (file) {
+    return [
+      'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/' + file,
+      'https://cdn.statically.io/gh/fish01-jpg/mantle-menu/main/' + file,
+      'https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/' + file,
+      'https://esm.sh/gh/fish01-jpg/mantle-menu@main/' + file
+    ];
+  };
+  var SP1DER_APP_URL = 'https://sp1der.framer.photos/';
+
+  var toastEl = null, toastTimer = null;
+  function toast(text) {
+    if (!toastEl) toastEl = document.getElementById('toast');
+    if (!toastEl) return;
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 3200);
+  }
+
+  function openWindow() {
+    var win = window.open('about:blank', '_blank',
+      'width=' + (screen.width || 1200) + ',height=' + (screen.height || 800) +
+      ',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes,popup=yes');
+    if (!win) { toast('Allow popups to open this.'); return null; }
+    return win;
+  }
+
+  function loadingDoc(win, label) {
+    try {
+      var d = win.document;
+      d.open();
+      d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{height:100%;margin:0;background:#0d0221;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:Segoe UI,Arial,sans-serif}.ring{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,0.12);border-top-color:#9b6dff;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}p{color:#b0a8cc;font-size:13px;margin:0}</style></head><body><div class="ring"></div><p>Opening ' + label + '…</p></body></html>');
+      d.close();
+    } catch (e) {}
+  }
+
+  function errorDoc(win, label, err) {
+    try {
+      var d = win.document;
+      d.open();
+      d.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="height:100vh;margin:0;background:#0d0221;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,Arial,sans-serif"><div style="text-align:center;color:#b0a8cc;max-width:440px;padding:20px"><h2 style="color:#f2ecff;font-size:17px;font-weight:600;margin:0 0 10px">' + label + ' couldn\'t load</h2><p style="font-size:14px;line-height:1.6;margin:0">' + String(err && err.message ? err.message : err) + '</p></div></body></html>');
+      d.close();
+    } catch (e) {}
+  }
+
+  async function fetchFromSources(urls, check) {
+    var html = null, lastErr = null;
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var res = await fetch(urls[i], { cache: 'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var text = await res.text();
+        if (text.length < 500 || !/<html/i.test(text)) throw new Error('Invalid');
+        if (check && text.indexOf(check) === -1) throw new Error('Invalid');
+        html = text; break;
+      } catch (e) { lastErr = e; }
+    }
+    if (!html) throw lastErr || new Error('all sources failed');
+    return html;
+  }
+
+  /* ---- launchers ---- */
+  function launchSp1der() {
+    var win = openWindow();
+    if (!win) return;
+    try { win.location.href = SP1DER_APP_URL; } catch (e) { win.location = SP1DER_APP_URL; }
+  }
+
+  async function launchMeet() {
+    var win = openWindow();
+    if (!win) return;
+    loadingDoc(win, 'Sp1der Meet');
+    try {
+      var html = await fetchFromSources(REPO_SOURCES('sp1der-meet.html'), 'Sp1der Meet');
+      var d = win.document; d.open(); d.write(html); d.close();
+    } catch (e) { errorDoc(win, 'Sp1der Meet', e); }
+  }
+
+  async function launchFile(app) {
+    var win = openWindow();
+    if (!win) return;
+    loadingDoc(win, app.name);
+    try {
+      var html = await fetchFromSources(REPO_SOURCES(app.file), app.check || app.name);
+      var d = win.document; d.open(); d.write(html); d.close();
+    } catch (e) { errorDoc(win, app.name, e); }
+  }
+
+  function launchUrl(app) {
+    var win = openWindow();
+    if (!win) return;
+    try { win.location.href = app.url; } catch (e) { win.location = app.url; }
+  }
+
+  function launch(app) {
+    if (app.soon) { toast('Coming soon — new games land here first.'); return; }
+    if (app.type === 'sp1der') launchSp1der();
+    else if (app.type === 'meet') launchMeet();
+    else if (app.type === 'file') launchFile(app);
+    else if (app.type === 'url') launchUrl(app);
+  }
+
+  /* ---- build the grid ---- */
+  function build() {
+    var grid = document.getElementById('grid');
+    if (!grid) return;
+    EA_APPS.forEach(function (app) {
+      var card = document.createElement(app.soon ? 'div' : 'button');
+      card.type = 'button';
+      card.className = 'card' + (app.soon ? ' soon' : '');
+      card.style.setProperty('--card-accent', app.accent || '#7d57ef');
+      card.innerHTML =
+        '<div class="icon" aria-hidden="true">' + app.icon + '</div>' +
+        '<p class="name">' + app.name + (app.chip ? ' <span class="chip">' + app.chip + '</span>' : '') + '</p>' +
+        '<p class="desc">' + app.desc + '</p>';
+      card.addEventListener('click', function () { launch(app); });
+      grid.appendChild(card);
+    });
+  }
+
+  build();
+})();
+</script>
+</body>
+</html>
