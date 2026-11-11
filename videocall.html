@@ -35,7 +35,7 @@
     .card {
         background: var(--panel); border: 1px solid var(--border);
         border-radius: var(--radius); padding: 18px;
-        width: 100%; max-width: 760px;
+        width: 100%; max-width: 980px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.45);
     }
     .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -62,7 +62,7 @@
     .status.show { display: block; }
     .video-grid {
         display: none; gap: 10px; margin-top: 14px;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
     }
     .video-grid.show { display: grid; }
     .tile {
@@ -73,11 +73,13 @@
     .tile .tag {
         position: absolute; left: 8px; bottom: 6px; font-size: 0.72rem;
         background: rgba(0,0,0,0.6); padding: 2px 9px; border-radius: 10px;
+        max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .tile .off {
         position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
         color: var(--text-faint); font-size: 0.85rem;
     }
+    .tile.me { border-color: var(--primary); }
     .controls { display: none; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .controls.show { display: flex; }
     .codebar {
@@ -89,7 +91,6 @@
     .codebar b { font-size: 1.5rem; letter-spacing: 4px; color: var(--accent); font-family: monospace; }
     .p2p { color: var(--text-faint); font-size: 0.72rem; text-align: center; margin-top: 14px; }
     @media (max-width: 620px) {
-        .video-grid { grid-template-columns: 1fr; }
         .tile { aspect-ratio: 16 / 9; }
     }
 </style>
@@ -97,7 +98,7 @@
 <body>
     <div class="head">
         <h1>Sp1der <span>Video Call</span></h1>
-        <p>Face-to-face calls with a code — start one and share the code, or join with one.</p>
+        <p>Group calls with a code — start one and share the code, or join with one.</p>
     </div>
 
     <div class="card">
@@ -116,19 +117,14 @@
             <span style="font-size:0.8rem;color:var(--text-dim);">Call code:</span>
             <b id="codeText"></b>
             <button class="btn" onclick="copyCode()">Copy code</button>
-            <span style="font-size:0.75rem;color:var(--text-dim);">Share it in chat — the other person joins with this code.</span>
+            <span style="font-size:0.75rem;color:var(--text-dim);">Share it in chat — everyone with the code can join.</span>
         </div>
 
         <div class="video-grid" id="videoGrid">
-            <div class="tile">
+            <div class="tile me" id="localTile">
                 <video id="localVideo" autoplay playsinline muted></video>
-                <span class="tag">You</span>
+                <span class="tag" id="localTag">You</span>
                 <div class="off" id="localOff">Camera off</div>
-            </div>
-            <div class="tile">
-                <video id="remoteVideo" autoplay playsinline></video>
-                <span class="tag" id="remoteTag">Waiting…</span>
-                <div class="off" id="remoteOff">No video</div>
             </div>
         </div>
 
@@ -136,10 +132,10 @@
             <button class="btn" id="micBtn" onclick="toggleMic()">Mute</button>
             <button class="btn" id="camBtn" onclick="toggleCam()">Camera off</button>
             <button class="btn" id="shareBtn" onclick="shareScreen()">Share screen</button>
-            <button class="btn danger" onclick="endCall()">Hang up</button>
+            <button class="btn danger" onclick="leaveCall()">Leave call</button>
         </div>
 
-        <div class="p2p">Calls are peer-to-peer (WebRTC) — your audio and video go straight to the other person. Only the connection setup travels through the video-call server.</div>
+        <div class="p2p">Calls are peer-to-peer (WebRTC mesh) — your audio and video go straight to the other people. Only the connection setup travels through the video-call server.</div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -158,16 +154,33 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        /* ===== STATE ===== */
+        /* ===== STATE =====
+           GROUP CALLS: a mesh — every participant holds one RTCPeerConnection
+           per other participant. Signaling docs flow through
+           calls/{code}/signals, presence through calls/{code}/peers. */
         const $ = id => document.getElementById(id);
-        const VC = { pc: null, localStream: null, camTrack: null, code: null, role: null,
-                     unsubs: [], pendingCands: [], remoteSet: false, ended: true, sharing: false };
+        const VC = {
+            code: null, myId: null, isHost: false,
+            localStream: null, camTrack: null,
+            pcs: {},            /* peerId -> RTCPeerConnection */
+            remoteSet: {},      /* peerId -> true once remote description applied */
+            pendingCands: {},    /* peerId -> [candidateJSON, ...] */
+            peers: {},          /* peerId -> { name, lastSeen } */
+            unsubs: [], heartbeatTimer: null, sweepTimer: null,
+            ended: true, sharing: false
+        };
         const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; /* no look-alikes (0/O, 1/I/L) */
         const CALL_TTL = 2 * 60 * 60 * 1000; /* call codes expire after 2 hours */
+        const HEARTBEAT_MS = 8000;   /* announce I am alive */
+        const STALE_MS = 26000;      /* a peer with no heartbeat for this long is gone */
 
         function makeCode() { let s = ''; for (let i = 0; i < 5; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; }
+        function makeId() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
         function myName() { return ($('nameInput').value || '').trim() || 'Guest'; }
         function setStatus(msg) { const b = $('statusBox'); b.textContent = msg; b.classList.toggle('show', !!msg); }
+        function callDoc() { return db.collection('calls').doc(VC.code); }
+        function peersCol() { return callDoc().collection('peers'); }
+        function signalsCol() { return callDoc().collection('signals'); }
 
         /* Pre-fill the name: ?name= query param (passed by Sp1der), else remember last used */
         (function () {
@@ -188,138 +201,236 @@
             return navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         }
 
-        function wirePc() {
-            VC.pc.onicecandidate = e => {
-                if (e.candidate && VC.code) {
-                    db.collection('calls').doc(VC.code)
-                      .collection(VC.role === 'host' ? 'hostCands' : 'guestCands')
-                      .add({ c: JSON.stringify(e.candidate), at: Date.now() }).catch(() => {});
-                }
-            };
-            VC.pc.ontrack = e => {
-                const v = $('remoteVideo'); if (v) v.srcObject = e.streams[0];
-                $('remoteTag').textContent = 'Connected';
-                setStatus('In call');
-                playRemote();
-            };
-            VC.pc.onconnectionstatechange = () => {
-                const st = VC.pc ? VC.pc.connectionState : '';
-                if (st === 'connected') setStatus('In call — peer to peer');
-                else if (st === 'failed') teardown('Connection failed — the call was dropped.');
-                else if (st === 'disconnected') setStatus('Connection unstable…');
-            };
+        /* Send one signaling message to one peer */
+        function sendSignal(to, type, payload) {
+            signalsCol().add({ from: VC.myId, to: to, type: type, payload: JSON.stringify(payload), at: Date.now() }).catch(() => {});
         }
 
-        function playRemote() {
-            const v = $('remoteVideo');
+        /* Create the connection to one peer (idempotent) */
+        function ensurePc(peerId) {
+            if (VC.pcs[peerId]) return VC.pcs[peerId];
+            const pc = new RTCPeerConnection({ iceServers: iceServers() });
+            VC.pcs[peerId] = pc;
+            if (VC.localStream) VC.localStream.getTracks().forEach(t => pc.addTrack(t, VC.localStream));
+            pc.onicecandidate = e => {
+                if (e.candidate) sendSignal(peerId, 'cand', e.candidate);
+            };
+            pc.ontrack = e => {
+                const tile = tileFor(peerId);
+                const v = tile.querySelector('video'); if (v) v.srcObject = e.streams[0];
+                playVideo(v);
+            };
+            pc.onconnectionstatechange = () => {
+                const st = pc.connectionState;
+                if (st === 'failed') removePeer(peerId, 'Connection failed.');
+                updateStatus();
+            };
+            return pc;
+        }
+
+        function playVideo(v) {
             if (!v) return;
-            v.muted = false;
-            v.play().catch(() => {
-                /* autoplay blocked (e.g. cross-origin frame) — one tap starts it */
-                v.muted = true; v.play().catch(() => {});
+            v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+        }
+
+        /* One video tile per remote peer */
+        function tileFor(peerId) {
+            let tile = document.getElementById('tile-' + peerId);
+            if (tile) return tile;
+            tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.id = 'tile-' + peerId;
+            tile.innerHTML = '<video autoplay playsinline></video><span class="tag"></span><div class="off">No video</div>';
+            $('videoGrid').appendChild(tile);
+            const t = VC.peers[peerId];
+            tile.querySelector('.tag').textContent = (t && t.name) || 'Guest';
+            return tile;
+        }
+        function dropTile(peerId) {
+            const tile = document.getElementById('tile-' + peerId);
+            if (tile) { try { const v = tile.querySelector('video'); if (v) v.srcObject = null; tile.remove(); } catch (e) {} }
+        }
+
+        function updateStatus() {
+            if (VC.ended) return;
+            const n = 1 + Object.keys(VC.pcs).length;
+            const joined = Object.keys(VC.pcs).filter(id => VC.pcs[id].connectionState === 'connected').length;
+            if (n <= 1) setStatus('Waiting for someone to join…');
+            else if (joined === n - 1) setStatus('In call — ' + n + ' people (peer to peer)');
+            else setStatus('Connecting… ' + joined + ' of ' + (n - 1) + ' connected');
+        }
+
+        /* ===== HANDLE SIGNALS =====
+           Inbound: offers create the pc (if the peer initiated), answers complete it,
+           candidates are buffered until the remote description is applied. */
+        async function handleSignal(msg) {
+            if (msg.to !== VC.myId || msg.from === VC.myId) return;
+            const from = msg.from, type = msg.type;
+            if (type === 'offer') {
+                let pc = VC.pcs[from];
+                if (pc && VC.remoteSet[from]) return; /* already connected, ignore duplicate */
+                try {
+                    pc = ensurePc(from);
+                    await pc.setRemoteDescription(new RTCSessionDescription(msg.payload));
+                } catch (e) { return; /* duplicate/stale offer */ }
+                VC.remoteSet[from] = true; flushCands(from);
+                try {
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    sendSignal(from, 'answer', pc.localDescription);
+                } catch (e) {}
+                updateStatus();
+            } else if (type === 'answer') {
+                const pc = VC.pcs[from];
+                if (!pc || VC.remoteSet[from]) return;
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription(msg.payload));
+                    VC.remoteSet[from] = true; flushCands(from);
+                } catch (e) {}
+            } else if (type === 'cand') {
+                if (!VC.pcs[from] || !VC.remoteSet[from]) {
+                    (VC.pendingCands[from] = VC.pendingCands[from] || []).push(msg.payload);
+                    return;
+                }
+                try { VC.pcs[from].addIceCandidate(new RTCIceCandidate(msg.payload)); } catch (e) {}
+            }
+        }
+        function flushCands(peerId) {
+            const list = VC.pendingCands[peerId] || []; VC.pendingCands[peerId] = [];
+            list.forEach(c => { try { VC.pcs[peerId].addIceCandidate(new RTCIceCandidate(c)); } catch (e) {} });
+        }
+
+        /* ===== PEERS (presence) =====
+           Deterministic initiation: for each pair exactly one side sends the offer —
+           the participant with the smaller ID. The other side creates its pc when
+           the offer arrives. */
+        function addPeer(peerId, data) {
+            if (peerId === VC.myId) return;
+            VC.peers[peerId] = { name: data.name || 'Guest', lastSeen: data.lastSeen || Date.now() };
+            tileFor(peerId);
+            /* heartbeats re-fire this as 'modified' — only the first sighting initiates */
+            if (VC.myId < peerId && !VC.pcs[peerId]) initiateOffer(peerId);
+            updateStatus();
+        }
+        async function initiateOffer(peerId) {
+            try {
+                const pc = ensurePc(peerId);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                sendSignal(peerId, 'offer', pc.localDescription);
+            } catch (e) {}
+        }
+        function removePeer(peerId, why) {
+            if (VC.pcs[peerId]) { try { VC.pcs[peerId].close(); } catch (e) {} delete VC.pcs[peerId]; }
+            delete VC.remoteSet[peerId]; delete VC.pendingCands[peerId]; delete VC.peers[peerId];
+            dropTile(peerId);
+            updateStatus();
+            if (why && Object.keys(VC.pcs).length === 0) setStatus(why);
+        }
+        /* A peer with no heartbeat for STALE_MS is treated as gone (crashed tab, dead
+           connection) — the Firestore doc removal alone is not enough. */
+        function sweepStalePeers() {
+            const now = Date.now();
+            Object.keys(VC.peers).forEach(id => {
+                if (now - (VC.peers[id].lastSeen || 0) > STALE_MS) {
+                    removePeer(id);
+                    peersCol().doc(id).delete().catch(() => {}); /* clean the stale doc so others see the removal too */
+                }
             });
         }
 
-        function addCand(data) {
-            const c = data && data.c; if (!c || !VC.pc) return;
-            if (!VC.remoteSet) { VC.pendingCands.push(c); return; }
-            try { VC.pc.addIceCandidate(new RTCIceCandidate(JSON.parse(c))); } catch (e) {}
-        }
-        function flushCands() { const list = VC.pendingCands; VC.pendingCands = []; list.forEach(c => addCand({ c })); }
-
-        /* ===== HOST A CALL ===== */
+        /* ===== START / JOIN ===== */
         async function startHost() {
             if (!VC.ended) { toastBusy(); return; }
             if (typeof RTCPeerConnection === 'undefined') { setStatus('This browser does not support video calls.'); return; }
-            let stream;
-            setStatus('Turning on your camera…');
-            try { stream = await getMedia(); }
-            catch (e) { setStatus('Camera/mic unavailable — ' + e.message); return; }
             const code = makeCode();
-            VC.localStream = stream; VC.camTrack = stream.getVideoTracks()[0] || null;
-            VC.code = code; VC.role = 'host'; VC.ended = false;
-            VC.pc = new RTCPeerConnection({ iceServers: iceServers() });
-            wirePc();
-            stream.getTracks().forEach(t => VC.pc.addTrack(t, stream));
-            const offer = await VC.pc.createOffer();
-            await VC.pc.setLocalDescription(offer);
             try {
                 await db.collection('calls').doc(code).set({
                     host: myName(), status: 'waiting',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    offer: JSON.stringify(VC.pc.localDescription)
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             } catch (e) {
-                teardown('Could not reach the video-call server — ' + friendly(e)); return;
+                setStatus('Could not reach the video-call server — ' + friendly(e)); return;
             }
-            showRoom(code, 'Waiting for someone to join…');
-            VC.unsubs.push(db.collection('calls').doc(code).onSnapshot(s => {
-                if (!s.exists) { if (!VC.ended) teardown('The call ended.'); return; }
-                const d = s.data() || {};
-                if (d.status === 'ended' && !VC.ended) { teardown('The other person hung up.'); return; }
-                if (d.answer && !VC.remoteSet) acceptAnswer(d.answer);
-            }));
-            VC.unsubs.push(db.collection('calls').doc(code).collection('guestCands')
-                .onSnapshot(s => s.docChanges().forEach(c => { if (c.type === 'added') addCand(c.doc.data()); })));
+            VC.isHost = true;
+            await joinCall(code);
         }
 
-        async function acceptAnswer(ans) {
-            try {
-                await VC.pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(ans)));
-                VC.remoteSet = true; flushCands();
-                setStatus('Connecting…');
-            } catch (e) {}
-        }
-
-        /* ===== JOIN A CALL ===== */
         async function joinFromInput() {
             if (!VC.ended) { toastBusy(); return; }
-            if (typeof RTCPeerConnection === 'undefined') { setStatus('This browser does not support video calls.'); return; }
             const code = ($('joinInput').value || '').trim().toUpperCase();
             if (code.length < 4) { setStatus('Enter the call code first.'); return; }
-            setStatus('Turning on your camera…');
+            await joinCall(code);
+        }
+
+        async function joinCall(code) {
+            if (!VC.ended) { toastBusy(); return; }
+            if (typeof RTCPeerConnection === 'undefined') { setStatus('This browser does not support video calls.'); return; }
+            /* the call must exist, be live and fresh */
             let snap;
             try { snap = await db.collection('calls').doc(code).get(); }
             catch (e) { setStatus('Could not reach the video-call server — ' + friendly(e)); return; }
-            if (!snap.exists) { setStatus('No call found with that code.'); return; }
-            const d = snap.data() || {};
-            if (!d.offer) { setStatus('That call has not started yet — try again in a second.'); return; }
-            if (d.status === 'ended') { setStatus('That call already ended.'); return; }
-            const age = (d.createdAt && d.createdAt.toMillis) ? Date.now() - d.createdAt.toMillis() : 0;
-            if (age > CALL_TTL) { setStatus('That call code is too old — ask for a new call.'); return; }
+            if (!snap.exists && !VC.isHost) { setStatus('No call found with that code.'); return; }
+            if (snap.exists) {
+                const d = snap.data() || {};
+                if (d.status === 'ended') { setStatus('That call already ended.'); return; }
+                const age = (d.createdAt && d.createdAt.toMillis) ? Date.now() - d.createdAt.toMillis() : 0;
+                if (age > CALL_TTL) { setStatus('That call code is too old — ask for a new call.'); return; }
+            }
+            /* camera */
+            setStatus('Turning on your camera…');
             let stream;
             try { stream = await getMedia(); }
             catch (e) { setStatus('Camera/mic unavailable — ' + e.message); return; }
+            /* enter the room */
+            VC.code = code; VC.myId = makeId(); VC.ended = false;
             VC.localStream = stream; VC.camTrack = stream.getVideoTracks()[0] || null;
-            VC.code = code; VC.role = 'guest'; VC.ended = false;
-            VC.pc = new RTCPeerConnection({ iceServers: iceServers() });
-            wirePc();
-            stream.getTracks().forEach(t => VC.pc.addTrack(t, stream));
-            await VC.pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(d.offer)));
-            VC.remoteSet = true; flushCands();
-            const answer = await VC.pc.createAnswer();
-            await VC.pc.setLocalDescription(answer);
-            try { await db.collection('calls').doc(code).update({ status: 'active', answer: JSON.stringify(VC.pc.localDescription) }); }
-            catch (e) { teardown('Could not reach the video-call server — ' + friendly(e)); return; }
-            showRoom(code, 'Connecting to ' + (d.host || 'the host') + '…');
-            VC.unsubs.push(db.collection('calls').doc(code).onSnapshot(s => {
+            $('localVideo').srcObject = stream;
+            $('localTag').textContent = myName() + ' (you)';
+            try {
+                await peersCol().doc(VC.myId).set({ name: myName(), joinedAt: Date.now(), lastSeen: Date.now() });
+            } catch (e) {
+                teardown('Could not reach the video-call server — ' + friendly(e)); return;
+            }
+            showRoom(code);
+            updateStatus();
+            /* listen: call doc (host ends the call for everyone) */
+            VC.unsubs.push(callDoc().onSnapshot(s => {
                 if (!s.exists) { if (!VC.ended) teardown('The call ended.'); return; }
-                const dd = s.data() || {};
-                if (dd.status === 'ended' && !VC.ended) teardown('The other person hung up.');
+                const d = s.data() || {};
+                if (d.status === 'ended' && !VC.ended) teardown('The call ended.');
             }));
-            VC.unsubs.push(db.collection('calls').doc(code).collection('hostCands')
-                .onSnapshot(s => s.docChanges().forEach(c => { if (c.type === 'added') addCand(c.doc.data()); })));
+            /* listen: everyone in the room */
+            VC.unsubs.push(peersCol().onSnapshot(s => {
+                s.docChanges().forEach(c => {
+                    if (c.type === 'added' || c.type === 'modified') addPeer(c.doc.id, c.doc.data());
+                    else if (c.type === 'removed') removePeer(c.doc.id);
+                });
+            }));
+            /* listen: signals addressed to me */
+            VC.unsubs.push(signalsCol().where('to', '==', VC.myId).onSnapshot(s => {
+                s.docChanges().forEach(c => {
+                    if (c.type !== 'added') return;
+                    const m = c.doc.data(); if (!m) return;
+                    try { handleSignal({ from: m.from, to: m.to, type: m.type, payload: m.payload ? JSON.parse(m.payload) : null }); } catch (e) {}
+                    c.doc.ref.delete().catch(() => {});
+                });
+            }));
+            /* heartbeat + stale-peer sweep */
+            VC.heartbeatTimer = setInterval(() => {
+                peersCol().doc(VC.myId).update({ lastSeen: Date.now() }).catch(() => {});
+            }, HEARTBEAT_MS);
+            VC.sweepTimer = setInterval(sweepStalePeers, HEARTBEAT_MS);
+            updateStatus();
         }
 
         /* ===== IN-CALL UI ===== */
-        function showRoom(code, statusText) {
+        function showRoom(code) {
             $('codeBar').classList.add('show');
             $('codeText').textContent = code;
             $('videoGrid').classList.add('show');
             $('controls').classList.add('show');
-            $('localVideo').srcObject = VC.localStream;
-            $('remoteOff').style.display = 'none';
-            setStatus(statusText || '');
+            $('localOff').style.display = 'none';
         }
 
         function toggleMic() {
@@ -338,50 +449,69 @@
             $('localOff').style.display = t.enabled ? 'none' : 'flex';
         }
         async function shareScreen() {
-            if (!VC.pc) return;
+            if (!VC.myId) return;
             if (VC.sharing) { stopShare(); return; }
             if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { setStatus('Screen sharing is not available here.'); return; }
             let s;
             try { s = await navigator.mediaDevices.getDisplayMedia({ video: true }); }
             catch (e) { return; }
             const track = s.getVideoTracks()[0];
-            const sender = VC.pc.getSenders().find(sn => sn.track && sn.track.kind === 'video');
+            const senders = [];
+            Object.keys(VC.pcs).forEach(id => {
+                const sn = VC.pcs[id].getSenders().find(x => x.track && x.track.kind === 'video');
+                if (sn) senders.push(sn); else VC.pcs[id].addTrack(track, s);
+            });
             try {
-                if (sender) await sender.replaceTrack(track); else VC.pc.addTrack(track, s);
+                await Promise.all(senders.map(sn => sn.replaceTrack(track)));
                 VC.sharing = true;
                 $('shareBtn').textContent = 'Stop sharing';
                 $('shareBtn').classList.add('on');
                 track.onended = stopShare;
-            } catch (e) { try { s.getTracks().forEach(t => t.stop()); } catch (e2) {} setStatus('Could not share the screen.'); }
+            } catch (e) {
+                try { s.getTracks().forEach(t => t.stop()); } catch (e2) {}
+                setStatus('Could not share the screen.');
+            }
         }
         async function stopShare() {
             VC.sharing = false;
             $('shareBtn').textContent = 'Share screen';
             $('shareBtn').classList.remove('on');
-            if (!VC.pc) return;
-            const sender = VC.pc.getSenders().find(sn => sn.track && sn.track.kind === 'video');
-            try { if (sender && VC.camTrack) await sender.replaceTrack(VC.camTrack); } catch (e) {}
+            if (!VC.camTrack) return;
+            const jobs = [];
+            Object.keys(VC.pcs).forEach(id => {
+                const sn = VC.pcs[id].getSenders().find(x => x.track && x.track.kind === 'video');
+                if (sn) jobs.push(sn.replaceTrack(VC.camTrack).catch(() => {}));
+            });
+            try { await Promise.all(jobs); } catch (e) {}
         }
 
-        /* ===== END / CLEANUP ===== */
-        function endCall() {
+        /* ===== LEAVE / CLEANUP =====
+           The host leaving ends the call for everyone; a guest leaving just
+           removes them from the room. */
+        function leaveCall() {
             if (VC.ended) return;
-            if (VC.code) {
-                if (VC.role === 'host') db.collection('calls').doc(VC.code).delete().catch(() => {});
-                else db.collection('calls').doc(VC.code).update({ status: 'ended' }).catch(() => {});
+            if (VC.isHost) {
+                callDoc().delete().catch(() => {});
+                teardown('You ended the call for everyone.');
+            } else {
+                peersCol().doc(VC.myId).delete().catch(() => {});
+                teardown('You left the call.');
             }
-            teardown();
         }
         function teardown(msg) {
-            VC.ended = true; VC.remoteSet = false; VC.sharing = false;
+            VC.ended = true; VC.sharing = false; VC.isHost = false;
             VC.unsubs.forEach(u => { try { u(); } catch (e) {} }); VC.unsubs = [];
-            if (VC.pc) { try { VC.pc.onicecandidate = null; VC.pc.ontrack = null; VC.pc.close(); } catch (e) {} VC.pc = null; }
+            if (VC.heartbeatTimer) { clearInterval(VC.heartbeatTimer); VC.heartbeatTimer = null; }
+            if (VC.sweepTimer) { clearInterval(VC.sweepTimer); VC.sweepTimer = null; }
+            Object.keys(VC.pcs).forEach(id => { try { VC.pcs[id].close(); } catch (e) {} });
+            VC.pcs = {}; VC.remoteSet = {}; VC.pendingCands = {}; VC.peers = {};
             if (VC.localStream) { VC.localStream.getTracks().forEach(t => t.stop()); VC.localStream = null; }
-            const rv = $('remoteVideo'); if (rv) rv.srcObject = null;
+            const lv = $('localVideo'); if (lv) lv.srcObject = null;
+            Array.from($('videoGrid').children).forEach(el => { if (el.id !== 'localTile') el.remove(); });
             $('codeBar').classList.remove('show');
             $('videoGrid').classList.remove('show');
             $('controls').classList.remove('show');
-            $('remoteTag').textContent = 'Waiting…';
+            $('localTag').textContent = 'You';
             $('micBtn').textContent = 'Mute'; $('camBtn').textContent = 'Camera off';
             $('micBtn').classList.remove('on'); $('camBtn').classList.remove('on'); $('shareBtn').classList.remove('on');
             $('shareBtn').textContent = 'Share screen';
@@ -389,7 +519,7 @@
             const ji = $('joinInput'); if (ji) ji.value = '';
             setStatus(msg || '');
         }
-        function toastBusy() { setStatus('You are already in a call — hang up first.'); }
+        function toastBusy() { setStatus('You are already in a call — leave it first.'); }
         function copyCode() {
             const code = $('codeText').textContent || '';
             const done = () => setStatus('Code copied — share it with whoever you are calling.');
@@ -411,9 +541,10 @@
             if (/unavailable|deadline|network/i.test(m)) return 'network/server problem, try again';
             return m;
         }
-        /* Leaving the page while in a call ends it for both sides */
-        window.addEventListener('beforeunload', () => { if (!VC.ended) endCall(); });
-        window.addEventListener('pagehide', () => { if (!VC.ended) endCall(); });
+        /* Leaving the page while in a call removes you (best effort; the heartbeat
+           timeout is the backstop if the page dies before this runs) */
+        window.addEventListener('beforeunload', () => { if (!VC.ended) leaveCall(); });
+        window.addEventListener('pagehide', () => { if (!VC.ended) leaveCall(); });
     </script>
 </body>
 </html>
