@@ -12585,8 +12585,13 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
         async function submitEarlyAccessCode() {
             const inp = $('earlyAccessCodeInput');
             const msg = $('earlyAccessVerifyMsg');
-            const code = (inp ? inp.value : '').trim().toUpperCase();
-            if (!code) { if (msg) msg.textContent = 'Enter the code the owner sent you.'; return; }
+            /* Accept the raw code OR a pasted link — keep only what follows the last '#',
+               then strip anything that isn't a letter/digit (pasting the whole
+               sp1derstaff.framer.photos/access-code#CODE URL used to fail as 'not valid'). */
+            let code = (inp ? inp.value : '').trim();
+            if (code.includes('#')) code = String(code.split('#').pop() || '');
+            code = code.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+            if (code.length < 4) { if (msg) msg.textContent = 'Enter the code the owner sent you (or paste the whole link).'; return; }
             /* tier check: only tier holders can use early access codes */
             const myTier = tierCurrent();
             if (myTier !== 'pro' && myTier !== 'ultra') {
@@ -12595,18 +12600,32 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             }
             if (msg) msg.textContent = 'Checking…';
             try {
-                /* look the code up in the system/earlyAccessCodes doc on DB2 (publicly writable) */
-                const snap = await dbOpTimeout(sp1derDb.collection('system').doc('earlyAccessCodes').get(), 6000);
-                const codes = (snap.exists && snap.data() && snap.data().codes) || {};
-                const entry = codes[code];
+                /* Look the code up on every message database, healthy ones first — the codes
+                   doc used to live on DB2 only, and when DB2 hit its daily quota every redeem
+                   failed ('not valid' / 'could not reach'). Codes now replicate across dbs. */
+                let entry = null, foundDb = null;
+                for (const d of eaCodeDbs()) {
+                    try {
+                        const snap = await dbOpTimeout(d.collection('system').doc('earlyAccessCodes').get(), 6000);
+                        const codes = (snap.exists && snap.data() && snap.data().codes) || {};
+                        if (codes[code]) { entry = codes[code]; foundDb = d; break; }
+                    } catch (e) { /* this database is busy — try the next */ }
+                }
                 if (!entry) { if (msg) msg.textContent = 'That code is not valid.'; return; }
                 if (entry.used === true) { if (msg) msg.textContent = 'That code has already been used — each code only works once.'; return; }
-                /* mark the code used and the account verified (transaction-style: write both) */
-                await dbOpTimeout(sp1derDb.collection('system').doc('earlyAccessCodes').set({
+                /* mark the code used everywhere it lives (the found database first, awaited) */
+                const usedPatch = {
                     ['codes.' + code + '.used']: true,
                     ['codes.' + code + '.usedAt']: Date.now(),
                     ['codes.' + code + '.usedBy']: currentUser.uid
-                }, { merge: true }), 6000);
+                };
+                await dbOpTimeout(foundDb.collection('system').doc('earlyAccessCodes').set(usedPatch, { merge: true }), 6000);
+                /* replicate the used-mark to every other database so a stale copy can't be
+                   redeemed a second time by someone else */
+                for (const d of eaCodeDbs()) {
+                    if (d === foundDb) continue;
+                    try { d.collection('system').doc('earlyAccessCodes').set(usedPatch, { merge: true }).catch(() => {}); } catch (e) {}
+                }
                 /* Mark the account verified: local first (instant), then the main db and the
                    account mirror FIRE-AND-FORGET. The main database is often over its daily
                    quota with writes queued until the reset — awaiting it used to fail the
@@ -12622,16 +12641,34 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 if (msg) msg.textContent = 'Could not reach the server — try again in a moment.';
             }
         }
+        /* Every message database, healthy ones first — the early access codes doc is replicated
+           across all of them so a code is always findable even when one database hits its
+           daily quota (DB2 was the only home for codes before, and its quota lockout made
+           every redeem fail with 'not valid' / 'could not reach'). */
+        function eaCodeDbs() {
+            const out = [];
+            for (let i = 0; i < msgDbs.length; i++) if (!exhaustedDbs.has(i) && !readExhaustedDbs.has(i)) out.push(msgDbs[i]);
+            for (let i = 0; i < msgDbs.length; i++) if (!out.includes(msgDbs[i])) out.push(msgDbs[i]);
+            return out;
+        }
         /* Owner-only: /earlyaccess generates a fresh one-time code and shows it on a nice page. */
         async function generateEarlyAccessCode() {
             const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
             let code = '';
             for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-            try {
-                await dbOpTimeout(sp1derDb.collection('system').doc('earlyAccessCodes').set({
-                    ['codes.' + code]: { code: code, used: false, createdAt: Date.now(), createdBy: (userProfile && userProfile.username) || 'owner' }
-                }, { merge: true }), 6000);
-            } catch (e) { toast('Could not save the code (' + ((e && (e.code || e.message)) || 'error') + ').'); return; }
+            const patch = { ['codes.' + code]: { code: code, used: false, createdAt: Date.now(), createdBy: (userProfile && userProfile.username) || 'owner' } };
+            /* save to the first database that accepts the write… */
+            let saved = false, lastErr = null;
+            for (const d of eaCodeDbs()) {
+                try {
+                    await dbOpTimeout(d.collection('system').doc('earlyAccessCodes').set(patch, { merge: true }), 6000);
+                    saved = true; break;
+                } catch (e) { lastErr = e; }
+            }
+            if (!saved) { toast('Could not save the code (' + ((lastErr && (lastErr.code || lastErr.message)) || 'error') + ').'); return; }
+            /* …then replicate to the rest, fire-and-forget, so the code survives any single
+               database hitting its quota later */
+            for (const d of eaCodeDbs()) { try { d.collection('system').doc('earlyAccessCodes').set(patch, { merge: true }).catch(() => {}); } catch (e) {} }
             const codeEl = $('earlyAccessCodeValue');
             if (codeEl) codeEl.textContent = code;
             const urlEl = $('earlyAccessCodeUrl');
