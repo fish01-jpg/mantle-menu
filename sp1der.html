@@ -12422,7 +12422,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 return { name: (m[0] || '').trim(), code: (m.slice(1).join('=') || '').trim() };
             }).filter(c => c.code);
             try {
-                db.collection('system').doc('minecraft').set({ codes: parsed, updatedBy: adminMyName(), updatedAt: Date.now() });
+                sp1derDb.collection('system').doc('minecraft').set({ codes: parsed, updatedBy: adminMyName(), updatedAt: Date.now() });
                 toast('Minecraft codes saved');
             } catch (e) { toast('Failed: ' + (e.message || e)); }
         }
@@ -12494,7 +12494,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
         function initMinecraftPage() {
             if (mcPageUnsub) { try { mcPageUnsub(); } catch (e) {} mcPageUnsub = null; }
             try {
-                mcPageUnsub = db.collection('system').doc('minecraft').onSnapshot(doc => {
+                mcPageUnsub = sp1derDb.collection('system').doc('minecraft').onSnapshot(doc => {
                     try { if (mcPageUnsub) mcPageUnsub._lastDoc = doc.exists ? doc.data() : null; } catch (e) {}
                     mcRender();
                 }, () => { /* rules may block guests - stay quiet */ });
@@ -12503,9 +12503,11 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 
         /* ===== EARLY ACCESS VERIFICATION (tier-gated, one-time code) =====
            Owners generate a one-time code with /earlyaccess in chat; the code lives
-           in system/earlyAccessCodes (one doc per code: { code, used, createdAt, createdBy }).
-           Tier holders (Pro/Ultra) enter the code once and their account is marked
-           earlyAccessVerified — they never have to verify again. */
+           in sp1derDb (database-2, publicly read/writable) at system/earlyAccessCodes
+           — a single doc holding a codes map: { CODE: { code, used, createdAt, createdBy } }.
+           DB2 is the same database staff/events data uses, so the main db's
+           restrictive rules can't block it. Tier holders (Pro/Ultra) enter the code
+           once and their account is marked earlyAccessVerified — never again. */
         const EARLY_ACCESS_LOCAL_KEY = 'sp1derEarlyAccessLocal';
         function isLocallyEarlyAccess() {
             try { const v = JSON.parse(localStorage.getItem(EARLY_ACCESS_LOCAL_KEY) || ''); return !!(v && v.uid && currentUser && v.uid === currentUser.uid); } catch (e) { return false; }
@@ -12543,13 +12545,18 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             }
             if (msg) msg.textContent = 'Checking…';
             try {
-                /* look the code up in system/earlyAccessCodes */
-                const snap = await dbOpTimeout(db.collection('system').doc('earlyAccessCodes').collection('codes').doc(code).get(), 6000);
-                if (!snap.exists) { if (msg) msg.textContent = 'That code is not valid.'; return; }
-                const data = snap.data() || {};
-                if (data.used === true) { if (msg) msg.textContent = 'That code has already been used — each code only works once.'; return; }
+                /* look the code up in the system/earlyAccessCodes doc on DB2 (publicly writable) */
+                const snap = await dbOpTimeout(sp1derDb.collection('system').doc('earlyAccessCodes').get(), 6000);
+                const codes = (snap.exists && snap.data() && snap.data().codes) || {};
+                const entry = codes[code];
+                if (!entry) { if (msg) msg.textContent = 'That code is not valid.'; return; }
+                if (entry.used === true) { if (msg) msg.textContent = 'That code has already been used — each code only works once.'; return; }
                 /* mark the code used and the account verified (transaction-style: write both) */
-                await dbOpTimeout(db.collection('system').doc('earlyAccessCodes').collection('codes').doc(code).set({ used: true, usedAt: Date.now(), usedBy: currentUser.uid }, { merge: true }), 6000);
+                await dbOpTimeout(sp1derDb.collection('system').doc('earlyAccessCodes').set({
+                    ['codes.' + code + '.used']: true,
+                    ['codes.' + code + '.usedAt']: Date.now(),
+                    ['codes.' + code + '.usedBy']: currentUser.uid
+                }, { merge: true }), 6000);
                 await dbOpTimeout(db.collection('users').doc(currentUser.uid).set({ earlyAccessVerified: true, earlyAccessVerifiedAt: Date.now() }, { merge: true }), 6000);
                 try { localStorage.setItem(EARLY_ACCESS_LOCAL_KEY, JSON.stringify({ uid: currentUser.uid, at: Date.now() })); } catch (e) {}
                 closeEarlyAccessVerify();
@@ -12565,10 +12572,10 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             let code = '';
             for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
             try {
-                await dbOpTimeout(db.collection('system').doc('earlyAccessCodes').collection('codes').doc(code).set({
-                    code: code, used: false, createdAt: Date.now(), createdBy: (userProfile && userProfile.username) || 'owner'
+                await dbOpTimeout(sp1derDb.collection('system').doc('earlyAccessCodes').set({
+                    ['codes.' + code]: { code: code, used: false, createdAt: Date.now(), createdBy: (userProfile && userProfile.username) || 'owner' }
                 }, { merge: true }), 6000);
-            } catch (e) { toast('Could not save the code — check the database.'); return; }
+            } catch (e) { toast('Could not save the code (' + ((e && (e.code || e.message)) || 'error') + ').'); return; }
             const codeEl = $('earlyAccessCodeValue');
             if (codeEl) codeEl.textContent = code;
             const urlEl = $('earlyAccessCodeUrl');
