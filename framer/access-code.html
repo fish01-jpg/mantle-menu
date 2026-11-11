@@ -108,8 +108,16 @@
     font-size: 0.9rem;
     line-height: 1.6;
     max-width: 380px;
+    margin: 0 auto 12px;
   }
   .missing b { color: #fafafa; }
+  .received {
+    color: #7a7a7d;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    word-break: break-all;
+    font-family: 'Consolas', 'Courier New', monospace;
+  }
 </style>
 </head>
 <body>
@@ -134,14 +142,43 @@
         This link doesn't carry a code. Ask the owner for a fresh early access link —
         the URL should look like <b>…/access-code#YOURCODE</b>.
       </p>
+      <p class="received" id="receivedUrl"></p>
     </div>
   </div>
 
 <script>
 (function () {
   'use strict';
-  var m = (location.hash || '').match(/#([A-Za-z0-9]{4,})/);
-  var code = m ? m[1].toUpperCase() : '';
+  var CODE_RE = /#([A-Za-z0-9]{4,})/;
+
+  function fromHash(search) { var m = String(search || '').match(CODE_RE); return m ? m[1].toUpperCase() : ''; }
+
+  function fromQuery(qs) {
+    try {
+      var q = new URLSearchParams(String(qs || ''));
+      var v = q.get('code') || q.get('CODE') || '';
+      v = String(v).replace(/[^A-Za-z0-9]/g, '');
+      return v.length >= 4 ? v.toUpperCase() : '';
+    } catch (e) { return ''; }
+  }
+
+  function fromPath(p) {
+    var m = String(p || '').match(/access-code\/([A-Za-z0-9]{4,})\/?$/);
+    return m ? m[1].toUpperCase() : '';
+  }
+
+  var code = ''
+    || fromHash(location.hash)            /* …/access-code#CODE   (normal link) */
+    || fromQuery(location.search)         /* …/access-code?code=CODE */
+    || fromPath(location.pathname)        /* …/access-code/CODE */
+    || fromHash(decodeURIComponent(location.href || ''));
+
+  /* If this page is embedded in a frame (e.g. a Framer code frame), the code sits on the
+     PARENT page's URL — try to read it from there too (cross-origin throws, which is caught). */
+  if (!code && window.self !== window.top) {
+    try { code = fromHash(parent.location.hash) || fromQuery(parent.location.search); } catch (e) {}
+  }
+
   var has = document.getElementById('hasCode');
   var no = document.getElementById('noCode');
   var el = document.getElementById('theCode');
@@ -152,6 +189,12 @@
   } else {
     if (has) has.style.display = 'none';
     if (no) no.style.display = 'block';
+    var rec = document.getElementById('receivedUrl');
+    if (rec) {
+      var shown = '';
+      try { shown = location.href || '(no URL)'; } catch (e) { shown = '(no URL)'; }
+      rec.textContent = 'This page received: ' + shown;
+    }
   }
 })();
 </script>

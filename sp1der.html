@@ -10865,6 +10865,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             tierRosterRenderTimer = setTimeout(() => {
                 tierRosterRenderTimer = null;
                 try { if (selectedChannelId && lastFeedMsgs && lastFeedMsgs.length) renderFeed(lastFeedMsgs, selectedChannelId); } catch (e) {}
+                try { refreshEarlyAccessPanel(); } catch (e) {} /* tier note + verify button follow the roster live */
+                try { updateChatPriorityBtn(); } catch (e) {}
             }, 300);
         }
         function initTierRosterLive() {
@@ -11102,10 +11104,15 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
         /* ===== v4.7.1/4.7.2: instant local tier quota (never waits on a quota-exhausted database) ===== */
         function tierCurrent() {
+            /* v4.6.7: the DB2 roster is checked FIRST — it's the authoritative, live-synced copy.
+               The users doc's tier field is written fire-and-forget to the main database, which can
+               sit over its daily quota with the write queued until reset — so a stale 'free' in the
+               profile must never mask a paid tier (it used to, which broke the early access gate,
+               the profile Tier row and the Chat Priority button for paid users). */
             const rosterTier = (currentUser && tierRosterGet(currentUser.uid)) || null;
             const local = (() => { try { const v = localStorage.getItem('sp1der_my_tier'); return (v === 'pro' || v === 'ultra') ? v : null; } catch (e) { return null; } })();
-            if (userProfile && SERVER_TIERS[userProfile.tier]) return userProfile.tier;
             if (rosterTier) return rosterTier;
+            if (userProfile && (userProfile.tier === 'pro' || userProfile.tier === 'ultra')) return userProfile.tier; /* profile only trusted for PAID tiers — a stale 'free' there isn't authoritative */
             if (local) return local;
             return (tierRemote.uid === (currentUser && currentUser.uid) && SERVER_TIERS[tierRemote.tier]) ? tierRemote.tier : 'free';
         }
@@ -12620,7 +12627,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             const codeEl = $('earlyAccessCodeValue');
             if (codeEl) codeEl.textContent = code;
             const urlEl = $('earlyAccessCodeUrl');
-            if (urlEl) urlEl.textContent = 'https://sp1der.framer.photos/access-code#' + code;
+            if (urlEl) urlEl.textContent = 'https://sp1derstaff.framer.photos/access-code#' + code;
             const m = $('earlyAccessCodeModal');
             if (m) m.classList.add('active');
         }
