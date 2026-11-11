@@ -12636,18 +12636,29 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 for (const d of eaCodeDbs()) {
                     try {
                         const snap = await dbOpTimeout(d.collection('system').doc('earlyAccessCodes').get(), 6000);
-                        const codes = (snap.exists && snap.data() && snap.data().codes) || {};
+                        const data = (snap.exists && snap.data()) || {};
+                        /* Build the codes map from BOTH shapes: Firestore's set() stored the
+                           dotted write as a LITERAL field named 'codes.XXXXXXXX' (not a nested
+                           map), which is why valid codes used to read as 'not valid'. The
+                           nested map wins; literal fields are folded in as a fallback so
+                           codes created before the fix still work. */
+                        const codes = Object.assign({}, data.codes || {});
+                        Object.keys(data).forEach(k => {
+                            if (k.indexOf('codes.') === 0 && k.length > 6 && data[k] && typeof data[k] === 'object') {
+                                const c = k.slice(6);
+                                if (!codes[c]) codes[c] = data[k];
+                            }
+                        });
                         if (codes[code]) { entry = codes[code]; foundDb = d; break; }
                     } catch (e) { /* this database is busy — try the next */ }
                 }
                 if (!entry) { if (msg) msg.textContent = 'That code is not valid.'; return; }
                 if (entry.used === true) { if (msg) msg.textContent = 'That code has already been used — each code only works once.'; return; }
-                /* mark the code used everywhere it lives (the found database first, awaited) */
-                const usedPatch = {
-                    ['codes.' + code + '.used']: true,
-                    ['codes.' + code + '.usedAt']: Date.now(),
-                    ['codes.' + code + '.usedBy']: currentUser.uid
-                };
+                /* mark the code used everywhere it lives (the found database first, awaited).
+                   Written as a proper NESTED object — set() with dotted keys creates literal
+                   'codes.X' field names, which the lookup can't see. */
+                const usedPatch = { codes: {} };
+                usedPatch.codes[code] = { used: true, usedAt: Date.now(), usedBy: currentUser.uid };
                 await dbOpTimeout(foundDb.collection('system').doc('earlyAccessCodes').set(usedPatch, { merge: true }), 6000);
                 /* replicate the used-mark to every other database so a stale copy can't be
                    redeemed a second time by someone else */
@@ -12685,7 +12696,11 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
             let code = '';
             for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-            const patch = { ['codes.' + code]: { code: code, used: false, createdAt: Date.now(), createdBy: (userProfile && userProfile.username) || 'owner' } };
+            /* Written as a proper NESTED object — Firestore's set() turns dotted keys into
+               literal 'codes.X' field names, which is why valid codes used to read as
+               'not valid'. A nested { codes: { CODE: ... } } deep-merges correctly. */
+            const patch = { codes: {} };
+            patch.codes[code] = { code: code, used: false, createdAt: Date.now(), createdBy: (userProfile && userProfile.username) || 'owner' };
             /* save to the first database that accepts the write… */
             let saved = false, lastErr = null;
             for (const d of eaCodeDbs()) {
