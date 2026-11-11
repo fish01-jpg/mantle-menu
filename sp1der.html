@@ -10922,7 +10922,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             mirrorDb: function () { for (let i = 0; i < msgDbs.length; i++) { if (!exhaustedDbs.has(i) && !readExhaustedDbs.has(i)) return msgDbs[i]; } return msgDbs[0]; },
             clean: function (data) {
                 const out = {};
-                ['username', 'displayName', 'accountUsername', 'email', 'role', 'originalRole', 'ownerOverride', 'tier', 'banned', 'banReason', 'bannedBy', 'bannedAt', 'muted', 'mutedUntil', 'muteReason', 'mutedBy', 'roleGrantedBy', 'roleGrantedAt', 'appRoleLocked', 'appRoleLockBy', 'cosmeticTitle'].forEach(k => { if (data && data[k] !== undefined) out[k] = data[k]; });
+                ['username', 'displayName', 'accountUsername', 'email', 'role', 'originalRole', 'ownerOverride', 'tier', 'banned', 'banReason', 'bannedBy', 'bannedAt', 'muted', 'mutedUntil', 'muteReason', 'mutedBy', 'roleGrantedBy', 'roleGrantedAt', 'appRoleLocked', 'appRoleLockBy', 'cosmeticTitle', 'sp1derVerified', 'earlyAccessVerified'].forEach(k => { if (data && data[k] !== undefined) out[k] = data[k]; });
                 if (out.username) out.unameLower = String(out.username).toLowerCase();
                 if (out.displayName) out.dnameLower = String(out.displayName).toLowerCase();
                 if (out.email) out.emailLower = String(out.email).toLowerCase();
@@ -12564,8 +12564,10 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             if (isLocallyEarlyAccess()) return true;
             try {
                 const snap = await dbOpTimeout(db.collection('users').doc(currentUser.uid).get(), 4000);
-                return !!(snap.exists && snap.data().earlyAccessVerified === true);
+                if (snap.exists && snap.data().earlyAccessVerified === true) return true;
             } catch (e) {}
+            /* main database over quota (or the field hasn't flushed yet) — check the account mirror */
+            try { const mirrored = await ACCT_MIRROR.get(currentUser.uid); if (mirrored && mirrored.earlyAccessVerified === true) return true; } catch (e) {}
             return false;
         }
         function openEarlyAccessVerify() {
@@ -12605,8 +12607,14 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                     ['codes.' + code + '.usedAt']: Date.now(),
                     ['codes.' + code + '.usedBy']: currentUser.uid
                 }, { merge: true }), 6000);
-                await dbOpTimeout(db.collection('users').doc(currentUser.uid).set({ earlyAccessVerified: true, earlyAccessVerifiedAt: Date.now() }, { merge: true }), 6000);
+                /* Mark the account verified: local first (instant), then the main db and the
+                   account mirror FIRE-AND-FORGET. The main database is often over its daily
+                   quota with writes queued until the reset — awaiting it used to fail the
+                   whole redeem with 'Could not reach the server'. The mirror write lands on
+                   a healthy message server right away, so other devices and profiles see it. */
                 try { localStorage.setItem(EARLY_ACCESS_LOCAL_KEY, JSON.stringify({ uid: currentUser.uid, at: Date.now() })); } catch (e) {}
+                try { db.collection('users').doc(currentUser.uid).set({ earlyAccessVerified: true, earlyAccessVerifiedAt: Date.now() }, { merge: true }).catch(() => {}); } catch (e) {}
+                try { ACCT_MIRROR.save(currentUser.uid, { earlyAccessVerified: true }); } catch (e) {}
                 closeEarlyAccessVerify();
                 refreshEarlyAccessPanel();
                 toast('Early access verified — welcome in.');
