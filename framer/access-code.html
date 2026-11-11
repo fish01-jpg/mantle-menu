@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Sp1der — Early Access</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; }
+  body {
+    background: #0d0221;
+    color: #fafafa;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  .card {
+    background: linear-gradient(145deg, #140631, #1a0a3a);
+    border: 1px solid rgba(125, 87, 239, 0.45);
+    border-radius: 20px;
+    padding: 44px 36px;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 60px rgba(125, 87, 239, 0.18);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: #c9b8ff;
+    background: rgba(125, 87, 239, 0.16);
+    border: 1px solid rgba(125, 87, 239, 0.4);
+    border-radius: 999px;
+    padding: 6px 16px;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 6px;
+    letter-spacing: 0.3px;
+  }
+  .sub {
+    color: #b0b0b3;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    margin: 0 0 26px;
+  }
+  .code-box {
+    background: rgba(10, 6, 24, 0.9);
+    border: 1px solid rgba(245, 184, 61, 0.5);
+    border-radius: 14px;
+    padding: 24px 18px;
+    margin-bottom: 20px;
+  }
+  .code-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #9a9a9d;
+    margin-bottom: 10px;
+  }
+  .code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: 5px;
+    color: #f5b83d;
+    text-shadow: 0 0 22px rgba(245, 184, 61, 0.35);
+    margin: 0 0 12px;
+    word-break: break-all;
+  }
+  .warn {
+    color: #f5b83d;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .next {
+    color: #b0b0b3;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    margin: 0 0 18px;
+  }
+  .btn {
+    display: inline-block;
+    background: linear-gradient(90deg, #7d57ef, #9b6dff);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.88rem;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 26px;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 8px 26px rgba(125, 87, 239, 0.35);
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .missing {
+    color: #b0b0b3;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    max-width: 380px;
+  }
+  .missing b { color: #fafafa; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">✦ Early Access</div>
+
+    <div id="hasCode" style="display:none;">
+      <h1>Here is your access code</h1>
+      <p class="sub">This is your one-time early access code for Project Sp1der.</p>
+      <div class="code-box">
+        <div class="code-label">YOUR CODE</div>
+        <div class="code" id="theCode">—</div>
+        <div class="warn">⚠️ It can only be used once. Do not share.</div>
+      </div>
+      <p class="next">Open Project Sp1der, go to <b>Early Access</b> in the sidebar, and enter this code. You only have to do it once.</p>
+      <a class="btn" href="https://fish01-jpg.github.io/mantle-menu/sp1der.html">Open Project Sp1der</a>
+    </div>
+
+    <div id="noCode" style="display:none;">
+      <h1>Early Access</h1>
+      <p class="missing">
+        This link doesn't carry a code. Ask the owner for a fresh early access link —
+        the URL should look like <b>…/access-code#YOURCODE</b>.
+      </p>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+  var m = (location.hash || '').match(/#([A-Za-z0-9]{4,})/);
+  var code = m ? m[1].toUpperCase() : '';
+  var has = document.getElementById('hasCode');
+  var no = document.getElementById('noCode');
+  var el = document.getElementById('theCode');
+  if (code && el) {
+    el.textContent = code;
+    if (has) has.style.display = 'block';
+    if (no) no.style.display = 'none';
+  } else {
+    if (has) has.style.display = 'none';
+    if (no) no.style.display = 'block';
+  }
+})();
+</script>
+</body>
+</html>

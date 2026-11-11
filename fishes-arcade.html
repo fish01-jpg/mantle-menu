@@ -917,6 +917,83 @@
   <a class="skip-link" href="#applications">Skip to games</a>
   <div id="grid-pulse" aria-hidden="true"><canvas></canvas></div>
 
+  <!-- 30-minute arcade session timer (top right, hideable, relaunches when it hits zero) -->
+  <div id="arcadeTimer" style="position:fixed;top:14px;right:14px;z-index:2147483000;background:rgba(17,17,18,0.96);border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:8px 14px;display:flex;align-items:center;gap:10px;font-family:'Geist',-apple-system,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,0.4);">
+    <span style="font-size:0.78rem;color:#b0b0b3;user-select:none;">⏱</span>
+    <span id="arcadeTimerText" style="font-size:0.82rem;font-weight:700;color:#fafafa;font-variant-numeric:tabular-nums;min-width:44px;text-align:center;">30:00</span>
+    <button id="arcadeTimerHide" style="background:none;border:none;color:#6e6e71;font-size:0.9rem;cursor:pointer;padding:0 2px;line-height:1;" title="Hide the timer">✕</button>
+  </div>
+  <div id="arcadeTimerPill" style="position:fixed;top:14px;right:14px;z-index:2147483000;background:rgba(17,17,18,0.96);border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:7px 13px;font-size:0.74rem;color:#b0b0b3;cursor:pointer;display:none;font-family:'Geist',-apple-system,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,0.35);" title="Show the session timer">⏱ <span id="arcadeTimerPillText">30:00</span></div>
+  <div id="arcadeTimerRelaunch" style="position:fixed;inset:0;z-index:2147483001;background:rgba(10,10,11,0.97);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:'Geist',-apple-system,sans-serif;">
+    <div style="width:30px;height:30px;border-radius:50%;border:3px solid rgba(255,255,255,0.1);border-top-color:#f5b83d;animation:arcadeTimerSpin 0.8s linear infinite;"></div>
+    <p style="color:#fafafa;font-size:1rem;font-weight:600;margin:0;">Relaunching…</p>
+    <p style="color:#9a9a9d;font-size:0.82rem;margin:0;">Your 30 minutes are up — the arcade is restarting.</p>
+  </div>
+  <style>@keyframes arcadeTimerSpin{to{transform:rotate(360deg)}}</style>
+  <script>
+    /* ===== 30-MINUTE SESSION TIMER =====
+       Counts down 30 minutes, is hideable (a pill brings it back), and when it
+       reaches zero the arcade relaunches itself so a fresh timer starts. */
+    (function () {
+      'use strict';
+      var DURATION = 30 * 60 * 1000; /* 30 minutes */
+      var KEY = 'fishesArcadeTimerStart';
+      var start = 0;
+      try {
+        var v = JSON.parse(localStorage.getItem(KEY) || '');
+        if (v && typeof v.at === 'number' && Date.now() - v.at < DURATION) start = v.at;
+        else { start = Date.now(); try { localStorage.setItem(KEY, JSON.stringify({ at: start })); } catch (e) {} }
+      } catch (e) { start = Date.now(); }
+
+      var tEl = document.getElementById('arcadeTimer');
+      var tText = document.getElementById('arcadeTimerText');
+      var tHide = document.getElementById('arcadeTimerHide');
+      var tPill = document.getElementById('arcadeTimerPill');
+      var tPillText = document.getElementById('arcadeTimerPillText');
+      var tRelaunch = document.getElementById('arcadeTimerRelaunch');
+
+      function setDisplay(visible) {
+        if (!tEl || !tPill) return;
+        tEl.style.display = visible ? 'flex' : 'none';
+        tPill.style.display = visible ? 'none' : 'block';
+      }
+      function hidden() { try { return localStorage.getItem('fishesArcadeTimerHidden') === '1'; } catch (e) { return false; } }
+      function setHidden(h) { try { localStorage.setItem('fishesArcadeTimerHidden', h ? '1' : '0'); } catch (e) {} }
+      if (tHide) tHide.onclick = function () { setHidden(true); setDisplay(false); };
+      if (tPill) tPill.onclick = function () { setHidden(false); setDisplay(true); };
+      setDisplay(!hidden());
+
+      function fmt(ms) {
+        var s = Math.max(0, Math.ceil(ms / 1000));
+        return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      }
+
+      var ticked = false;
+      function tick() {
+        var left = start + DURATION - Date.now();
+        if (left <= 0) {
+          if (!ticked) {
+            ticked = true;
+            if (tText) tText.textContent = '0:00';
+            if (tPillText) tPillText.textContent = '0:00';
+            try { localStorage.removeItem(KEY); } catch (e) {}
+            if (tRelaunch) tRelaunch.style.display = 'flex';
+            setTimeout(function () { try { window.top.location.reload(); } catch (e) { window.location.reload(); } }, 1600);
+          }
+          return;
+        }
+        var txt = fmt(left);
+        if (tText) tText.textContent = txt;
+        if (tPillText) tPillText.textContent = txt;
+        /* turn amber in the last 5 minutes so it's noticeable */
+        var warn = left < 5 * 60 * 1000;
+        if (tText) { tText.style.color = warn ? '#f5b83d' : '#fafafa'; }
+        requestAnimationFrame(function () { setTimeout(tick, 250); });
+      }
+      tick();
+    })();
+  </script>
+
   <script>
     window.__mantleBooted = false;
     setTimeout(function () {

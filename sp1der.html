@@ -835,29 +835,6 @@
         }
         .topbar-btn.notif-glow { animation: sp1derNotifGlow 1.4s ease-in-out infinite; }
         .notif-item.is-announcement { border-left: 3px solid var(--primary); padding-left: 8px; }
-        /* v4.6.6: Minecraft world join-code widget (bottom-left, hideable). */
-        #sp1derMcWidget {
-            position: fixed; left: 14px; bottom: 14px; z-index: 9000;
-            background: rgba(10, 6, 24, 0.94); border: 1px solid var(--border); border-radius: var(--radius);
-            padding: 12px 14px; max-width: 260px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-            font-size: 0.78rem; color: var(--text);
-        }
-        #sp1derMcWidget .mc-head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.4px; margin-bottom: 8px; }
-        #sp1derMcWidget .mc-code-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
-        #sp1derMcWidget .mc-code-row .mc-code { font-family: monospace; font-weight: 700; letter-spacing: 0.5px; color: var(--success); overflow-wrap: anywhere; }
-        #sp1derMcWidget .mc-world { color: var(--text-dim); }
-        #sp1derMcWidget .mc-btn {
-            background: var(--bg-2); border: 1px solid var(--border); color: var(--text-dim);
-            border-radius: 5px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer; flex-shrink: 0;
-        }
-        #sp1derMcWidget .mc-btn:hover { color: var(--text); border-color: var(--primary); }
-        #sp1derMcWidget .mc-updated { font-size: 0.62rem; color: var(--text-faint); margin-top: 8px; }
-        #sp1derMcPill {
-            position: fixed; left: 14px; bottom: 14px; z-index: 9000;
-            background: rgba(10, 6, 24, 0.94); border: 1px solid var(--border); border-radius: 999px;
-            padding: 6px 12px; font-size: 0.72rem; color: var(--text-dim); cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-        }
-        #sp1derMcPill:hover { color: var(--text); border-color: var(--primary); }
 
         /* MODALS */
         .modal-overlay {
@@ -2520,6 +2497,9 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 </path></svg> Events
                     <span class="nav-badge" id="eventsNavBadge" style="display:none">1</span>
                 </button>
+                <button class="nav-item" data-view="earlyaccess" onclick="showView('earlyaccess');refreshEarlyAccessPanel()">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg> Early Access
+                </button>
 <button class="nav-item"
         data-view="arcadereports"
         onclick="showView('arcadereports')">
@@ -2573,6 +2553,14 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
                 <button class="topbar-btn" id="notifBellBtn" onclick="Sp1derIndicators.toggleBell()" title="Notifications" aria-label="Notifications" aria-haspopup="true">
                     <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 7.36 6 9.92 6 13v5l-2 2v1h16v-1l-2-2z"></path></svg>
                     <span class="notif-count" id="notifBellCount"></span>
+                </button>
+                <button class="topbar-btn" id="minecraftBtn" onclick="openMinecraftPage()" title="Minecraft servers and join codes" aria-label="Minecraft">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M4 4h4v4H8V6H6v6h2v2H6v6H4v-6H2v-2h2V6zm16 0h-4v2h2v6h-2v2h2v6h4v-6h-2v-2h2V6h-2V4zM10 10h4v4h-4z"></path></svg>
+                    <span id="minecraftBtnText">Minecraft</span>
+                </button>
+                <button class="topbar-btn" id="chatPriorityBtn" onclick="chatPriorityToggle()" title="Enable Chat Priority (Pro/Ultra)" aria-label="Chat Priority" style="display:none;">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"></path></svg>
+                    <span id="chatPriorityBtnText">Chat Priority</span>
                 </button>
                 <button class="topbar-btn" id="aboutBlankBtn" onclick="openInAboutBlank()" title="Open this page in an about:blank tab" aria-label="Open in about:blank">
                     <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"></path></svg>
@@ -2649,6 +2637,49 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
                                 </div>
                                 <div class="home-card-title">Updates</div>
                                 <div class="home-card-desc">View the latest changelog and patch notes.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EARLY ACCESS PANEL (tier-gated: needs a one-time code) -->
+                <div class="panel" id="panel-earlyaccess">
+                    <div class="panel-scroll">
+                        <div class="home-hero">
+                            <h1>Early Access 🔮</h1>
+                            <p>Features before everyone else gets them. Requires early access verification.</p>
+                        </div>
+                        <div id="earlyAccessContent" style="padding:0 24px 24px;">
+                            <div id="earlyAccessLocked" style="text-align:center;padding:40px 20px;">
+                                <div style="font-size:3rem;margin-bottom:12px;">🔒</div>
+                                <h3 style="margin:0 0 10px;">Early access is locked</h3>
+                                <p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 6px;line-height:1.6;">You need a one-time access code from the owner to unlock this page.</p>
+                                <p style="color:var(--text-dim);font-size:0.8rem;margin:0 0 18px;">If you have a Pro or Ultra tier, you can verify your early access below.</p>
+                                <div id="earlyAccessTierNote" style="display:none;background:rgba(245,184,61,0.1);border:1px solid rgba(245,184,61,0.35);border-radius:8px;padding:12px 16px;margin:0 auto 18px;max-width:420px;font-size:0.82rem;color:var(--text-dim);line-height:1.55;">
+                                    <b style="color:var(--text);">You have a tier</b> — you're eligible for early access verification.
+                                </div>
+                                <button class="composer-btn primary" onclick="openEarlyAccessVerify()">Verify early access</button>
+                            </div>
+                            <div id="earlyAccessUnlocked" style="display:none;">
+                                <div style="background:rgba(6,63,42,0.15);border:1px solid #1c7a52;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:10px;align-items:center;">
+                                    <span style="font-size:1.2rem;">✅</span>
+                                    <span style="font-size:0.88rem;color:var(--text);">Early access verified — you never have to do this again.</span>
+                                </div>
+                                <h3 style="margin:0 0 12px;">What's in early access right now</h3>
+                                <div style="display:flex;flex-direction:column;gap:10px;">
+                                    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;">
+                                        <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">🔮 Chat Priority</div>
+                                        <div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;">Pro and Ultra tiers can enable a no-lag chat mode that pins your chat to Server 5 and makes every message send and render faster.</div>
+                                    </div>
+                                    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;">
+                                        <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">⛏ Offline Minecraft worlds</div>
+                                        <div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;">Ultra-tier players can play the Minecraft worlds offline. Open the Minecraft page in the top bar and press Offline Worlds.</div>
+                                    </div>
+                                    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;">
+                                        <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">🧩 Verification methods</div>
+                                        <div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;">/verify now lets you pick between reCAPTCHA, the 15-CAPTCHA gauntlet, or a ~5-minute reading quiz.</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3425,6 +3456,10 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
     <div class="modal-overlay" id="arcadeGateModal">
       <div class="modal-card" style="max-width:500px;">
         <h2>Fishes Arcade — Active Users Only 🐟</h2>
+        <div style="display:flex;gap:8px;align-items:center;background:rgba(125,87,239,0.12);border:1px solid rgba(125,87,239,0.4);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+          <span style="font-size:1rem;">🔑</span>
+          <span style="font-size:0.85rem;color:var(--text);line-height:1.5;"><b>Use <code style="font-family:var(--font-mono);background:var(--bg-2);padding:1px 6px;border-radius:4px;">/verify</code> in chat to verify your account</b> — that's the only way to verify (other than the owner).</span>
+        </div>
         <p style="margin-bottom:14px;color:var(--text-dim);font-size:0.9rem;">The arcade is for people who actually hang out here, not drive-bys. Complete the checklist — it only takes about five minutes:</p>
         <div id="arcadeGateList" style="text-align:left;font-size:0.9rem;line-height:1.9;margin-bottom:14px;"></div>
         <div id="arcadeGateRisk" style="display:none;text-align:left;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;">
@@ -3449,6 +3484,62 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
       <div class="modal-card" style="max-width:520px;">
         <h2>Verify your account</h2>
         <div id="verifyBody"></div>
+      </div>
+    </div>
+
+    <!-- EARLY ACCESS: verify with a one-time code (tier-gated) -->
+    <div class="modal-overlay" id="earlyAccessVerifyModal">
+      <div class="modal-card" style="max-width:440px;text-align:center;">
+        <h2>Verify early access</h2>
+        <p style="color:var(--text-dim);font-size:0.86rem;margin:0 0 14px;line-height:1.55;">Enter the one-time access code the owner sent you. It only works once — but once it's used you never have to verify again.</p>
+        <input type="text" id="earlyAccessCodeInput" autocomplete="off" spellcheck="false" placeholder="Access code" style="width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px 16px;font-size:1.05rem;font-family:var(--font-mono);text-align:center;letter-spacing:2px;outline:none;box-sizing:border-box;margin-bottom:14px;">
+        <div id="earlyAccessVerifyMsg" style="font-size:0.8rem;color:var(--text-faint);min-height:1.2em;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button class="composer-btn" onclick="closeEarlyAccessVerify()">Cancel</button>
+          <button class="composer-btn primary" onclick="submitEarlyAccessCode()">Verify</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EARLY ACCESS: owner's generated code page -->
+    <div class="modal-overlay" id="earlyAccessCodeModal">
+      <div class="modal-card" style="max-width:480px;text-align:center;">
+        <h2>Your access code</h2>
+        <div style="background:linear-gradient(135deg,rgba(125,87,239,0.12),rgba(245,184,61,0.08));border:1px solid rgba(125,87,239,0.4);border-radius:12px;padding:22px 18px;margin-bottom:16px;">
+          <div style="font-size:0.72rem;font-weight:800;letter-spacing:2px;color:var(--text-faint);margin-bottom:8px;">HERE IS YOUR ACCESS CODE</div>
+          <div id="earlyAccessCodeValue" style="font-family:var(--font-mono);font-size:1.6rem;font-weight:800;letter-spacing:4px;color:var(--text);margin-bottom:10px;">--------</div>
+          <div style="font-size:0.78rem;color:#f5b83d;font-weight:600;line-height:1.5;">⚠️ It can only be used once. Do not share.</div>
+        </div>
+        <p style="color:var(--text-dim);font-size:0.8rem;margin:0 0 10px;line-height:1.5;">Send this URL to the person — opening it shows them their code:</p>
+        <div style="display:flex;gap:8px;align-items:center;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;">
+          <span id="earlyAccessCodeUrl" style="flex:1;font-family:var(--font-mono);font-size:0.76rem;color:var(--text-dim);overflow-wrap:anywhere;text-align:left;">—</span>
+          <button class="composer-btn" style="padding:6px 12px;font-size:0.74rem;" onclick="copyEarlyAccessUrl()">Copy</button>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;"><button class="composer-btn" onclick="closeEarlyAccessCode()">Close</button></div>
+      </div>
+    </div>
+
+    <!-- MINECRAFT PAGE: live servers + join codes + offline (Ultra) -->
+    <div class="modal-overlay" id="mcPageModal">
+      <div class="modal-card" style="max-width:520px;">
+        <h2>⛏ Minecraft</h2>
+        <div id="mcPageList"></div>
+        <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button class="composer-btn" onclick="closeMinecraftPage()">Close</button>
+          <button class="composer-btn primary" onclick="mcOfflineClick()">Offline Worlds</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OFFLINE MINECRAFT POPUP: Ultra only -->
+    <div class="modal-overlay" id="offlineMcPopup">
+      <div class="modal-card" style="max-width:400px;text-align:center;">
+        <h2>Offline Worlds</h2>
+        <p style="color:var(--text-dim);font-size:0.88rem;">Offline worlds only work with the <b style="color:var(--accent);">Ultra</b> tier.</p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;">
+          <button class="composer-btn" onclick="closeOfflineMcPopup()">Close</button>
+          <button class="composer-btn primary" onclick="closeOfflineMcPopup();openTierListModal()">See tiers</button>
+        </div>
       </div>
     </div>
 
@@ -4631,7 +4722,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             'One person, one account. Alt accounts used to dodge bans or mutes will be removed.'
         ];
         const VERIFY_CAPTCHA_COUNT = 15;
-        const VERIFY_MIN_AGE_DAYS = 5;
+        const VERIFY_MIN_AGE_DAYS = 0; /* 5-day age limit removed */
         const VERIFY_LOCAL_KEY = 'sp1derVerifyLocal';
         const VERIFY_PROGRESS_KEY = 'sp1derVerifyProgress';
         function isLocallyVerified() {
@@ -4655,8 +4746,10 @@ Furball found a sunbeam and is not moving for anyone.`;
         function verifyRender() {
             const body = $('verifyBody'); if (!body || !verifyState) return;
             if (verifyState.step === 'terms') verifyRenderTerms(body);
-            else if (verifyState.step === 'age') verifyRenderAge(body);
+            else if (verifyState.step === 'method') verifyRenderMethod(body);
             else if (verifyState.step === 'captcha') verifyRenderCaptcha(body);
+            else if (verifyState.step === 'recaptcha') verifyRenderRecaptcha(body);
+            else if (verifyState.step === 'quiz') verifyRenderQuiz(body);
             else if (verifyState.step === 'done') verifyRenderDone(body);
         }
         function verifyRenderTerms(body) {
@@ -4673,25 +4766,148 @@ Furball found a sunbeam and is not moving for anyone.`;
         function verifyTermsNext() {
             const check = $('verifyAgree');
             if (!check || !check.checked) { toast('Read the terms and tick the box to continue.'); return; }
-            verifyState.step = 'age';
+            verifyState.step = 'method';
             verifyRender();
         }
-        function verifyRenderAge(body) {
-            const days = verifyAccountAgeDays(), need = VERIFY_MIN_AGE_DAYS;
-            if (days < need) {
-                const left = need - days, when = new Date(Date.now() + left * 86400000);
-                body.innerHTML =
-                    '<p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 12px;">Your account is <b style="color:var(--text);">' + days.toFixed(1) + ' days</b> old.</p>' +
-                    '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;font-size:0.9rem;line-height:1.6;">Verification only works for accounts at least <b>' + need + ' days</b> old. Come back on <b style="color:var(--accent);">' + when.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + '</b> — that\'s ' + Math.ceil(left) + ' day' + (Math.ceil(left) === 1 ? '' : 's') + ' from now.</div>' +
-                    '<div style="display:flex;gap:8px;justify-content:center;"><button class="composer-btn" onclick="closeVerify()">Close</button></div>';
-                return;
-            }
+        /* ===== VERIFICATION METHODS =====
+           The old 5-day account-age step is gone. After agreeing to the terms you
+           now pick a verification method:
+             1. reCAPTCHA (fastest)
+             2. The 15-CAPTCHA gauntlet
+             3. A ~5-minute reading + quiz alternative */
+        function verifyRenderMethod(body) {
             body.innerHTML =
-                '<p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 12px;">Your account is <b style="color:var(--text);">' + days.toFixed(1) + ' days</b> old — old enough to verify.</p>' +
-                '<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;font-size:0.9rem;line-height:1.6;">Next up: <b>' + VERIFY_CAPTCHA_COUNT + ' CAPTCHAs</b>, each one different. Complete them all and the Fishes Arcade is yours — no checklist needed. Progress is saved if you stop halfway.</div>' +
-                '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button class="composer-btn" onclick="closeVerify()">Cancel</button><button class="composer-btn primary" onclick="verifyStartCaptchas()">Start the CAPTCHAs</button></div>';
+                '<p style="color:var(--text-dim);font-size:0.9rem;margin:0 0 14px;">Pick how you want to verify. All three do the same thing — unlock the Fishes Arcade.</p>' +
+                '<div style="display:flex;flex-direction:column;gap:10px;">' +
+                '<button class="composer-btn" style="text-align:left;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:2px;" onclick="verifyStartRecaptcha()">' +
+                '<span style="font-weight:700;font-size:0.92rem;">🤖 reCAPTCHA <span style="font-size:0.7rem;color:var(--success);font-weight:600;">fastest</span></span>' +
+                '<span style="font-size:0.78rem;color:var(--text-dim);line-height:1.45;">Prove you\'re human with Google reCAPTCHA. Usually takes under a minute.</span>' +
+                '</button>' +
+                '<button class="composer-btn" style="text-align:left;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:2px;" onclick="verifyStartCaptchas()">' +
+                '<span style="font-weight:700;font-size:0.92rem;">🧩 ' + VERIFY_CAPTCHA_COUNT + ' CAPTCHAs</span>' +
+                '<span style="font-size:0.78rem;color:var(--text-dim);line-height:1.45;">Math, codes, odd-one-out and more — each one different. Progress is saved halfway.</span>' +
+                '</button>' +
+                '<button class="composer-btn" style="text-align:left;justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:2px;" onclick="verifyStartQuiz()">' +
+                '<span style="font-weight:700;font-size:0.92rem;">📖 ~5 minute alternative</span>' +
+                '<span style="font-size:0.78rem;color:var(--text-dim);line-height:1.45;">Read a short guide about the arcade and answer questions about it. No CAPTCHAs, but it takes about five minutes.</span>' +
+                '</button>' +
+                '</div>' +
+                '<div style="display:flex;gap:8px;justify-content:center;margin-top:14px;"><button class="composer-btn" onclick="closeVerify()">Cancel</button></div>';
         }
         function verifyStartCaptchas() { verifyState.step = 'captcha'; verifyState.challenge = null; verifyRender(); }
+        function verifyStartRecaptcha() { verifyState.step = 'recaptcha'; verifyRender(); }
+        function verifyStartQuiz() { verifyState.step = 'quiz'; verifyState.challenge = null; verifyRender(); }
+        function verifyStartMethodChosen() { verifyRender(); }
+        /* ===== reCAPTCHA method =====
+           Google reCAPTCHA v2. The site key lives in the Firebase system/recaptcha doc
+           (field: siteKey), so staff can set it without touching this code. If no key is
+           set the option still shows, but the widget is replaced with a clear note. */
+        let recaptchaSiteKey = '';
+        async function loadRecaptchaSiteKey() {
+            if (recaptchaSiteKey) return recaptchaSiteKey;
+            try {
+                const snap = await dbOpTimeout(db.collection('system').doc('recaptcha').get(), 4000);
+                if (snap.exists && snap.data() && snap.data().siteKey) recaptchaSiteKey = String(snap.data().siteKey).trim();
+            } catch (e) {}
+            return recaptchaSiteKey;
+        }
+        async function verifyRenderRecaptcha(body) {
+            body.innerHTML = '<p style="color:var(--text-dim);font-size:0.88rem;margin:0 0 12px;">Loading reCAPTCHA…</p>';
+            const key = await loadRecaptchaSiteKey();
+            if (!key) {
+                body.innerHTML =
+                    '<p style="color:var(--text-dim);font-size:0.88rem;margin:0 0 10px;">🤖 <b>reCAPTCHA</b></p>' +
+                    '<p style="color:var(--text-dim);font-size:0.82rem;margin:0 0 14px;line-height:1.55;">reCAPTCHA isn\'t set up on the servers yet — staff need to add a Google reCAPTCHA site key. Until then, use one of the other two methods; they both work right now.</p>' +
+                    '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button class="composer-btn" onclick="verifyState.step=\'method\';verifyRender()">Back</button><button class="composer-btn primary" onclick="verifyStartCaptchas()">Use the ' + VERIFY_CAPTCHA_COUNT + ' CAPTCHAs</button></div>';
+                return;
+            }
+            /* load the v2 widget once */
+            if (!document.getElementById('sp1derRecaptchaApi')) {
+                const s = document.createElement('script');
+                s.id = 'sp1derRecaptchaApi';
+                s.src = 'https://www.google.com/recaptcha/api.js';
+                s.async = true; s.defer = true;
+                document.head.appendChild(s);
+            }
+            const widgetId = 'verifyRecaptchaWidget';
+            body.innerHTML =
+                '<p style="color:var(--text-dim);font-size:0.88rem;margin:0 0 14px;">Tick the box to prove you\'re human.</p>' +
+                '<div style="display:flex;justify-content:center;margin-bottom:14px;"><div id="' + widgetId + '"></div></div>' +
+                '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button class="composer-btn" onclick="verifyState.step=\'method\';verifyRender()">Back</button>' +
+                '<button class="composer-btn primary" id="verifyRecaptchaGo" onclick="verifyRecaptchaSubmit()" style="opacity:0.5;">Verify</button></div>';
+            /* render the widget once the API script is available (or after it loads) */
+            const renderWidget = () => {
+                try {
+                    if (window.grecaptcha) {
+                        window.grecaptcha.render(widgetId, { sitekey: key, callback: () => { const b = $('verifyRecaptchaGo'); if (b) b.style.opacity = '1'; } });
+                    } else {
+                        setTimeout(renderWidget, 400);
+                    }
+                } catch (e) {}
+            };
+            renderWidget();
+        }
+        function verifyRecaptchaSubmit() {
+            let token = '';
+            try { token = window.grecaptcha && window.grecaptcha.getResponse ? window.grecaptcha.getResponse() : ''; } catch (e) {}
+            if (!token) { toast('Tick the reCAPTCHA box first.'); return; }
+            /* the token proves a human solved the widget — good enough for this flow */
+            verifyFinish();
+        }
+        /* ===== ~5-minute quiz alternative =====
+           Read a short arcade guide, then answer 4 questions about it. */
+        const QUIZ_GUIDE = [
+            'The Fishes Arcade is a collection of third-party games — we didn\'t make them, we don\'t control them, and Sp1der is not responsible for what they (or you) do.',
+            'Verification is trust, not rank: it only unlocks the arcade. It never grants staff, moderation or admin powers.',
+            'One person, one account. Alt accounts used to dodge bans or mutes will be removed, and staff can revoke verification at any time if the terms are broken.',
+            'Be respectful in chat: no spam, no NSFW, no harassment. Messages are kept in a staff moderation log.'
+        ];
+        const QUIZ_QUESTIONS = [
+            { q: 'Who made the games in the Fishes Arcade?', options: ['Sp1der', 'Third parties', 'Nobody'], answer: 'Third parties' },
+            { q: 'What does verification actually give you?', options: ['Admin powers', 'Staff rank', 'Arcade access'], answer: 'Arcade access' },
+            { q: 'What happens if the terms are broken?', options: ['Nothing', 'Verification can be revoked', 'You get a free tier'], answer: 'Verification can be revoked' },
+            { q: 'How many accounts can one person have?', options: ['As many as they want', 'One', 'Three'], answer: 'One' }
+        ];
+        function verifyRenderQuiz(body) {
+            if (!verifyState.quizIdx) verifyState.quizIdx = 0;
+            if (!verifyState.quizRead) verifyState.quizRead = false;
+            if (!verifyState.quizRead) {
+                body.innerHTML =
+                    '<p style="color:var(--text-dim);font-size:0.88rem;margin:0 0 10px;">📖 <b>Read the guide</b> — take your time, you\'ll be asked about it.</p>' +
+                    '<div style="text-align:left;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;max-height:260px;overflow:auto;font-size:0.84rem;line-height:1.7;">' +
+                    QUIZ_GUIDE.map(g => '<div style="margin-bottom:10px;display:flex;gap:8px;"><span style="color:var(--accent);font-weight:700;flex-shrink:0;">•</span><span>' + escapeHtml(g) + '</span></div>').join('') +
+                    '</div>' +
+                    '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button class="composer-btn" onclick="verifyState.step=\'method\';verifyRender()">Back</button>' +
+                    '<button class="composer-btn primary" onclick="verifyQuizMarkRead()">I\'ve read it — start the questions</button></div>';
+                return;
+            }
+            const i = verifyState.quizIdx, total = QUIZ_QUESTIONS.length;
+            if (i >= total) { verifyFinish(); return; }
+            const q = QUIZ_QUESTIONS[i];
+            body.innerHTML =
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:0.82rem;color:var(--text-dim);">Question ' + (i + 1) + ' of ' + total + '</span><span style="font-size:0.82rem;color:var(--text-dim);">' + i + ' answered</span></div>' +
+                '<p style="margin:0 0 14px;font-size:0.95rem;">' + escapeHtml(q.q) + '</p>' +
+                '<div id="quizBtns" style="display:flex;flex-direction:column;gap:8px;">' +
+                q.options.map((o, oi) => '<button class="composer-btn" style="text-align:left;justify-content:flex-start;" onclick="verifyQuizAnswer(' + oi + ')">' + escapeHtml(o) + '</button>').join('') +
+                '</div>' +
+                '<div style="display:flex;gap:8px;justify-content:center;margin-top:14px;"><button class="composer-btn" onclick="verifyState.step=\'method\';verifyRender()">Back to methods</button></div>';
+        }
+        function verifyQuizMarkRead() { verifyState.quizRead = true; verifyState.quizIdx = 0; verifyRender(); }
+        function verifyQuizAnswer(btnIndex) {
+            if (!verifyState) return;
+            const i = verifyState.quizIdx, q = QUIZ_QUESTIONS[i];
+            if (q && q.options[btnIndex] === q.answer) {
+                verifyState.quizIdx++;
+                if (verifyState.quizIdx >= QUIZ_QUESTIONS.length) { verifyFinish(); return; }
+                toast('Correct — ' + (QUIZ_QUESTIONS.length - verifyState.quizIdx) + ' to go');
+                verifyRender();
+            } else {
+                verifyState.quizIdx = 0; /* wrong answer restarts the quiz — it's a ~5-minute read-and-remember task */
+                toast('Not quite — re-read the guide and try again.');
+                verifyState.quizRead = false;
+                verifyRender();
+            }
+        }
 
         /* ---- CAPTCHA engine: 10 challenge types, mixed so no two in a row are alike,
                  with randomized content so all 15 are different ---- */
@@ -4838,7 +5054,38 @@ Furball found a sunbeam and is not moving for anyone.`;
             'https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/fishes-arcade.html',
             'https://esm.sh/gh/fish01-jpg/mantle-menu@main/fishes-arcade.html'
         ];
+        /* ===== ARCADE DAILY-USE LIMIT (basic/free tier: 4 opens per day) =====
+           Free-tier accounts can open the Fishes Arcade 4 times a day. The count is
+           local-first (instant, never blocks the open) and keyed per user per day.
+           Higher tiers (Pro / Ultra) are not limited here. */
+        const ARCADE_DAILY_KEY = 'sp1derArcadeOpens';
+        function arcadeOpensToday() {
+            try {
+                const v = JSON.parse(localStorage.getItem(ARCADE_DAILY_KEY) || '');
+                if (v && v.uid === currentUser.uid && v.day === quotaDayPT()) return Math.max(0, v.n | 0);
+            } catch (e) {}
+            return 0;
+        }
+        function arcadeCountOpen() {
+            try {
+                const n = arcadeOpensToday() + 1;
+                localStorage.setItem(ARCADE_DAILY_KEY, JSON.stringify({ uid: currentUser.uid, day: quotaDayPT(), n: n }));
+            } catch (e) {}
+        }
+        const ARCADE_FREE_DAILY_OPENS = 4;
         async function openFishesArcade() {
+            /* free-tier daily arcade-open limit */
+            try {
+                const t = tierCurrent();
+                if (t === 'free' || !t) {
+                    const used = arcadeOpensToday();
+                    if (used >= ARCADE_FREE_DAILY_OPENS) {
+                        toast('Daily arcade opens used up (' + ARCADE_FREE_DAILY_OPENS + ' per day on the Free tier). Resets at midnight Pacific.');
+                        return;
+                    }
+                }
+            } catch (e) {}
+            arcadeCountOpen();
             const win = window.open('about:blank', '_blank', 'width=' + screen.width + ',height=' + screen.height + ',menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes,popup=yes');
             if (!win) { toast('Allow popups to open the Fishes Arcade'); return; }
             arcadeWindows.add(win); // v4.6.4: owner popups forward to the arcade through this reference
@@ -6462,6 +6709,11 @@ Furball found a sunbeam and is not moving for anyone.`;
                         openWriteLimitModal({ code: 'resource-exhausted' }, tIdx); return;
                     }
                 }
+                /* CHAT PRIORITY: render the message optimistically the instant you hit send —
+                   it appears immediately, before Firestore confirms the write. */
+                if (chatPriorityEnabled() && chatPriorityTierOk()) {
+                    try { chatPriorityRenderOptimistic(msg); } catch (e) {}
+                }
                 await msgWriteWithTimeout(msgDocRef, msg);
                 DB_MANAGER.incrementWrites(1);
                 setMessageSendStatus('Sent');
@@ -7638,6 +7890,12 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'tierlist': { openTierListModal(); return true; }
                 case 'claimtier': { if (!args.length) { toast('Usage: /claimtier <Square order number> — buy a tier item from the shop first (see /mytier).'); return true; } await submitTierClaim(args[0]); return true; }
                 case 'devmanagetier': { openDevManageTier(); return true; }
+                case 'earlyaccess': {
+                    /* Owner-only: generate a one-time early-access code and open the code page. */
+                    if (!isOwner()) { toast('Only the owner can generate early access codes.'); return true; }
+                    await generateEarlyAccessCode();
+                    return true;
+                }
                 case 'tier': {
                     if (!canUseOwnerCmds()) { toast('Owner only.'); return true; }
                     if (args.length < 2) { toast('Usage: /tier @user <free|pro|ultra>'); return true; }
@@ -11115,7 +11373,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     if (panel) panel.classList.add('active');
     const navBtn = document.querySelector(`[data-view="${viewName}"]`);
     if (navBtn) navBtn.classList.add('active');
-    const titles = { home: 'Home', community: 'Community', games: 'Resources', activeusers: 'Active Users', events: 'Events', arcadereports: 'Arcade Reports', staff: 'Staff', aegis: 'Aegis AI', updates: 'Updates', editor: 'Code Editor', admin: 'Admin' };
+    const titles = { home: 'Home', community: 'Community', games: 'Resources', activeusers: 'Active Users', events: 'Events', earlyaccess: 'Early Access', arcadereports: 'Arcade Reports', staff: 'Staff', aegis: 'Aegis AI', updates: 'Updates', editor: 'Code Editor', admin: 'Admin' };
     $('topbarTitle').textContent = titles[viewName] || 'Project Sp1der';
     if (typeof window.sp1derArcadeReportsViewChanged === 'function') window.sp1derArcadeReportsViewChanged(viewName);
     if (viewName === 'games') renderAppsGrid();
@@ -11123,6 +11381,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     if (viewName === 'activeusers') renderActiveUsers();
     if (viewName === 'admin') adminRefresh(false);
     if (viewName === 'events') { renderEventsCurrent(); try { Sp1derIndicators.markEventSeen(); } catch (e) {} }
+    if (viewName === 'earlyaccess') { try { refreshEarlyAccessPanel(); } catch (e) {} }
     if (viewName === 'staff') { renderStaffPage(); }
     if (viewName === 'aegis' && !aegisMessageUnsub) initAegisChat();
     if (viewName === 'community' && selectedChannelId) {
@@ -12144,17 +12403,15 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
         }
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp); else initApp();
 
-        /* ===== v4.6.6: MINECRAFT WORLD JOIN CODES (bottom-left, hideable) =====
-           Staff keep the codes in the system/minecraft doc (the widget's Edit button,
-           owner/developer only, writes it). Everyone sees the current codes in the
-           bottom-left corner until they press Hide; a small pill brings them back. */
-        let mcWidgetUnsub = null;
+        /* ===== MINECRAFT PAGE (top-bar button, replaces the old bottom-left widget) =====
+           Staff keep the codes in the system/minecraft doc. The Minecraft button in the
+           top bar opens this page: live worlds + join codes, plus an Offline Worlds
+           button that only works on the Ultra tier. */
+        let mcPageUnsub = null;
         function mcEscape(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return String.fromCharCode(38) + ({ 38: 'amp', 60: 'lt', 62: 'gt', 34: 'quot', 39: '#39' }[c.charCodeAt(0)]) + ';'; }); }
-        function mcWidgetHidden() { try { return localStorage.getItem('sp1derMcHidden') === '1'; } catch (e) { return false; } }
-        function mcSetHidden(hidden) { try { localStorage.setItem('sp1derMcHidden', hidden ? '1' : '0'); } catch (e) {} }
         function mcOpenEditor(codes) {
             const current = (codes || []).map(c => (c.name || '') + ' = ' + (c.code || '')).join('\n');
-            const input = prompt('One world per line, like:  World name = join code\n\nLeave empty and press OK to clear the widget.', current);
+            const input = prompt('One world per line, like:  World name = join code\n\nLeave empty and press OK to clear the list.', current);
             if (input === null) return;
             const parsed = input.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
                 const m = l.split('=');
@@ -12165,58 +12422,221 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 toast('Minecraft codes saved');
             } catch (e) { toast('Failed: ' + (e.message || e)); }
         }
-        function initMinecraftWidget() {
-            if (mcWidgetUnsub) { try { mcWidgetUnsub(); } catch (e) {} mcWidgetUnsub = null; }
+        const OFFLINE_MC_URL = 'https://sp1der.framer.photos/verify-offline-minecraft';
+        function mcOfflineClick() {
+            const myTier = tierCurrent();
+            if (myTier !== 'ultra') {
+                toast('Offline worlds only work with Ultra.');
+                openOfflineMcPopup();
+                return;
+            }
+            window.open(OFFLINE_MC_URL, '_blank');
+        }
+        function openOfflineMcPopup() {
+            const m = $('offlineMcPopup');
+            if (m) m.classList.add('active');
+        }
+        function closeOfflineMcPopup() {
+            const m = $('offlineMcPopup');
+            if (m) m.classList.remove('active');
+        }
+        function openMinecraftPage() {
+            const m = $('mcPageModal');
+            if (m) m.classList.add('active');
+            try { const t = $('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {}
+            mcRender();
+        }
+        function closeMinecraftPage() {
+            const m = $('mcPageModal');
+            if (m) m.classList.remove('active');
+        }
+        function mcRender() {
+            const list = $('mcPageList');
+            if (!list) return;
             let codes = [];
-            const render = () => {
-                const old = document.getElementById('sp1derMcWidget'), pill = document.getElementById('sp1derMcPill');
-                if (old) old.remove();
-                if (pill) pill.remove();
-                if (!codes.length) {
-                    /* No codes set yet: staff still see the box so they can add the first codes. */
-                    if (typeof canUseStaffCmds === 'function' && canUseStaffCmds()) {
-                        const w = document.createElement('div');
-                        w.id = 'sp1derMcWidget';
-                        w.innerHTML = '<div class="mc-head">⛏ Our Minecraft Worlds</div><div class="mc-updated" style="margin:0 0 8px;">No join codes set yet.</div><button class="mc-btn" id="mcEditBtn" style="width:100%;">Add join codes (staff)</button>';
-                        document.body.appendChild(w);
-                        w.querySelector('#mcEditBtn').onclick = () => mcOpenEditor(codes);
-                    }
-                    return;
-                }
-                if (mcWidgetHidden()) {
-                    const p = document.createElement('div');
-                    p.id = 'sp1derMcPill';
-                    p.title = 'Show the Minecraft world join codes';
-                    p.textContent = '⛏ Minecraft codes';
-                    p.onclick = () => { mcSetHidden(false); render(); };
-                    document.body.appendChild(p);
-                    return;
-                }
-                const w = document.createElement('div');
-                w.id = 'sp1derMcWidget';
-                let h = '<div class="mc-head">⛏ Our Minecraft Worlds<button class="mc-btn" style="margin-left:auto;" id="mcHideBtn" title="Hide this box">Hide</button></div>';
-                codes.forEach((c, i) => {
-                    h += '<div class="mc-code-row"><span class="mc-world">' + mcEscape(c.name || 'World ' + (i + 1)) + ':</span> <span class="mc-code">' + mcEscape(c.code || '') + '</span><button class="mc-btn" data-mc-copy="' + i + '" title="Copy code">Copy</button></div>';
-                });
-                h += '<div class="mc-updated">Codes from staff · join in Minecraft (Multiplayer)</div>';
-                if (typeof canUseStaffCmds === 'function' && canUseStaffCmds()) h += '<button class="mc-btn" id="mcEditBtn" style="margin-top:8px;width:100%;">Edit codes (staff)</button>';
-                w.innerHTML = h;
-                document.body.appendChild(w);
-                w.querySelector('#mcHideBtn').onclick = () => { mcSetHidden(true); render(); };
-                w.querySelectorAll('[data-mc-copy]').forEach(btn => {
-                    btn.onclick = async () => {
-                        const code = String((codes[+btn.getAttribute('data-mc-copy')] || {}).code || '');
-                        try { await navigator.clipboard.writeText(code); toast('Join code copied'); } catch (e) { toast('Copy failed - the code is ' + code); }
-                    };
-                });
-                const edit = w.querySelector('#mcEditBtn');
-                if (edit) edit.onclick = () => mcOpenEditor(codes);
-            };
             try {
-                mcWidgetUnsub = db.collection('system').doc('minecraft').onSnapshot(doc => {
-                    codes = (doc.exists && Array.isArray(doc.data().codes)) ? doc.data().codes : [];
-                    render();
+                const doc = mcPageUnsub && mcPageUnsub._lastDoc;
+                if (doc && Array.isArray(doc.codes)) codes = doc.codes;
+            } catch (e) {}
+            const isStaff = (typeof canUseStaffCmds === 'function' && canUseStaffCmds());
+            if (!codes.length) {
+                list.innerHTML = '<p style="color:var(--text-faint);font-size:0.85rem;margin:0 0 12px;">No live servers set yet.</p>' + (isStaff ? '<button class="composer-btn" onclick="mcOpenEditor([])">Add join codes (staff)</button>' : '');
+                return;
+            }
+            let h = '<p style="color:var(--text-dim);font-size:0.82rem;margin:0 0 10px;">Live servers · join in Minecraft (Multiplayer) · <span style="color:var(--success);">Online</span></p>';
+            h += '<div style="display:flex;flex-direction:column;gap:8px;">';
+            codes.forEach((c, i) => {
+                h += '<div style="display:flex;align-items:center;gap:8px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">' +
+                    '<span style="color:var(--text-dim);flex:1;overflow-wrap:anywhere;">' + mcEscape(c.name || 'World ' + (i + 1)) + '</span>' +
+                    '<span style="font-family:var(--font-mono);font-weight:700;letter-spacing:0.5px;color:var(--success);">' + mcEscape(c.code || '') + '</span>' +
+                    '<button class="composer-btn" style="padding:4px 10px;font-size:0.72rem;" onclick="mcCopy(' + i + ')">Copy</button></div>';
+            });
+            h += '</div>';
+            if (isStaff) h += '<button class="composer-btn" style="margin-top:12px;" onclick="mcOpenEditor(currentMcCodes())">Edit codes (staff)</button>';
+            list.innerHTML = h;
+        }
+        function currentMcCodes() {
+            try {
+                const doc = mcPageUnsub && mcPageUnsub._lastDoc;
+                if (doc && Array.isArray(doc.codes)) return doc.codes;
+            } catch (e) {}
+            return [];
+        }
+        function mcCopy(i) {
+            const codes = currentMcCodes();
+            const code = String((codes[i] || {}).code || '');
+            try { navigator.clipboard.writeText(code); toast('Join code copied'); } catch (e) { toast('Copy failed - the code is ' + code); }
+        }
+        function initMinecraftPage() {
+            if (mcPageUnsub) { try { mcPageUnsub(); } catch (e) {} mcPageUnsub = null; }
+            try {
+                mcPageUnsub = db.collection('system').doc('minecraft').onSnapshot(doc => {
+                    try { if (mcPageUnsub) mcPageUnsub._lastDoc = doc.exists ? doc.data() : null; } catch (e) {}
+                    mcRender();
                 }, () => { /* rules may block guests - stay quiet */ });
+            } catch (e) {}
+        }
+
+        /* ===== EARLY ACCESS VERIFICATION (tier-gated, one-time code) =====
+           Owners generate a one-time code with /earlyaccess in chat; the code lives
+           in system/earlyAccessCodes (one doc per code: { code, used, createdAt, createdBy }).
+           Tier holders (Pro/Ultra) enter the code once and their account is marked
+           earlyAccessVerified — they never have to verify again. */
+        const EARLY_ACCESS_LOCAL_KEY = 'sp1derEarlyAccessLocal';
+        function isLocallyEarlyAccess() {
+            try { const v = JSON.parse(localStorage.getItem(EARLY_ACCESS_LOCAL_KEY) || ''); return !!(v && v.uid && currentUser && v.uid === currentUser.uid); } catch (e) { return false; }
+        }
+        async function isEarlyAccessVerified() {
+            if (isLocallyEarlyAccess()) return true;
+            try {
+                const snap = await dbOpTimeout(db.collection('users').doc(currentUser.uid).get(), 4000);
+                return !!(snap.exists && snap.data().earlyAccessVerified === true);
+            } catch (e) {}
+            return false;
+        }
+        function openEarlyAccessVerify() {
+            const m = $('earlyAccessVerifyModal');
+            if (m) { m.classList.add('active'); }
+            const inp = $('earlyAccessCodeInput');
+            if (inp) { inp.value = ''; inp.focus(); }
+            const msg = $('earlyAccessVerifyMsg');
+            if (msg) msg.textContent = '';
+        }
+        function closeEarlyAccessVerify() {
+            const m = $('earlyAccessVerifyModal');
+            if (m) m.classList.remove('active');
+        }
+        async function submitEarlyAccessCode() {
+            const inp = $('earlyAccessCodeInput');
+            const msg = $('earlyAccessVerifyMsg');
+            const code = (inp ? inp.value : '').trim().toUpperCase();
+            if (!code) { if (msg) msg.textContent = 'Enter the code the owner sent you.'; return; }
+            /* tier check: only tier holders can use early access codes */
+            const myTier = tierCurrent();
+            if (myTier !== 'pro' && myTier !== 'ultra') {
+                if (msg) msg.textContent = 'Early access codes only work with a Pro or Ultra tier.';
+                return;
+            }
+            if (msg) msg.textContent = 'Checking…';
+            try {
+                /* look the code up in system/earlyAccessCodes */
+                const snap = await dbOpTimeout(db.collection('system').doc('earlyAccessCodes').collection('codes').doc(code).get(), 6000);
+                if (!snap.exists) { if (msg) msg.textContent = 'That code is not valid.'; return; }
+                const data = snap.data() || {};
+                if (data.used === true) { if (msg) msg.textContent = 'That code has already been used — each code only works once.'; return; }
+                /* mark the code used and the account verified (transaction-style: write both) */
+                await dbOpTimeout(db.collection('system').doc('earlyAccessCodes').collection('codes').doc(code).set({ used: true, usedAt: Date.now(), usedBy: currentUser.uid }, { merge: true }), 6000);
+                await dbOpTimeout(db.collection('users').doc(currentUser.uid).set({ earlyAccessVerified: true, earlyAccessVerifiedAt: Date.now() }, { merge: true }), 6000);
+                try { localStorage.setItem(EARLY_ACCESS_LOCAL_KEY, JSON.stringify({ uid: currentUser.uid, at: Date.now() })); } catch (e) {}
+                closeEarlyAccessVerify();
+                refreshEarlyAccessPanel();
+                toast('Early access verified — welcome in.');
+            } catch (e) {
+                if (msg) msg.textContent = 'Could not reach the server — try again in a moment.';
+            }
+        }
+        /* Owner-only: /earlyaccess generates a fresh one-time code and shows it on a nice page. */
+        async function generateEarlyAccessCode() {
+            const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            try {
+                await dbOpTimeout(db.collection('system').doc('earlyAccessCodes').collection('codes').doc(code).set({
+                    code: code, used: false, createdAt: Date.now(), createdBy: (userProfile && userProfile.username) || 'owner'
+                }, { merge: true }), 6000);
+            } catch (e) { toast('Could not save the code — check the database.'); return; }
+            const codeEl = $('earlyAccessCodeValue');
+            if (codeEl) codeEl.textContent = code;
+            const urlEl = $('earlyAccessCodeUrl');
+            if (urlEl) urlEl.textContent = 'https://sp1der.framer.photos/access-code#' + code;
+            const m = $('earlyAccessCodeModal');
+            if (m) m.classList.add('active');
+        }
+        function closeEarlyAccessCode() {
+            const m = $('earlyAccessCodeModal');
+            if (m) m.classList.remove('active');
+        }
+        function copyEarlyAccessUrl() {
+            const el = $('earlyAccessCodeUrl');
+            const url = el ? el.textContent : '';
+            try { navigator.clipboard.writeText(url); toast('URL copied'); } catch (e) { toast('Copy failed — the URL is ' + url); }
+        }
+        function refreshEarlyAccessPanel() {
+            const locked = $('earlyAccessLocked'), unlocked = $('earlyAccessUnlocked'), note = $('earlyAccessTierNote');
+            if (!locked || !unlocked) return;
+            const verified = isLocallyEarlyAccess();
+            locked.style.display = verified ? 'none' : 'block';
+            unlocked.style.display = verified ? 'block' : 'none';
+            const myTier = tierCurrent();
+            if (note) note.style.display = (myTier === 'pro' || myTier === 'ultra') ? 'block' : 'none';
+        }
+        /* ===== CHAT PRIORITY (Pro/Ultra): pin chat to Server 5 + optimistic rendering =====
+           A no-lag chat mode. When enabled the global chat is pinned to Server 5
+           (msgDbs[4], database-5-a3d2d), messages render optimistically the instant
+           you hit send (before Firestore confirms), and a failed send retries. */
+        const CHAT_PRIORITY_KEY = 'sp1derChatPriority';
+        function chatPriorityEnabled() {
+            try { return localStorage.getItem(CHAT_PRIORITY_KEY) === '1'; } catch (e) { return false; }
+        }
+        function chatPrioritySet(on) {
+            try { localStorage.setItem(CHAT_PRIORITY_KEY, on ? '1' : '0'); } catch (e) {}
+        }
+        function chatPriorityTierOk() {
+            const t = tierCurrent();
+            return t === 'pro' || t === 'ultra';
+        }
+        function chatPriorityToggle() {
+            if (!chatPriorityTierOk()) { toast('Chat Priority is for Pro and Ultra tiers.'); return; }
+            const on = !chatPriorityEnabled();
+            chatPrioritySet(on);
+            if (on) {
+                /* pin the global chat to Server 5 */
+                try { selectedMsgDbIndex = 4; } catch (e) {}
+                toast('Chat Priority on — pinned to Server 5. Messages render instantly.');
+            } else {
+                toast('Chat Priority off.');
+            }
+            updateChatPriorityBtn();
+            try { if (selectedChannelId) openChannel(selectedChannelId); } catch (e) {}
+        }
+        function updateChatPriorityBtn() {
+            const btn = $('chatPriorityBtn');
+            if (!btn) return;
+            const ok = chatPriorityTierOk();
+            btn.style.display = ok ? '' : 'none';
+            const on = chatPriorityEnabled();
+            btn.style.background = on ? 'var(--primary)' : '';
+            btn.style.color = on ? '#fff' : '';
+            btn.title = on ? 'Chat Priority is on — chat pinned to Server 5' : 'Enable Chat Priority (Pro/Ultra)';
+        }
+        /* Optimistic render: show the message card immediately, before Firestore confirms.
+           The batch re-render (from the snapshot) replaces it, so there's no duplication. */
+        function chatPriorityRenderOptimistic(msg) {
+            try {
+                const feed = $('commFeed');
+                if (!feed) return;
+                feed.appendChild(renderMessageCard(msg, selectedChannelId));
+                feed.scrollTop = feed.scrollHeight;
             } catch (e) {}
         }
 
@@ -12229,7 +12649,9 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             try { initStaffListener(); } catch(e) {}
             try { startArcadeActivityTracking(); } catch(e) {}
             try { Sp1derIndicators.initBell(); } catch(e) {}
-            try { initMinecraftWidget(); } catch(e) {}
+            try { initMinecraftPage(); } catch(e) {}
+            try { refreshEarlyAccessPanel(); } catch(e) {}
+            try { updateChatPriorityBtn(); } catch(e) {}
         }, 100);
 
         /* ===== UPDATE ENFORCEMENT ===== */
