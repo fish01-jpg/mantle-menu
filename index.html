@@ -199,6 +199,7 @@
   .row[data-launch="geometry-dash"] { --row-accent: #a3e635; }
   .row[data-launch="pixel-canvas"] { --row-accent: #ad9aff; }
   .row[data-launch="sp1der"] { --row-accent: #8b5cf6; }
+  .row[data-launch="sp1der-meet"] { --row-accent: #3478f6; }
   .row[data-launch="tiers"] { --row-accent: #44d1a0; }
   .beta-chip {
     display: inline-block; vertical-align: middle; margin-left: 6px;
@@ -898,6 +899,19 @@
         <span class="row-body">
           <span class="row-name">Project Sp1der</span>
           <span class="row-desc">The Sp1der chat app — opens a Sp1der backup, cloaked like the other games</span>
+        </span>
+        <span class="row-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
+        </span>
+      </button>
+
+      <button class="row" data-launch="sp1der-meet" type="button">
+        <span class="row-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10 6-3v10l-6-3z"/></svg>
+        </span>
+        <span class="row-body">
+          <span class="row-name">Sp1der Meet</span>
+          <span class="row-desc">Start or join a video meeting and invite your friends</span>
         </span>
         <span class="row-arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 15 12 9 18"/></svg>
@@ -1676,6 +1690,7 @@ document.querySelectorAll("[data-launch]").forEach(function (btn) {
    HTML is injected with a <base> pointing at the repo, so relative assets load
    too. Sources with a mode get their scripts inlined (see below). */
 const REPO_APPS = {
+  "sp1der-meet": {"label": "Sp1der Meet", "sources": [["https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/sp1der-meet.html", "https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/"], ["https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/sp1der-meet.html", "https://cdn.jsdelivr.net/gh/fish01-jpg/mantle-menu@main/"]]},
   /* raw.githubusercontent.com is the only host the school filter lets through, but it
      serves every file as text/plain with nosniff, so browsers refuse to run its
      scripts. The "inline" / "inline-worker" modes fix that: every external
@@ -1796,7 +1811,7 @@ async function launchRepoApp(appId) {
   const label = (app && app.label) || appId;
   const win = window.open("about:blank", "_blank", WINDOW_FEATURES);
   if (!win) { alert("Please allow popups."); return; }
-  if (appId !== "sp1der" && appId !== "tiers") trackGameWindow(win, appId); // sp1der = chat app, tiers = info page
+  if (appId !== "sp1der" && appId !== "tiers" && appId !== "sp1der-meet") trackGameWindow(win, appId); // sp1der = chat app, tiers = info page
   const d = win.document, spoof = pickSpoof();
   armCloseGuard(win); keepSpoofed(d, spoof);
   d.open(); d.write(appSplashHtml(label)); d.close();
@@ -1821,7 +1836,7 @@ async function launchRepoApp(appId) {
     frame.srcdoc = base ? injectBase(html, base) : html;
     d.body.innerHTML = ""; /* drop the splash */
     d.body.appendChild(frame);
-    if (appId !== "sp1der" && appId !== "tiers") injectGameBridge(d, appId);
+    if (appId !== "sp1der" && appId !== "tiers" && appId !== "sp1der-meet") injectGameBridge(d, appId);
     applySpoof(d, spoof);
     console.info("[Fishes Arcade] " + label + " served from " + base + (inlined ? " (scripts inlined)" : ""));
   } catch (e) {
