@@ -4518,7 +4518,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 return;
             }
             if ($('appViewer')) { $('appViewer').classList.add('open'); if ($('appIframe')) { if (app.html) { $('appIframe').src = URL.createObjectURL(new Blob([app.html], {type:'text/html'})); } else { $('appIframe').src = app.url || `https://raw.githack.com/mrfiggs/Arcane-Arena/refs/heads/main/assets/games/${app.id}/index.html`; } } } };
-        const closeAppViewer = () => { if ($('appViewer')) $('appViewer').classList.remove('open'); if ($('appIframe')) $('appIframe').src = ''; };
+        const closeAppViewer = () => { if ($('appViewer')) $('appViewer').classList.remove('open'); if ($('appIframe')) { $('appIframe').src = ''; try { $('appIframe').removeAttribute('srcdoc'); } catch (e) {} } }; /* v4.8.2: also clears a srcdoc video call page so leaving the viewer ends the call */
 
         /* ===== FISHES ARCADE ACTIVE-USER GATE =====
            The featured Games card only opens the arcade for users who actually use Sp1der.
@@ -5077,11 +5077,32 @@ Furball found a sunbeam and is not moving for anyone.`;
             /* pass the signed-in user's name so the video call page can pre-fill it */
             let name = '';
             try { name = (userProfile && userProfile.username) || (currentUser && (currentUser.displayName || String(currentUser.email || '').split('@')[0])) || ''; } catch (e) {}
-            const src = VIDEOCALL_SOURCES[0] + (name ? ('?name=' + encodeURIComponent(name)) : '');
-            /* the camera and mic permissions must be granted to the frame */
-            $('appIframe').setAttribute('allow', 'camera; microphone; autoplay; fullscreen');
-            $('appIframe').src = src;
+            /* v4.8.2: raw.githubusercontent.com serves HTML as plain text with frame-ancestors
+               deny, so pointing the frame at it shows nothing (same trap as the tier page).
+               FETCH the page and render it through srcdoc instead — the same trick the tier
+               page and the arcade use. The camera and mic permissions stay on the frame. */
+            const frame = $('appIframe');
+            frame.setAttribute('allow', 'camera; microphone; autoplay; fullscreen');
             $('appViewer').classList.add('open');
+            (async () => {
+                let html = null;
+                for (const url of VIDEOCALL_SOURCES) {
+                    try {
+                        const res = await fetch(url, { cache: 'no-store' });
+                        if (!res.ok) continue;
+                        const text = await res.text();
+                        if (!text || text.length < 500 || !/<html/i.test(text) || !text.includes('Video Call')) continue;
+                        html = text; break;
+                    } catch (e) {}
+                }
+                if (!html) { closeAppViewer(); toast('Could not load the video call page — try again later.'); return; }
+                if (name) {
+                    /* inject the user's name where the call page can pick it up */
+                    html = html.replace(/<head[^>]*>/i, m => m + '<script>window.__VC_NAME__ = ' + JSON.stringify(name) + ';</' + 'script>');
+                }
+                frame.src = '';
+                frame.srcdoc = html; /* rendered page, not raw code */
+            })();
         }
 
         /* Featured card: open the Fishes Arcade in its own about:blank window */
@@ -9167,6 +9188,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            { version: '4.8.2', date: '2026-11-11', author: 'fish01-jpg', title: 'Video call card fixed — it now actually opens', changes: ["Fixed - clicking the Video Call card opened an empty viewer:", "The card pointed the frame straight at the raw GitHub copy of the page, but raw.githubusercontent.com serves files as plain text with a deny rule for frames, so nothing rendered (the same trap the tier page hit in 4.7.9)", "The card now fetches the video call page and renders it inside the viewer the same way the tier page and the arcade load their pages - no empty frame, and the fallback mirrors are still tried if the first fetch fails", "Your name is passed to the call page the same way as before", "Closing the viewer now also ends an active call instead of leaving it running invisibly"] },
             { version: '4.8.1', date: '2026-11-11', author: 'fish01-jpg', title: 'Group Video Calls', changes: ["Video calls are now group calls - everyone with the code joins the same call:", "Each person connects peer to peer to every other person (a mesh), so audio and video still go straight between browsers - the server never carries a copy", "One tile per person with their name on it, and the status line shows how many people are in the call and how many connections are still hooking up", "For each pair exactly one side sends the connection offer (the participant with the smaller ID), so two people joining at the same moment can never end up with crossed or duplicated connections", "Everyone broadcasts a heartbeat - if a tab crashes or the connection dies, the person's tile is removed for the rest of the call within about half a minute", "The host leaving ends the call for everyone; anyone else leaving just removes their tile and everyone else keeps talking", "The mute, camera, screen share and leave buttons now apply to every connection at once (e.g. screen sharing swaps your video for everyone in one click)"] },
             { version: '4.8.0', date: '2026-11-11', author: 'fish01-jpg', title: 'Video Calls on the Resources Page', changes: ["New Video Call card on the Resources page (Tools):", "Start a call and you get a 5-character code - share it in chat or anywhere else, and the other person joins with the same card", "Calls are peer-to-peer WebRTC - your audio and video go straight between the two browsers, only the connection setup travels through Firestore on a dedicated video-call server (this keeps it off the chat databases and their quota limits)", "The call runs in its own page (videocall.html) loaded inside the app viewer, so the feature can be updated just by updating that one file", "Your name is passed to the call page automatically from your profile, and is remembered between calls", "In-call controls: mute, camera off, share your screen (with a one-click stop that puts your camera back) and hang up", "Both sides see live status - waiting for someone to join, connecting, in call - and the call ends for everyone when either side hangs up, closes the page or leaves the call", "Call codes expire after 2 hours, and the host's call document is deleted when the call ends"] },
             { version: '4.7.9', date: '2026-11-09', author: 'fish01-jpg', title: 'Tier page opens inside the app', changes: ["Fixed - the tier menu links opened the CDN copy of the page, which the school filter blocks (and the raw GitHub link shows the page code instead of the page):", "The How Tiers Work link now loads the tier page from raw.githubusercontent.com and renders it inside the app in a frame, exactly like the arcade loads its pages - no external links, no raw code"] },

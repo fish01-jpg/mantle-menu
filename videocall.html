@@ -182,12 +182,13 @@
         function peersCol() { return callDoc().collection('peers'); }
         function signalsCol() { return callDoc().collection('signals'); }
 
-        /* Pre-fill the name: ?name= query param (passed by Sp1der), else remember last used */
+        /* Pre-fill the name: window.__VC_NAME__ (injected by Sp1der when the page is
+           loaded inside the app frame), then ?name= query param, else remember last used */
         (function () {
-            try {
-                const p = new URLSearchParams(location.search).get('name');
-                if (p) { $('nameInput').value = p; return; }
-            } catch (e) {}
+            let n = '';
+            try { if (window.__VC_NAME__) n = String(window.__VC_NAME__); } catch (e) {}
+            if (!n) { try { const p = new URLSearchParams(location.search).get('name'); if (p) n = p; } catch (e) {} }
+            if (n) { $('nameInput').value = n; return; }
             try { $('nameInput').value = localStorage.getItem('vcName') || ''; } catch (e) {}
             $('nameInput').addEventListener('change', () => { try { localStorage.setItem('vcName', myName()); } catch (e) {} });
         })();
