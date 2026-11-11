@@ -140,11 +140,12 @@
 
   /* CDN sources for files that live in the mantle-menu repo (same list the arcade uses) */
   var REPO_SOURCES = function (file) {
+    var bust = '?cb=' + Date.now();
     return [
-      'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/' + file,
-      'https://cdn.statically.io/gh/fish01-jpg/mantle-menu/main/' + file,
-      'https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/' + file,
-      'https://esm.sh/gh/fish01-jpg/mantle-menu@main/' + file
+      'https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/' + file + bust,
+      'https://cdn.statically.io/gh/fish01-jpg/mantle-menu/main/' + file + bust,
+      'https://ghproxy.net/https://raw.githubusercontent.com/fish01-jpg/mantle-menu/main/' + file + bust,
+      'https://esm.sh/gh/fish01-jpg/mantle-menu@main/' + file + bust
     ];
   };
   var SP1DER_APP_URL = 'https://sp1der.framer.photos/';
