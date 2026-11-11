@@ -6273,6 +6273,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
         function renderFeed(msgs, channelId) {
             const feed = $('commFeed'); if (!feed) return;
+            if (channelId) lastFeedMsgs = msgs; /* remembered so the tier roster can trigger a re-render */
             const myUid = currentUser ? currentUser.uid : '';
             // Apply the local /clear cutoff: hide messages older than the clear, keep newer ones
             const clearCutoff = getChannelClearCutoff(channelId);
@@ -6480,8 +6481,11 @@ Furball found a sunbeam and is not moving for anyone.`;
             const timeSpan = document.createElement('span'); timeSpan.className = 'message-time'; timeSpan.textContent = shortTime(msg.timestamp); header.appendChild(timeSpan);
             if (msg.edited) { const ed = document.createElement('span'); ed.className = 'message-time'; ed.style.cssText = 'font-style:italic;opacity:0.75;'; ed.textContent = msg.editedByStaff ? '(edited by staff)' : '(edited)'; if (msg.editedByName && msg.spoofed !== true) ed.title = 'Edited by ' + msg.editedByName; header.appendChild(ed); }
             if (senderRole !== 'member' || msg.spoofed === true) { const badge = document.createElement('span'); badge.className = 'role-badge role-' + String(senderRole).toLowerCase(); badge.textContent = roleLabel(senderRole, true); header.appendChild(badge); }
-            { /* v4.7.2: paid tier chip next to the name — from the message itself or the roster cache */
-                const msgTier = (msg.tier === 'pro' || msg.tier === 'ultra') ? msg.tier : tierRosterGet(displayUid);
+            { /* v4.7.2: paid tier chip next to the name — from the message itself, the sender's
+                  cached profile, or the roster cache (checked in that order, so a chip shows even
+                  when the roster on this device is stale or the message predates the tier) */
+                const msgTier = (msg.tier === 'pro' || msg.tier === 'ultra') ? msg.tier
+                    : ((senderProfile && (senderProfile.tier === 'pro' || senderProfile.tier === 'ultra')) ? senderProfile.tier : tierRosterGet(displayUid));
                 if (msgTier) { const chip = document.createElement('span'); chip.textContent = msgTier.toUpperCase(); chip.style.cssText = 'font-size:0.6rem;font-weight:800;letter-spacing:1px;padding:2px 7px;border-radius:999px;margin-left:2px;vertical-align:middle;' + (msgTier === 'ultra' ? 'background:rgba(245,184,61,0.15);color:#f5b83d;border:1px solid #f5b83d;' : 'background:rgba(160,32,240,0.15);color:#c77dff;border:1px solid #a020f0;'); chip.title = msgTier + ' tier — thanks for supporting the servers'; header.appendChild(chip); }
             }
             syncSpoofedBadge(header, msg);
@@ -10839,6 +10843,43 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             }
             return cloud;
         }
+        /* v4.6.7: LIVE TIER ROSTER — the roster used to refresh only when someone opened
+           /tierlist, so a tier granted or revoked anywhere else left this device's cache
+           stale and tier chips next to names in chat sometimes didn't show. A realtime
+           listener on the DB2 roster now keeps the local cache current, and the chat is
+           re-rendered whenever the roster changes so chips appear/disappear live. */
+        let tierRosterUnsub = null, tierRosterRenderTimer = null, lastFeedMsgs = null;
+        function tierRosterApplyAndRerender(cloud) {
+            if (!cloud || !Object.keys(cloud).length) return;
+            const prev = tierRosterCache();
+            const m = {};
+            Object.keys(cloud).forEach(uid => { m[uid] = cloud[uid]; });
+            let changed = false;
+            Object.keys(m).forEach(uid => { if (!prev[uid] || String(prev[uid].tier) !== String(m[uid].tier)) changed = true; });
+            Object.keys(prev).forEach(uid => { if (!m[uid]) changed = true; }); /* revoked since last time */
+            try { localStorage.setItem('sp1der_tier_roster', JSON.stringify(m)); } catch (e) {}
+            if (changed) tierRosterRerenderFeed();
+        }
+        function tierRosterRerenderFeed() {
+            if (tierRosterRenderTimer) return;
+            tierRosterRenderTimer = setTimeout(() => {
+                tierRosterRenderTimer = null;
+                try { if (selectedChannelId && lastFeedMsgs && lastFeedMsgs.length) renderFeed(lastFeedMsgs, selectedChannelId); } catch (e) {}
+            }, 300);
+        }
+        function initTierRosterLive() {
+            if (tierRosterUnsub) return;
+            try {
+                tierRosterUnsub = sp1derDb.collection('tierRoster').onSnapshot(snap => {
+                    try {
+                        const cloud = {};
+                        snap.forEach(d => { const v = d.data() || {}; if (v.tier === 'pro' || v.tier === 'ultra') cloud[d.id] = Object.assign({ uid: d.id }, v); });
+                        tierRosterApplyAndRerender(cloud);
+                    } catch (e) {}
+                }, () => { /* server busy — the local cache still works */ });
+            } catch (e) {}
+            tierRosterRefresh().then(tierRosterApplyAndRerender).catch(() => {});
+        }
         /* Order numbers can only be used once — one purchase grants one account (anti-alt). */
         async function tierOrderRefUsed(orderRef, exceptUid) {
             const ref = String(orderRef || '').trim(); if (!ref) return null;
@@ -12663,6 +12704,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             try { initMinecraftPage(); } catch(e) {}
             try { refreshEarlyAccessPanel(); } catch(e) {}
             try { updateChatPriorityBtn(); } catch(e) {}
+            try { initTierRosterLive(); } catch(e) {}
         }, 100);
 
         /* ===== UPDATE ENFORCEMENT ===== */
