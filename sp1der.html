@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Project Sp1der — 4.7.9</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -2405,7 +2405,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 }
 </style>
 <!-- sp1der-phone:end -->
-</head>
+<style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style></head>
 <body>
 
     <!-- LOADING SCREEN -->
@@ -2501,9 +2501,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
                 <button class="nav-item" data-view="earlyaccess" onclick="showView('earlyaccess');refreshEarlyAccessPanel()">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg> Early Access
                 </button>
-<button class="nav-item"
-        data-view="arcadereports"
-        onclick="showView('arcadereports')">
+<button class="nav-item" data-view="arcadereports" onclick="showView('arcadereports')">
     <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"></path>
     </svg>
@@ -2940,7 +2938,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 <div class="admin-card-title">User controls</div>
 <div class="admin-sub" style="margin-bottom:10px;">Ban, mute, warn and more. You can only act on users ranked below you. Mods can mute, warn and poke; bans, kicks and roles need admin.</div>
 <div class="admin-controls-bar">
-<input id="adminReason" maxlength="200" placeholder="Reason or message (shown to the user)" type="text"/>
+<input id="adminReason" maxlength="200" placeholder="Reason or message (shown to the user)" type="text">
 <select id="adminMuteDur" title="Mute length">
 <option value="10">Mute 10 min</option>
 <option value="60">Mute 1 hour</option>
@@ -2949,7 +2947,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 </select>
 </div>
 <div class="admin-search">
-<input id="adminSearch" onkeydown="if(event.key==='Enter')adminSearchUsers()" placeholder="Find any user by name or email..." type="text"/>
+<input id="adminSearch" onkeydown="if(event.key==='Enter')adminSearchUsers()" placeholder="Find any user by name or email..." type="text">
 <button class="composer-btn" onclick="adminSearchUsers()">Search</button>
 </div>
 <div class="admin-users" id="adminSearchResults"></div>
@@ -2988,10 +2986,10 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 </div><div class="admin-card">
 <div class="admin-card-title">Session log</div>
 <div class="admin-log" id="adminLog"><div class="admin-sub">No admin actions yet this session.</div></div>
-</div><div class="admin-card"><div class="admin-card-title">Conversation tools</div><p class="admin-sub" id="workspaceContext"></p><div class="admin-actions"><button class="composer-btn" onclick="showView('community')">Open chat</button><button class="composer-btn" onclick="openSpoofModal()">Send as</button><button class="composer-btn" onclick="openNewDM()">New DM / group</button><button class="composer-btn" onclick="workspacePurge()">Purge current conversation</button></div></div><div class="admin-card"><div class="admin-card-title">My staff status and description</div><div id="workspaceStaffSelf"></div><div hidden="" id="workspaceAegisTools"><button class="composer-btn" onclick="openAICommands()">Aegis AI commands</button></div></div><div class="admin-card"><div class="admin-card-title">Command console</div><p class="admin-sub">Runs an existing slash command in the current conversation. Unavailable commands do not grant access.</p><form onsubmit="event.preventDefault();workspaceRunCommand()"><input aria-label="Slash command" autocomplete="off" id="workspaceCommandInput" placeholder="/command arguments" style="width:100%"/><div class="admin-actions"><button class="composer-btn" type="submit">Run command</button><button class="composer-btn" onclick="openCommandHelp()" type="button">Available command help</button></div></form></div></section><section data-workspace-tier="admin" hidden="" id="workspaceSection-admin"><h2 class="workspace-tier-heading">Admin</h2><div class="admin-card"><h3>Early Access</h3><p>Access follows your signed-in account. Existing verification is required.</p><div class="admin-actions"><button class="composer-btn" onclick="showView('earlyaccess');refreshEarlyAccessPanel()">Open Early Access panel</button><button class="composer-btn primary" onclick="openGustEarlyRelease()">Launch Gust Proxy</button><button class="composer-btn" onclick="openEarlyAccessPage()">Open Early Access page</button></div></div><div class="admin-card"><div class="admin-fun-row">
+</div><div class="admin-card"><div class="admin-card-title">Conversation tools</div><p class="admin-sub" id="workspaceContext"></p><div class="admin-actions"><button class="composer-btn" onclick="showView('community')">Open chat</button><button class="composer-btn" onclick="openSpoofModal()">Send as</button><button class="composer-btn" onclick="openNewDM()">New DM / group</button><button class="composer-btn" onclick="workspacePurge()">Purge current conversation</button></div></div><div class="admin-card"><div class="admin-card-title">My staff status and description</div><div id="workspaceStaffSelf"></div><div hidden="" id="workspaceAegisTools"><button class="composer-btn" onclick="openAICommands()">Aegis AI commands</button></div></div><div class="admin-card"><div class="admin-card-title">Command console</div><p class="admin-sub">Runs an existing slash command in the current conversation. Unavailable commands do not grant access.</p><form onsubmit="event.preventDefault();workspaceRunCommand()"><input aria-label="Slash command" autocomplete="off" id="workspaceCommandInput" placeholder="/command arguments" style="width:100%"><div class="admin-actions"><button class="composer-btn" type="submit">Run command</button><button class="composer-btn" onclick="openCommandHelp()" type="button">Available command help</button></div></form></div></section><section data-workspace-tier="admin" hidden="" id="workspaceSection-admin"><h2 class="workspace-tier-heading">Admin</h2><div class="admin-card"><h3>Early Access</h3><p>Access follows your signed-in account. Existing verification is required.</p><div class="admin-actions"><button class="composer-btn" onclick="showView('earlyaccess');refreshEarlyAccessPanel()">Open Early Access panel</button><button class="composer-btn primary" onclick="openGustEarlyRelease()">Launch Gust Proxy</button><button class="composer-btn" onclick="openEarlyAccessPage()">Open Early Access page</button></div></div><div class="admin-card"><div class="admin-fun-row">
 <div class="admin-fun-label">Site banner <span class="admin-sub" id="adminBannerState"></span></div>
 <div class="admin-broadcast">
-<input id="adminBannerInput" maxlength="160" placeholder="Banner text shown at the top for everyone..." style="flex:1;" type="text"/>
+<input id="adminBannerInput" maxlength="160" placeholder="Banner text shown at the top for everyone..." style="flex:1;" type="text">
 <button class="composer-btn primary" data-need="admin" onclick="adminSetBanner(true)">Set</button>
 <button class="composer-btn" data-need="admin" onclick="adminSetBanner(false)">Clear</button>
 </div>
@@ -3011,7 +3009,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 <div class="admin-card-title">Message Log</div>
 <div class="admin-sub" style="margin-bottom:10px;">Client-maintained message archive across servers. Not a tamper-proof or complete audit log.</div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-<input id="msgLogSearch" oninput="renderMessageLog()" placeholder="Search text or username..." style="flex:2;min-width:160px;font-size:0.8rem;padding:6px 10px;" type="text"/>
+<input id="msgLogSearch" oninput="renderMessageLog()" placeholder="Search text or username..." style="flex:2;min-width:160px;font-size:0.8rem;padding:6px 10px;" type="text">
 <select id="msgLogChannel" onchange="renderMessageLog()" style="flex:1;min-width:140px;font-size:0.8rem;"><option value="">All conversations</option></select>
 <select id="msgLogType" onchange="renderMessageLog()" style="flex:1;min-width:110px;font-size:0.8rem;"><option value="">All types</option><option value="global">Global</option><option value="group">Groups</option><option value="dm">DMs</option></select>
 </div>
@@ -13432,4 +13430,5 @@ async function openGustEarlyRelease() {
   win.document.open(); win.document.write(html); win.document.close();
  } catch(e) { if(!win.closed) win.close(); toast('Could not launch GUST: '+e.message); }
 }
-</script></body></html>
+</script>
+</body></html>
