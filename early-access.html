@@ -214,7 +214,7 @@
     if (!win) return;
     loadingDoc(win, 'Sp1der Meet');
     try {
-      var html = await fetchFromSources(REPO_SOURCES('sp1der-meet.html'), 'Sp1der Meet');
+      var html = await fetchFromSources(REPO_SOURCES('videocall.html'), 'Sp1der Meet');
       var d = win.document; d.open(); d.write(html); d.close();
     } catch (e) { errorDoc(win, 'Sp1der Meet', e); }
   }
