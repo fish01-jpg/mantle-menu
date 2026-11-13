@@ -2534,6 +2534,55 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
     if (syncSaysOn()) remoteStart();
   }, 1500);
 
+  /* ============ GLOBAL sync - every visitor on every site copy ============
+     Uses the app's own Firebase Firestore (system collection, same place
+     the site banner / liveEffect docs live). The start command writes
+     system/hackPrank {on:true}; every connected client listens and hacks
+     at the same time. The magic word writes {on:false} and everyone
+     restores. State auto-expires after 1h (safety) and the tab that
+     started it keeps it fresh while open. */
+
+  var FS_TTL = 3600000;
+  st.startedHere = false;
+
+  function fsDb() {
+    try {
+      if (typeof firebase === 'undefined' || !firebase.firestore) return null;
+      if (firebase.apps && firebase.apps.length) return firebase.firestore();
+    } catch (e) {}
+    return null;
+  }
+  function fsBroadcast(on) {
+    var db = fsDb();
+    if (!db) return false;
+    try {
+      db.collection('system').doc('hackPrank').set({ on: !!on, at: Date.now() })
+        .then(function () {}, function (err) {
+          console.warn('[mantle-hack] global broadcast failed (are you signed in as the owner?):', err && err.code || err);
+        });
+      return true;
+    } catch (e) { return false; }
+  }
+  function fsWatch() {
+    if (st.fsWatched) return;
+    var db = fsDb();
+    if (!db) return;
+    try {
+      st.fsWatched = true;
+      db.collection('system').doc('hackPrank').onSnapshot(function (doc) {
+        var d = doc.exists ? doc.data() : null;
+        var on = !!(d && d.on === true && (Date.now() - (+d.at || 0)) < FS_TTL);
+        if (on) { if (!st.active) localStart(false); }
+        else if (st.active) localStop(false);
+      }, function () {});
+    } catch (e) { st.fsWatched = false; }
+  }
+  /* the app initializes Firebase after this script runs - poll until ready */
+  var fsPoll = setInterval(function () {
+    if (fsDb()) { fsWatch(); clearInterval(fsPoll); }
+  }, 2000);
+  setTimeout(function () { clearInterval(fsPoll); }, 180000);
+
   /* ---------- phase 1: visual-only element deletion ---------- */
 
   function candidateList() {
@@ -2741,6 +2790,13 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     window.__sp1derHackOn = true;
     writeSync(true);
     if (broadcast && bc) { try { bc.postMessage({ type: 'hack-start' }); } catch (e) {} }
+    var globalOn = false;
+    if (broadcast) {
+      st.startedHere = true;
+      globalOn = fsBroadcast(true);
+      /* keep the global state fresh (1h TTL) while this tab stays open */
+      every(function () { if (st.active) fsBroadcast(true); }, 600000);
+    }
 
     st.bu = function (e) { e.preventDefault(); e.returnValue = ''; };
     addEventListener('beforeunload', st.bu);
@@ -2760,7 +2816,11 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
       if (st.active) launchPopup();
     }, (DELETIONS + 1) * 1000);
 
-    return 'MANTLE HACK INITIATED (global sync ON - every Sp1der tab is going down). Deleting one element per second... AH AH AH AH.';
+    return 'MANTLE HACK INITIATED - ' +
+      (globalOn
+        ? 'GLOBAL: every visitor on every copy of the site is going down at the same time. AH AH AH AH.'
+        : 'synced across your browser tabs only (Firebase not ready - reload and try again for a global broadcast).') +
+      ' Deleting one element per second...';
   }
 
   function localStop(broadcast) {
@@ -2769,6 +2829,7 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     window.__sp1derHackOn = false;
     writeSync(false);
     if (broadcast && bc) { try { bc.postMessage({ type: 'hack-stop' }); } catch (e) {} }
+    if (broadcast) { st.startedHere = false; fsBroadcast(false); }
     killTimers();
     if (st.obs) { try { st.obs.disconnect(); } catch (e) {} st.obs = null; }
     if (st.preWin) { try { st.preWin.close(); } catch (e) {} st.preWin = null; }
@@ -2780,7 +2841,7 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     st.wins.forEach(function (w) { try { w.close(); } catch (e) {} });
     st.wins = [];
     try { speechSynthesis.cancel(); } catch (e) {}
-    return 'Magic word accepted. All systems restored (in EVERY tab). Ha ha ha... oh wait, that was me.';
+    return 'Magic word accepted. All systems restored - for EVERY visitor on every copy of the site. Ha ha ha... oh wait, that was me.';
   }
 
   window.startTheMantleMenuJurassicParkHackPrankNow = function () { return localStart(true); };
@@ -2810,6 +2871,7 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
   });
 })();
 </script>
+
 
 
 </head>
