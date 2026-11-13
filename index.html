@@ -10519,4 +10519,516 @@ let wasMobile=mq.matches,priorCollapsed=sidebar?sidebar.classList.contains('coll
 mq.addEventListener('change',()=>{if(mq.matches){priorCollapsed=sidebar?sidebar.classList.contains('collapsed'):false;closeNav()}else if(sidebar&&wasMobile){sidebar.classList.toggle('collapsed',priorCollapsed)}wasMobile=mq.matches;closeChannels();syncNav();viewport()});syncNav();
 }if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init()})();
 </script>
+<script id="sp1der-did">
+/* ================================================================
+   SP1DER DID — device identity, alt guard, account manager
+   - Every device gets a Device ID (DID). The DID is a random install
+     seed kept in THREE separate stores (localStorage, a cookie and
+     IndexedDB) plus a hardware fingerprint, so clearing cookies alone
+     never changes it. Wiping ALL site data gives the device a new DID,
+     but the hardware fingerprint (canvas/WebGL/screen/timezone/...)
+     still matches the new account to the old one in the Account
+     Manager - same hardware, flagged as one device.
+   - ONE ACCOUNT PER DEVICE while alt-block is ON (the default).
+     Signing in with a second account on a device that already has a
+     primary account signs you right back out. Creating a second
+     account on a linked device is refused at sign-up. The device's
+     FIRST account is the primary and is never blocked; staff accounts
+     (owner/developer/founder/aegis) are exempt.
+   - BANNED DEVICES cannot sign in at all.
+   - ACCOUNT MANAGER (owner/developer): bottom-left DID button.
+     Every device and its accounts, ban/unban a device, unlink an
+     account from a device, toggle alt-block on/off.
+   Data: users/{uid} gets did + hardwareId; devices/{DID} gets its
+   account list (best effort - if Firestore rules block the devices
+   collection, tracking still works through the users collection);
+   system/didConfig holds { altBlock, bannedDids }.
+   ================================================================ */
+(function () {
+  'use strict';
+  if (window.__sp1derDidInstalled) return;
+  window.__sp1derDidInstalled = true;
+
+  var STAFF_ROLES = ['owner', 'developer', 'founder', 'aegis'];
+  var SEED_KEY = 'sp1derDID_v1';
+  var myRole = 'guest';   /* role of the signed-in user, for the manager */
+
+  /* ---------- 1. hardware fingerprint ---------- */
+  function fpCanvas() {
+    try {
+      var c = document.createElement('canvas'); c.width = 260; c.height = 60;
+      var x = c.getContext('2d');
+      x.textBaseline = 'top'; x.font = '16px Arial';
+      x.fillStyle = '#f60'; x.fillRect(0, 0, 260, 30);
+      x.fillStyle = '#069'; x.fillText('sp1der::did::\u00b5\u00a9\u2122', 2, 15);
+      x.fillStyle = 'rgba(102,204,0,0.7)'; x.fillText('fingerprint', 4, 44);
+      x.beginPath(); x.arc(210, 40, 14, 0, Math.PI * 2); x.fill();
+      return c.toDataURL().slice(-240);
+    } catch (e) { return 'nc'; }
+  }
+  function fpWebGL() {
+    try {
+      var c = document.createElement('canvas');
+      var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+      if (!gl) return 'ng';
+      var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      var out = dbg ? String(gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)) + '|' + String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : String(gl.getParameter(gl.RENDERER));
+      out += '|' + gl.getParameter(gl.MAX_TEXTURE_SIZE) + '|' + gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
+      return out;
+    } catch (e) { return 'ng2'; }
+  }
+  function fpScreen() { return [screen.width, screen.height, screen.colorDepth, window.devicePixelRatio || 1, screen.availWidth, screen.availHeight].join(','); }
+  function fpEnv() { return [Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language, (navigator.languages || []).join(','), navigator.platform, navigator.hardwareConcurrency || 0, navigator.maxTouchPoints || 0, navigator.userAgent].join('|'); }
+  function djb(str) {
+    var h1 = 0x811c9dc5, h2 = 0x9e3779b9, i, c;
+    for (i = 0; i < str.length; i++) {
+      c = str.charCodeAt(i);
+      h1 = ((h1 ^ c) * 16777619) >>> 0;
+      h2 = ((h2 + c) * 2654435761 + i) >>> 0;
+    }
+    return ('0000000' + h1.toString(16)).slice(-8) + ('0000000' + h2.toString(16)).slice(-8);
+  }
+  var HWID = djb([fpCanvas(), fpWebGL(), fpScreen(), fpEnv()].join('~'));
+
+  /* ---------- 2. the DID: install seed in three stores ---------- */
+  function randomSeed() {
+    try { var a = crypto.getRandomValues(new Uint32Array(2)); return 's' + a[0].toString(36) + a[1].toString(36) + Date.now().toString(36); }
+    catch (e) { return 's' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  }
+  function idbGetSeed() {
+    return new Promise(function (res) {
+      try {
+        var q = indexedDB.open('sp1derDID', 1);
+        q.onupgradeneeded = function () { try { q.result.createObjectStore('did'); } catch (e) {} };
+        q.onsuccess = function () {
+          try {
+            var tx = q.result.transaction('did', 'readonly');
+            var r = tx.objectStore('did').get('seed');
+            r.onsuccess = function () { res(r.result || null); };
+            r.onerror = function () { res(null); };
+          } catch (e) { res(null); }
+        };
+        q.onerror = function () { res(null); };
+      } catch (e) { res(null); }
+    });
+  }
+  function idbPutSeed(v) {
+    return new Promise(function (res) {
+      try {
+        var q = indexedDB.open('sp1derDID', 1);
+        q.onupgradeneeded = function () { try { q.result.createObjectStore('did'); } catch (e) {} };
+        q.onsuccess = function () {
+          try {
+            var tx = q.result.transaction('did', 'readwrite');
+            tx.objectStore('did').put(v, 'seed');
+            tx.oncomplete = function () { res(true); };
+            tx.onerror = function () { res(false); };
+          } catch (e) { res(false); }
+        };
+        q.onerror = function () { res(false); };
+      } catch (e) { res(false); }
+    });
+  }
+  function cookieGet() {
+    try { var m = document.cookie.match(/(?:^|; )sp1derDID_v1=([^;]*)/); return m ? decodeURIComponent(m[1]) : null; } catch (e) { return null; }
+  }
+  function cookieSet(v) {
+    try { document.cookie = 'sp1derDID_v1=' + encodeURIComponent(v) + ';max-age=31536000;path=/;SameSite=Lax'; } catch (e) {}
+  }
+  var DID = null, didReady = null;
+  function ensureDID() {
+    if (!didReady) didReady = (async function () {
+      var seed = null;
+      try { seed = localStorage.getItem(SEED_KEY); } catch (e) {}
+      if (!seed) seed = cookieGet();
+      if (!seed) seed = await idbGetSeed();
+      if (!seed) {
+        seed = randomSeed();
+        /* brand new device: remember the seed in every store we have */
+        try { localStorage.setItem(SEED_KEY, seed); } catch (e) {}
+        cookieSet(seed);
+        await idbPutSeed(seed);
+      } else {
+        /* backfill any store that was partially cleared */
+        try { if (localStorage.getItem(SEED_KEY) !== seed) localStorage.setItem(SEED_KEY, seed); } catch (e) {}
+        if (cookieGet() !== seed) cookieSet(seed);
+        if ((await idbGetSeed()) !== seed) await idbPutSeed(seed);
+      }
+      DID = 'DID-' + djb(seed + '|' + HWID);
+      window.__sp1derDID = DID;
+      return DID;
+    })();
+    return didReady;
+  }
+
+  /* ---------- 3. firestore helpers ---------- */
+  function fs() { try { return (typeof db !== 'undefined' && db) || null; } catch (e) { return null; } }
+  function fbAuth() { try { return (typeof auth !== 'undefined' && auth) || null; } catch (e) { return null; } }
+  function FV() { try { return firebase.firestore.FieldValue; } catch (e) { return null; } }
+
+  async function readConfig() {
+    var cfg = { altBlock: true, bannedDids: [] };
+    var d = fs(); if (!d) return cfg;
+    try {
+      var snap = await d.collection('system').doc('didConfig').get();
+      if (snap.exists) {
+        var v = snap.data() || {};
+        if (v.altBlock === false) cfg.altBlock = false;
+        if (Array.isArray(v.bannedDids)) cfg.bannedDids = v.bannedDids;
+      }
+    } catch (e) {}
+    return cfg;
+  }
+
+  /* accounts + primary + ban state for a device, from every source we can read */
+  async function deviceState(did) {
+    var d = fs();
+    var accounts = [], primary = null, banned = false, seenAt = {};
+    if (d) {
+      try {
+        var doc = await d.collection('devices').doc(did).get();
+        if (doc.exists) {
+          var v = doc.data() || {};
+          if (Array.isArray(v.accounts)) accounts = accounts.concat(v.accounts);
+          if (v.primary) primary = v.primary;
+          if (v.banned) banned = true;
+        }
+      } catch (e) {}
+      try {
+        var snap = await d.collection('users').where('did', '==', did).limit(50).get();
+        snap.forEach(function (u) {
+          var v = u.data() || {};
+          accounts.push(u.id);
+          seenAt[u.id] = +v.didSeenAt || 0;
+        });
+      } catch (e) {}
+    }
+    accounts = accounts.filter(function (v, i, a) { return a.indexOf(v) === i; });
+    if (!primary && accounts.length) {
+      /* the account that linked this device first is the primary */
+      var sorted = accounts.slice().sort(function (a, b) {
+        return ((seenAt[a] || Infinity) - (seenAt[b] || Infinity)) || String(a).localeCompare(String(b));
+      });
+      primary = sorted[0];
+    }
+    return { accounts: accounts, primary: primary, banned: banned };
+  }
+
+  async function roleOf(uid) {
+    var d = fs(); if (!d) return 'member';
+    try {
+      var snap = await d.collection('users').doc(uid).get();
+      if (snap.exists) return String((snap.data() || {}).role || 'member').toLowerCase();
+    } catch (e) {}
+    return 'member';
+  }
+
+  /* ---------- 4. enforcement ---------- */
+  function notice(title, lines) {
+    try {
+      var old = document.getElementById('sp1der-did-notice'); if (old) old.remove();
+      var ov = document.createElement('div');
+      ov.id = 'sp1der-did-notice';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:rgba(5,3,15,.88);display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+      var card = document.createElement('div');
+      card.style.cssText = 'max-width:430px;width:calc(100% - 40px);background:#14101f;border:1px solid #a020f0;border-radius:14px;padding:24px;color:#f2ecff;box-shadow:0 18px 60px rgba(0,0,0,.6);';
+      var h = document.createElement('div');
+      h.textContent = title;
+      h.style.cssText = 'font-size:19px;font-weight:700;letter-spacing:1px;color:#ff4444;margin-bottom:10px;';
+      card.appendChild(h);
+      lines.forEach(function (t) {
+        var p = document.createElement('p');
+        p.textContent = t;
+        p.style.cssText = 'font-size:14px;line-height:1.55;color:#a89ec2;margin:0 0 10px;';
+        card.appendChild(p);
+      });
+      var b = document.createElement('button');
+      b.textContent = 'OK';
+      b.style.cssText = 'background:linear-gradient(135deg,#7c5cff,#a020f0);border:0;color:#fff;font-weight:600;border-radius:10px;padding:10px 26px;cursor:pointer;font-size:14px;';
+      b.onclick = function () { ov.remove(); };
+      card.appendChild(b);
+      ov.appendChild(card);
+      document.body.appendChild(ov);
+    } catch (e) {}
+    try { if (typeof toast === 'function') toast(title); } catch (e) {}
+  }
+
+  function track(user) {
+    var d = fs(); if (!d || !DID) return;
+    /* own profile doc - allowed for the signed-in user */
+    try {
+      d.collection('users').doc(user.uid).set({ did: DID, hardwareId: HWID, didSeenAt: Date.now() }, { merge: true }).catch(function () {});
+    } catch (e) {}
+    /* devices collection - best effort, rules permitting */
+    try {
+      d.collection('devices').doc(DID).set({
+        did: DID, hardwareId: HWID, lastSeen: Date.now(),
+        accounts: FV().arrayUnion(user.uid)
+      }, { merge: true }).catch(function () {});
+    } catch (e) {}
+  }
+
+  async function handleAuthState(user) {
+    var a = fbAuth(); if (!a) return;
+    if (!user) { myRole = 'guest'; refreshMgrButton(); return; }
+    await ensureDID();
+    myRole = await roleOf(user.uid);
+    try { if (typeof isOwnerEmail === 'function' && isOwnerEmail((user.email || '').toLowerCase())) myRole = 'owner'; } catch (e) {}
+    refreshMgrButton();
+    if (STAFF_ROLES.indexOf(myRole) !== -1) { track(user); return; }  /* staff: tracked, never blocked */
+    var cfg = await readConfig();
+    var state = await deviceState(DID);
+    track(user);  /* record the attempt even if we block below */
+    if (state.banned || cfg.bannedDids.indexOf(DID) !== -1) {
+      try { a.signOut(); } catch (e) {}
+      notice('DEVICE BANNED', [
+        'This device is banned from Sp1der.',
+        'Device ID: ' + DID,
+        'If you think this is a mistake, contact an owner.'
+      ]);
+      return;
+    }
+    if (cfg.altBlock && state.primary && state.primary !== user.uid) {
+      try { a.signOut(); } catch (e) {}
+      notice('ONE ACCOUNT PER DEVICE', [
+        'This device is already linked to an account, so you were signed out.',
+        'Making alts is not allowed - clearing cookies or site data does not change your device.',
+        'Device ID: ' + DID,
+        'If you need help with your account, contact an owner in chat.'
+      ]);
+    }
+  }
+
+  /* ---------- 5. account manager (staff only) ---------- */
+  function isStaff() { return STAFF_ROLES.indexOf(myRole) !== -1; }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function refreshMgrButton() {
+    var b = document.getElementById('sp1der-did-btn');
+    if (b) b.style.display = isStaff() ? 'flex' : 'none';
+  }
+
+  function mountMgrButton() {
+    if (document.getElementById('sp1der-did-btn')) return;
+    var b = el('button', null, 'DID');
+    b.id = 'sp1der-did-btn';
+    b.title = 'Account Manager - device IDs';
+    b.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483645;display:none;align-items:center;gap:6px;background:linear-gradient(135deg,#7c5cff,#a020f0);border:1px solid rgba(255,255,255,.25);color:#fff;font:600 12px/1 Segoe UI,system-ui,sans-serif;letter-spacing:1px;padding:9px 14px;border-radius:999px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.45);';
+    b.onclick = openMgr;
+    (document.body || document.documentElement).appendChild(b);
+    refreshMgrButton();
+  }
+
+  var mgrCfg = null;
+
+  function closeMgr() {
+    var p = document.getElementById('sp1der-did-panel'); if (p) p.remove();
+  }
+  function openMgr() {
+    if (!isStaff()) return;
+    closeMgr();
+    var ov = el('div'); ov.id = 'sp1der-did-panel';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483645;background:rgba(5,3,15,.72);display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+    var card = el('div');
+    card.style.cssText = 'width:min(720px,calc(100% - 32px));max-height:82vh;display:flex;flex-direction:column;background:#14101f;border:1px solid #2a2340;border-radius:14px;color:#f2ecff;box-shadow:0 18px 60px rgba(0,0,0,.6);overflow:hidden;';
+    var head = el('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #2a2340;background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(160,32,240,.12));';
+    var ht = el('div', null, 'ACCOUNT MANAGER \u2014 DEVICES');
+    ht.style.cssText = 'font-size:15px;font-weight:700;letter-spacing:1px;flex:1;';
+    head.appendChild(ht);
+    var close = el('button', null, '\u2715');
+    close.style.cssText = 'background:#221b33;border:1px solid #2a2340;color:#f2ecff;border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px;';
+    close.onclick = closeMgr;
+    head.appendChild(close);
+    card.appendChild(head);
+    var body = el('div');
+    body.style.cssText = 'padding:14px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;';
+    card.appendChild(body);
+    ov.appendChild(card);
+    ov.addEventListener('click', function (e) { if (e.target === ov) closeMgr(); });
+    document.body.appendChild(ov);
+    renderMgr(body);
+  }
+
+  function mgrBtn(text, fn, danger) {
+    var b = el('button', null, text);
+    b.style.cssText = 'background:' + (danger ? 'rgba(255,68,68,.14)' : '#221b33') + ';border:1px solid ' + (danger ? '#ff4444' : '#2a2340') + ';color:' + (danger ? '#ff6b6b' : '#cfc4e8') + ';border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;white-space:nowrap;';
+    b.onclick = fn;
+    return b;
+  }
+
+  async function renderMgr(body) {
+    body.textContent = '';
+    body.appendChild(el('div', null, 'Loading devices...')).style.cssText = 'color:#a89ec2;font-size:13px;';
+    var d = fs();
+    if (!d) { body.textContent = 'Firestore not ready.'; return; }
+    mgrCfg = await readConfig();
+    var users = [];
+    try {
+      var snap = await d.collection('users').limit(300).get();
+      snap.forEach(function (u) { var v = u.data() || {}; v.uid = u.id; users.push(v); });
+    } catch (e) {
+      body.textContent = 'Could not read the users collection: ' + (e && e.message || e);
+      return;
+    }
+    body.textContent = '';
+    var byUid = {};
+    users.forEach(function (u) { byUid[u.uid] = u; });
+
+    /* top bar: alt-block toggle + this device */
+    var top = el('div');
+    top.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;align-items:center;';
+    var ab = mgrBtn('Alt-block: ' + (mgrCfg.altBlock ? 'ON' : 'OFF'), async function () {
+      ab.textContent = '...';
+      try { await d.collection('system').doc('didConfig').set({ altBlock: !mgrCfg.altBlock }, { merge: true }); } catch (e) {
+        try { if (typeof toast === 'function') toast('Could not save (are you signed in as the owner?): ' + (e.code || e.message)); } catch (x) {}
+      }
+      renderMgr(body);
+    }, !mgrCfg.altBlock);
+    top.appendChild(ab);
+    await ensureDID();
+    var td = el('div', null, 'This device: ' + DID);
+    td.style.cssText = 'color:#6f6590;font-size:12px;flex:1;min-width:160px;';
+    top.appendChild(td);
+    body.appendChild(top);
+
+    /* group users by device */
+    var devices = {}, order = [];
+    users.forEach(function (u) {
+      var did = String(u.did || '');
+      if (!did || did === 'none') return;
+      if (!devices[did]) { devices[did] = []; order.push(did); }
+      devices[did].push(u);
+    });
+    if (!order.length) {
+      body.appendChild(el('div', null, 'No devices with linked accounts yet. They appear as people sign in.')).style.cssText = 'color:#a89ec2;font-size:13px;';
+      return;
+    }
+    order.sort(function (a, b) { return devices[b].length - devices[a].length; });
+
+    /* devices that share a hardware fingerprint = same physical device after a full data wipe */
+    var hwMap = {};
+    order.forEach(function (did) {
+      var hw = null;
+      devices[did].forEach(function (u) { if (!hw && u.hardwareId) hw = String(u.hardwareId); });
+      if (hw) { (hwMap[hw] = hwMap[hw] || []).push(did); }
+    });
+
+    order.forEach(function (did) {
+      /* the account that linked this device first (earliest didSeenAt) is the primary */
+      var prim = null, best = Infinity;
+      devices[did].forEach(function (u) {
+        var t = +u.didSeenAt || 0;
+        if (t && t < best) { best = t; prim = u.uid; }
+      });
+      var box = el('div');
+      box.style.cssText = 'border:1px solid #2a2340;border-radius:12px;padding:12px 14px;background:#1a1526;display:flex;flex-direction:column;gap:8px;';
+      var hrow = el('div');
+      hrow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;';
+      var banned = mgrCfg.bannedDids.indexOf(did) !== -1;
+      var name = el('div', null, did + (did === DID ? '  (this device)' : ''));
+      name.style.cssText = 'font-family:Consolas,monospace;font-size:12.5px;color:#00d4ff;flex:1;min-width:200px;';
+      hrow.appendChild(name);
+      if (banned) {
+        var bb = el('span', null, 'BANNED');
+        bb.style.cssText = 'background:rgba(255,68,68,.16);color:#ff6b6b;border:1px solid #ff4444;border-radius:6px;font-size:11px;padding:2px 8px;letter-spacing:1px;';
+        hrow.appendChild(bb);
+      }
+      var hw = null;
+      devices[did].forEach(function (u) { if (!hw && u.hardwareId) hw = String(u.hardwareId); });
+      if (hw && hwMap[hw] && hwMap[hw].length > 1) {
+        var others = hwMap[hw].filter(function (x) { return x !== did; });
+        var sb = el('span', null, 'SAME HARDWARE \u00d7' + hwMap[hw].length);
+        sb.title = 'This device shares its hardware fingerprint with: ' + others.join(', ') + ' \u2014 same physical device after a full data wipe (possible alt).';
+        sb.style.cssText = 'background:rgba(255,170,0,.14);color:#ffb84d;border:1px solid #ffaa00;border-radius:6px;font-size:11px;padding:2px 8px;letter-spacing:1px;cursor:help;';
+        hrow.appendChild(sb);
+      }
+      hrow.appendChild(mgrBtn(banned ? 'Unban device' : 'Ban device', async function () {
+        var fv = FV();
+        try {
+          await d.collection('system').doc('didConfig').set({ bannedDids: banned ? fv.arrayRemove(did) : fv.arrayUnion(did) }, { merge: true });
+          try { d.collection('devices').doc(did).set({ banned: !banned }, { merge: true }); } catch (x) {}
+        } catch (e) {
+          try { if (typeof toast === 'function') toast('Could not save: ' + (e.code || e.message)); } catch (x) {}
+        }
+        renderMgr(body);
+      }, !banned));
+      box.appendChild(hrow);
+      devices[did].forEach(function (u) {
+        var row = el('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid #241d38;padding-top:8px;';
+        var who = el('div');
+        who.style.cssText = 'flex:1;min-width:180px;';
+        var nm = el('div', null, (u.username || u.uid) + '  [' + String(u.role || 'member').toLowerCase() + ']' + (String(u.uid) === String(prim) ? '  \u2605 primary' : ''));
+        nm.style.cssText = 'font-size:13px;color:#f2ecff;';
+        who.appendChild(nm);
+        var em = el('div', null, u.email || '');
+        em.style.cssText = 'font-size:11.5px;color:#6f6590;';
+        who.appendChild(em);
+        row.appendChild(who);
+        row.appendChild(mgrBtn('Unlink', async function () {
+          try {
+            var fv = FV();
+            await d.collection('users').doc(u.uid).set({ did: 'none', didUnlinkedAt: Date.now() }, { merge: true });
+            try { d.collection('devices').doc(did).set({ accounts: fv.arrayRemove(u.uid), primary: fv.delete() }, { merge: true }); } catch (x) {}
+          } catch (e) {
+            try { if (typeof toast === 'function') toast('Could not save: ' + (e.code || e.message)); } catch (x) {}
+          }
+          renderMgr(body);
+        }, true));
+        box.appendChild(row);
+      });
+      body.appendChild(box);
+    });
+
+    var foot = el('div', null, 'Hardware ID (this browser): ' + HWID + ' \u2014 accounts sharing hardware after a full data wipe show up on the same hardware ID.');
+    foot.style.cssText = 'color:#6f6590;font-size:11.5px;line-height:1.5;';
+    body.appendChild(foot);
+  }
+
+  /* ---------- 6. hooks + boot ---------- */
+  function installAuthHooks() {
+    var a = fbAuth(); if (!a) return;
+    ['createUserWithEmailAndPassword', 'signInWithEmailAndPassword'].forEach(function (m) {
+      try {
+        var orig = a[m].bind(a);
+        a[m] = async function (email, pass) {
+          await ensureDID();
+          var cfg = await readConfig();
+          if (await (async function () {
+            var d = fs(); if (!d) return false;
+            try { var doc = await d.collection('devices').doc(DID).get(); if (doc.exists && doc.data().banned) return true; } catch (e) {}
+            return cfg.bannedDids.indexOf(DID) !== -1;
+          })()) throw new Error('This device is banned from Sp1der.');
+          if (m === 'createUserWithEmailAndPassword' && cfg.altBlock) {
+            var state = await deviceState(DID);
+            if (state.accounts.length) throw new Error('This device already has an account \u2014 alts are not allowed.');
+          }
+          return orig(email, pass);
+        };
+      } catch (e) {}
+    });
+    a.onAuthStateChanged(function (user) {
+      handleAuthState(user).catch(function () {});
+    });
+  }
+
+  function boot() {
+    var a = fbAuth();
+    if (!a) { setTimeout(boot, 1200); return; }  /* wait for the app scripts */
+    ensureDID();
+    installAuthHooks();
+    mountMgrButton();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+
 </body></html>
