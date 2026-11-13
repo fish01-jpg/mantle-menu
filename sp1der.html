@@ -2421,11 +2421,13 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
      quota, keeps working when Firebase quota is exhausted), with
      the app's own Firestore (system/hackPrank) as a backup channel.
      If Firebase dies from quota, the prank keeps running via MQTT.
-   - WAY OUT: type  itsbeenfunbutitstimetogohome  anywhere - the main
-     page, the takeover overlay, or any spawned popup tab - and the
-     virus stops and resets for EVERY visitor on every copy of the
-     site (all tabs close, everything goes back to normal). The long
-     console stop command above still works too.
+   - WAY OUT: type or PASTE  itsbeenfunbutitstimetogohome  anywhere -
+     the main page, the takeover overlay, or any spawned popup tab -
+     and the virus stops and resets for EVERY visitor on every copy of
+     the site (all tabs close, everything goes back to normal). Spaces
+     and punctuation in the pasted text are ignored. The stop is sticky:
+     late "on" echoes from straggler tabs or stale relay messages can't
+     restart it. The long console stop command above still works too.
    ================================================================ */
 (function () {
   'use strict';
@@ -2437,7 +2439,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
   var st = {
     active: false, timers: [], hidden: [], obs: null,
     overlay: null, iframe: null, preWin: null, wins: [],
-    title: null, bu: null
+    title: null, bu: null, stoppedAt: 0
   };
 
   function killTimers() { st.timers.forEach(function (t) { clearInterval(t); clearTimeout(t); }); st.timers = []; }
@@ -2470,14 +2472,57 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
     return !!(s && s.on && (Date.now() - s.t) < 3000);
   }
 
+  /* ============ sticky stop ============
+     A stop must beat late "on" echoes (straggler tabs still heartbeating,
+     a stale retained MQTT message, a reconnect gap). Three layers:
+     - STOP_KEY marker: active tabs notice it in their 1.5s poll and stop
+       themselves, even if every broadcast channel missed them.
+     - st.stoppedAt grace: for 30s after witnessing a stop, this page
+       ignores restart signals. A deliberate START clears the marker and
+       (fresh MQTT/FS timestamp) is honored immediately.
+     - broadcastStop() re-asserts the all-clear so clients reconnecting
+       mid-stop, or loading during the gap, still see it (MQTT retains
+       the last message, so this also heals stale broker state). */
+  var STOP_GRACE = 30000;
+  var STOP_KEY = 'sp1derHackStopAt';
+  function stopMarkFresh() {
+    try {
+      var v = +localStorage.getItem(STOP_KEY) || 0;
+      return !!(v && (Date.now() - v) < STOP_GRACE);
+    } catch (e) { return false; }
+  }
+  function writeStopMark() { try { localStorage.setItem(STOP_KEY, String(Date.now())); } catch (e) {} }
+  function clearStopMark() { try { localStorage.removeItem(STOP_KEY); } catch (e) {} }
+  function restartBlocked(atMs) {
+    if (!st.stoppedAt) return false;
+    if (Date.now() - st.stoppedAt > STOP_GRACE) { st.stoppedAt = 0; return false; }
+    /* a brand-new START (timestamped newer than our stop) always wins */
+    if (atMs && atMs > st.stoppedAt) return false;
+    return true;
+  }
+  function broadcastStop() {
+    try { mqttPublish(false); } catch (e) {}
+    try { fsBroadcast(false); } catch (e) {}
+    try { if (bc) bc.postMessage({ type: 'hack-stop' }); } catch (e) {}
+    try { writeSync(false); } catch (e) {}
+    try { writeStopMark(); } catch (e) {}
+    [3000, 8000].forEach(function (d) {
+      setTimeout(function () {
+        if (st.active) return;
+        try { mqttPublish(false); } catch (e) {}
+        try { fsBroadcast(false); } catch (e) {}
+      }, d);
+    });
+  }
+
   function remoteStart() { if (!st.active) localStart(false); }
-  function remoteStop() { if (st.active) localStop(false); }
+  function remoteStop() { st.stoppedAt = Date.now(); if (st.active) localStop(false); }
 
   if (bc) {
     try {
       bc.onmessage = function (ev) {
         var d = (ev && ev.data) || {};
-        if (d.type === 'hack-start') remoteStart();
+        if (d.type === 'hack-start') { if (!restartBlocked() && !stopMarkFresh()) remoteStart(); }
         else if (d.type === 'hack-stop') remoteStop();
       };
     } catch (e) {}
@@ -2485,15 +2530,20 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
   try {
     addEventListener('storage', function (ev) {
       if (ev.key !== SYNC_KEY) return;
-      if (syncSaysOn()) remoteStart(); else remoteStop();
+      if (syncSaysOn()) { if (!restartBlocked() && !stopMarkFresh()) remoteStart(); }
+      else remoteStop();
     });
   } catch (e) {}
   /* heartbeat while hacked + poll fallback (covers file:// where
      storage events / BroadcastChannel may not fire) */
   setInterval(function () {
     mountTrigger(); /* re-add the hidden button if the app re-renders the page */
-    if (st.active) { writeSync(true); return; }
-    if (syncSaysOn()) remoteStart();
+    if (st.active) {
+      /* a stop marker from another tab means the prank is over here too */
+      if (stopMarkFresh()) { localStop(false); return; }
+      writeSync(true); return;
+    }
+    if (syncSaysOn() && !restartBlocked() && !stopMarkFresh()) remoteStart();
   }, 1500);
 
   /* ============ GLOBAL sync - every visitor on every site copy ============
@@ -2549,8 +2599,8 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
       db.collection('system').doc('hackPrank').onSnapshot(function (doc) {
         var d = doc.exists ? doc.data() : null;
         var on = !!(d && d.on === true && (Date.now() - (+d.at || 0)) < FS_TTL);
-        if (on) { st.globalAt = +d.at || Date.now(); if (!st.active) localStart(false); }
-        else if (st.active) localStop(false);
+        if (on) { st.globalAt = +d.at || Date.now(); if (!st.active && !restartBlocked(+d.at || 0)) localStart(false); }
+        else if (st.active) { st.stoppedAt = Date.now(); localStop(false); }
       }, function (err) {
         st.fsWatched = false;
         if (fsQuotaHit(err)) fsDisable();
@@ -2596,8 +2646,8 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
   }
   function mqttHandleState(d) {
     var on = !!(d && d.on === true && (Date.now() - (+d.at || 0)) < FS_TTL);
-    if (on) { st.globalAt = +d.at || Date.now(); if (!st.active) localStart(false); }
-    else if (st.active) localStop(false);
+    if (on) { st.globalAt = +d.at || Date.now(); if (!st.active && !restartBlocked(+d.at || 0)) localStart(false); }
+    else if (st.active) { st.stoppedAt = Date.now(); localStop(false); }
   }
   function mqttConnect() {
     mqttLoadLib(function (ok) {
@@ -2774,29 +2824,44 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     return false;
   }
   var KP = 'itsbeenfunbutitstimetogohome', kbuf = '';
+  function magicWord() {
+    var done = false, w = window, i;
+    try {
+      for (i = 0; i < 8 && w; i++) {
+        if (w.__mantleHackKill) { w.__mantleHackKill(); done = true; break; }
+        if (!w.opener || w.opener === w) break;
+        w = w.opener;
+      }
+    } catch (err) {}
+    try {
+      if (!done && window.parent && window.parent !== window && window.parent.__mantleHackKill) { window.parent.__mantleHackKill(); done = true; }
+    } catch (err) {}
+    try { if (window.opener) window.opener.postMessage({ type: 'MANTLE_HACK_STOP' }, '*'); } catch (err) {}
+    /* this tab is done too - restore itself even if no main page answered */
+    removeEventListener('beforeunload', guard);
+    window.__sp1derHackOn = false;
+    try { speechSynthesis.cancel(); } catch (err) {}
+    try { if (window.parent && window.parent !== window) document.documentElement.innerHTML = ''; else window.close(); } catch (err) {}
+  }
+  function feedWord(txt) {
+    kbuf = (kbuf + txt).slice(-KP.length);
+    if (kbuf !== KP) return;
+    kbuf = '';
+    magicWord();
+  }
   document.addEventListener('keydown', function (e) {
     try {
       if (typeof e.key !== 'string' || e.key.length !== 1) return;
-      kbuf = (kbuf + e.key.toLowerCase()).slice(-KP.length);
-      if (kbuf !== KP) return;
-      kbuf = '';
-      var done = false, w = window, i;
-      try {
-        for (i = 0; i < 8 && w; i++) {
-          if (w.__mantleHackKill) { w.__mantleHackKill(); done = true; break; }
-          if (!w.opener || w.opener === w) break;
-          w = w.opener;
-        }
-      } catch (err) {}
-      try {
-        if (!done && window.parent && window.parent !== window && window.parent.__mantleHackKill) { window.parent.__mantleHackKill(); done = true; }
-      } catch (err) {}
-      try { if (window.opener) window.opener.postMessage({ type: 'MANTLE_HACK_STOP' }, '*'); } catch (err) {}
-      /* this tab is done too - restore itself even if no main page answered */
-      removeEventListener('beforeunload', guard);
-      window.__sp1derHackOn = false;
-      try { speechSynthesis.cancel(); } catch (err) {}
-      try { if (window.parent && window.parent !== window) document.documentElement.innerHTML = ''; else window.close(); } catch (err) {}
+      feedWord(e.key.toLowerCase());
+    } catch (err) {}
+  });
+  /* pasting the magic word works too (spaces/punctuation are ignored) */
+  document.addEventListener('paste', function (e) {
+    try {
+      var t = e.clipboardData && e.clipboardData.getData('text');
+      if (!t) return;
+      var txt = t.toLowerCase().replace(/[^a-z]/g, '');
+      if (txt) feedWord(txt);
     } catch (err) {}
   });
   (function check() {
@@ -2814,7 +2879,7 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
 })();
 <\/script></body></html>`;
 
-  var PLACEHOLDER_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>...</title><style>html,body{height:100%;margin:0;background:#000;color:#0f0;font-family:\'Courier New\',monospace;display:flex;align-items:center;justify-content:center}p{font-size:16px;letter-spacing:2px;animation:bl 1s steps(1) infinite}@keyframes bl{50%{opacity:.2}}</style></head><body><p>CONNECTING TO MANTLE MAINFRAME...</p><script>var KP=\'itsbeenfunbutitstimetogohome\',kb=\'\';document.addEventListener(\'keydown\',function(e){try{if(typeof e.key!==\'string\'||e.key.length!==1)return;kb=(kb+e.key.toLowerCase()).slice(-KP.length);if(kb!==KP)return;kb=\'\';try{if(window.opener&&window.opener.__mantleHackKill)window.opener.__mantleHackKill();}catch(x){}try{if(window.opener)window.opener.postMessage({type:\'MANTLE_HACK_STOP\'},\'*\');}catch(x){}window.close();}catch(x){}});<\/script></body></html>';
+  var PLACEHOLDER_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>...</title><style>html,body{height:100%;margin:0;background:#000;color:#0f0;font-family:\'Courier New\',monospace;display:flex;align-items:center;justify-content:center}p{font-size:16px;letter-spacing:2px;animation:bl 1s steps(1) infinite}@keyframes bl{50%{opacity:.2}}</style></head><body><p>CONNECTING TO MANTLE MAINFRAME...</p><script>var KP=\'itsbeenfunbutitstimetogohome\',kb=\'\';function mw(){try{if(window.opener&&window.opener.__mantleHackKill)window.opener.__mantleHackKill();}catch(x){}try{if(window.opener)window.opener.postMessage({type:\'MANTLE_HACK_STOP\'},\'*\');}catch(x){}window.close();}function fw(t){kb=(kb+t).slice(-KP.length);if(kb!==KP)return;kb=\'\';mw();}document.addEventListener(\'keydown\',function(e){try{if(typeof e.key!==\'string\'||e.key.length!==1)return;fw(e.key.toLowerCase());}catch(x){}});document.addEventListener(\'paste\',function(e){try{var t=e.clipboardData&&e.clipboardData.getData(\'text\');if(!t)return;var x=t.toLowerCase().replace(/[^a-z]/g,\'\');if(x)fw(x);}catch(x){}});<\/script></body></html>';
 
   function spawnRaw(html) {
     var w = null;
@@ -2895,6 +2960,8 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     if (st.active) return 'Hack already running. You know the way out... the magic word.';
     if (!document.body) return 'Page is still loading - try again in a second.';
     st.active = true;
+    st.stoppedAt = 0; /* a deliberate start beats any recent stop */
+    clearStopMark();
     window.__sp1derHackOn = true;
     writeSync(true);
     if (broadcast && bc) { try { bc.postMessage({ type: 'hack-start' }); } catch (e) {} }
@@ -2936,10 +3003,11 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
   function localStop(broadcast) {
     if (!st.active) return 'Nothing is wrong. Everything is fine. For now.';
     st.active = false;
+    st.stoppedAt = Date.now(); /* sticky stop - ignore late "on" echoes */
+    writeStopMark();
     window.__sp1derHackOn = false;
     writeSync(false);
-    if (broadcast && bc) { try { bc.postMessage({ type: 'hack-stop' }); } catch (e) {} }
-    if (broadcast) { st.startedHere = false; mqttPublish(false); fsBroadcast(false); }
+    if (broadcast) { st.startedHere = false; broadcastStop(); }
     killTimers();
     if (st.obs) { try { st.obs.disconnect(); } catch (e) {} st.obs = null; }
     if (st.preWin) { try { st.preWin.close(); } catch (e) {} st.preWin = null; }
@@ -2969,20 +3037,34 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     var r = localStop(true); /* stops locally + broadcasts stop if active */
     if (!wasActive) {
       /* not running on this copy - still tell every other copy to stop */
-      try { mqttPublish(false); } catch (e) {}
-      try { fsBroadcast(false); } catch (e) {}
-      try { if (bc) bc.postMessage({ type: 'hack-stop' }); } catch (e) {}
-      try { writeSync(false); } catch (e) {}
+      st.stoppedAt = Date.now();
+      broadcastStop();
       return 'Kill phrase accepted - broadcasting the all-clear to every copy of the site.';
     }
     return r;
   };
 
+  function feedKill(txt) {
+    killBuf = (killBuf + txt).slice(-KILL_PHRASE.length);
+    if (killBuf !== KILL_PHRASE) return;
+    killBuf = '';
+    window.__mantleHackKill();
+  }
+
   document.addEventListener('keydown', function (e) {
     try {
       if (typeof e.key !== 'string' || e.key.length !== 1) return;
-      killBuf = (killBuf + e.key.toLowerCase()).slice(-KILL_PHRASE.length);
-      if (killBuf === KILL_PHRASE) { killBuf = ''; window.__mantleHackKill(); }
+      feedKill(e.key.toLowerCase());
+    } catch (err) {}
+  }, true);
+
+  /* pasting the magic word works too - with or without spaces/punctuation */
+  document.addEventListener('paste', function (e) {
+    try {
+      var t = e.clipboardData && e.clipboardData.getData('text');
+      if (!t) return;
+      var txt = t.toLowerCase().replace(/[^a-z]/g, '');
+      if (txt) feedKill(txt);
     } catch (err) {}
   }, true);
 
