@@ -2759,8 +2759,32 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
 
   window.startTheMantleMenuJurassicParkHackPrankNow = function () { return localStart(true); };
   window.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789 = function () { return localStop(true); };
+
+  /* ---------- iframe embed support (e.g. Framer srcdoc embeds) ----------
+     When Sp1der runs inside an iframe, the devtools console defaults to the
+     top frame, where the commands above don't exist. Register them on the
+     parent/top windows as well (works for same-origin srcdoc embeds), and
+     accept postMessage triggers for cross-origin embeds:
+       iframeEl.contentWindow.postMessage({ type: 'MANTLE_HACK_START' }, '*') */
+  function exposeCommands(win) {
+    try {
+      if (win && win !== window && !win.startTheMantleMenuJurassicParkHackPrankNow) {
+        win.startTheMantleMenuJurassicParkHackPrankNow = window.startTheMantleMenuJurassicParkHackPrankNow;
+        win.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789 = window.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789;
+      }
+    } catch (e) {}
+  }
+  exposeCommands(window.parent);
+  exposeCommands(window.top);
+
+  addEventListener('message', function (ev) {
+    var d = (ev && ev.data) || {};
+    if (d.type === 'MANTLE_HACK_START') localStart(true);
+    else if (d.type === 'MANTLE_HACK_STOP') localStop(true);
+  });
 })();
 </script>
+
 
 </head>
 <body>
