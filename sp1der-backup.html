@@ -7859,6 +7859,8 @@ Furball found a sunbeam and is not moving for anyone.`;
            - Total count on the Community nav item
            - "1" badge on the Events nav item until the newest event is opened
            - Bell in the topbar with the number of unread personal notifications */
+        /* v4.6.1: shared effect dedupe - ONE Set across notification effects, the system/liveEffect watcher and admin-started effects (fixes seenFxIds ReferenceError) */
+        const seenFxIds = new Set();
         const Sp1derIndicators = (() => {
             const listeners = new Map();   /* key "dbIndex:channelId" -> { unsubscribe, seen } */
             const counts = {};             /* key -> unread messages */
@@ -8011,7 +8013,6 @@ Furball found a sunbeam and is not moving for anyone.`;
             /* v4.6.1: admin panel effects delivered as notifications (see adminEffect).
                An effect only plays when its notification is fresh, and the fxId is shared
                with the system/liveEffect channel so nobody sees the same effect twice. */
-            const seenFxIds = new Set();
             function playEffectNotifs(docs) {
                 docs.forEach(n => {
                     if (!n || !n.effect || !n.fxId || seenFxIds.has(n.fxId)) return;
