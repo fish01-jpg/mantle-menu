@@ -129,6 +129,7 @@
         </div>
 
         <div class="controls" id="controls">
+            <button class="btn" id="enableAudioBtn" onclick="enableCallAudio()" hidden>Enable call audio</button>
             <button class="btn" id="micBtn" onclick="toggleMic()">Mute</button>
             <button class="btn" id="camBtn" onclick="toggleCam()">Camera off</button>
             <button class="btn" id="shareBtn" onclick="shareScreen()">Share screen</button>
@@ -199,7 +200,12 @@
         async function getMedia() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
                 throw new Error('this browser or page cannot access the camera (media needs HTTPS and a supported browser)');
-            return navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            try {
+                return await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            } catch (e) {
+                if (e.name !== 'NotFoundError' && e.name !== 'OverconstrainedError') throw e;
+                return await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+            }
         }
 
         /* Send one signaling message to one peer */
@@ -218,8 +224,19 @@
             };
             pc.ontrack = e => {
                 const tile = tileFor(peerId);
-                const v = tile.querySelector('video'); if (v) v.srcObject = e.streams[0];
+                const v = tile.querySelector('video');
+                const audio = tile.querySelector('audio');
+                if (!tile.remoteStream) tile.remoteStream = new MediaStream();
+                if (!tile.remoteStream.getTracks().some(t => t.id === e.track.id))
+                    tile.remoteStream.addTrack(e.track);
+                v.muted = true;
+                v.srcObject = tile.remoteStream;
+                audio.srcObject = tile.remoteStream;
+                audio.muted = false;
+                audio.volume = 1;
                 playVideo(v);
+                playRemoteAudio(audio);
+                e.track.onunmute = () => { playVideo(v); playRemoteAudio(audio); };
             };
             pc.onconnectionstatechange = () => {
                 const st = pc.connectionState;
@@ -230,8 +247,27 @@
         }
 
         function playVideo(v) {
-            if (!v) return;
-            v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+            if (v) v.play().catch(() => {});
+        }
+
+        function playRemoteAudio(audio) {
+            if (!audio || !audio.srcObject || !audio.srcObject.getAudioTracks().length) return;
+            audio.muted = false;
+            audio.volume = 1;
+            audio.play().then(() => {
+                audio.dataset.blocked = 'no';
+                refreshAudioButton();
+            }).catch(() => {
+                audio.dataset.blocked = 'yes';
+                refreshAudioButton();
+            });
+        }
+        function refreshAudioButton() {
+            const button = $('enableAudioBtn');
+            if (button) button.hidden = !document.querySelector('audio[data-blocked="yes"]');
+        }
+        function enableCallAudio() {
+            document.querySelectorAll('#videoGrid audio').forEach(playRemoteAudio);
         }
 
         /* One video tile per remote peer */
@@ -241,7 +277,7 @@
             tile = document.createElement('div');
             tile.className = 'tile';
             tile.id = 'tile-' + peerId;
-            tile.innerHTML = '<video autoplay playsinline></video><span class="tag"></span><div class="off">No video</div>';
+            tile.innerHTML = '<video autoplay playsinline muted></video><audio autoplay></audio><span class="tag"></span><div class="off">No video</div>';
             $('videoGrid').appendChild(tile);
             const t = VC.peers[peerId];
             tile.querySelector('.tag').textContent = (t && t.name) || 'Guest';
@@ -249,7 +285,7 @@
         }
         function dropTile(peerId) {
             const tile = document.getElementById('tile-' + peerId);
-            if (tile) { try { const v = tile.querySelector('video'); if (v) v.srcObject = null; tile.remove(); } catch (e) {} }
+            if (tile) { try { const v = tile.querySelector('video'); if (v) v.srcObject = null; const a = tile.querySelector('audio'); if (a) { a.pause(); a.srcObject = null; } tile.remove(); refreshAudioButton(); } catch (e) {} }
         }
 
         function updateStatus() {
