@@ -2451,6 +2451,343 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 }
 </style>
 <!-- sp1der-phone:end -->
+<script id="sp1der-hack-prank">
+/* ================================================================
+   MANTLE MENU — JURASSIC PARK HACK PRANK v2 (visual-only, reversible)
+   START (console):  startTheMantleMenuJurassicParkHackPrankNow()
+   STOP  (console):  PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789()
+   - One visible page element disappears per second, then the
+     "YOU DIDN'T SAY THE MAGIC WORD" takeover takes over.
+   - The takeover re-adds itself if removed, opens recursive popup
+     tabs, and guards the tab with a beforeunload prompt.
+   - GLOBALLY SYNCED across every Sp1der page/tab (index, sp1der,
+     sp1der-mobile, sp1der-backup, early-access): start it in one
+     tab and every open Sp1der tab gets hacked; the magic word in
+     any tab restores ALL of them.
+   - The ONLY way out is the long stop command above.
+   ================================================================ */
+(function () {
+  'use strict';
+  if (window.__sp1derHackInstalled) return;
+  window.__sp1derHackInstalled = true;
+
+  var DELETIONS = 12; /* elements visually deleted, one per second, before the popup */
+
+  var st = {
+    active: false, timers: [], hidden: [], obs: null,
+    overlay: null, iframe: null, preWin: null, wins: [],
+    title: null, bu: null
+  };
+
+  function killTimers() { st.timers.forEach(function (t) { clearInterval(t); clearTimeout(t); }); st.timers = []; }
+  function every(fn, ms) { var t = setInterval(fn, ms); st.timers.push(t); return t; }
+  function after(fn, ms) { var t = setTimeout(fn, ms); st.timers.push(t); return t; }
+
+  function speak() {
+    try {
+      var u = new SpeechSynthesisUtterance('Ah ah ah ah. You did not say the magic word.');
+      u.rate = 0.95; u.pitch = 0.3; u.volume = 1;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  /* ================= global cross-tab sync ================= */
+
+  var SYNC_KEY = 'sp1derHackSyncState';
+  var bc = null;
+  try { bc = new BroadcastChannel('sp1der-hack-sync'); } catch (e) {}
+
+  function readSync() {
+    try { var v = localStorage.getItem(SYNC_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+  }
+  function writeSync(on) {
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify({ on: !!on, t: Date.now() })); } catch (e) {}
+  }
+  function syncSaysOn() {
+    var s = readSync();
+    /* only trust "on" if a live hacked tab is still heartbeating (<=3s old) */
+    return !!(s && s.on && (Date.now() - s.t) < 3000);
+  }
+
+  function remoteStart() { if (!st.active) localStart(false); }
+  function remoteStop() { if (st.active) localStop(false); }
+
+  if (bc) {
+    try {
+      bc.onmessage = function (ev) {
+        var d = (ev && ev.data) || {};
+        if (d.type === 'hack-start') remoteStart();
+        else if (d.type === 'hack-stop') remoteStop();
+      };
+    } catch (e) {}
+  }
+  try {
+    addEventListener('storage', function (ev) {
+      if (ev.key !== SYNC_KEY) return;
+      if (syncSaysOn()) remoteStart(); else remoteStop();
+    });
+  } catch (e) {}
+  /* heartbeat while hacked + poll fallback (covers file:// where
+     storage events / BroadcastChannel may not fire) */
+  setInterval(function () {
+    if (st.active) { writeSync(true); return; }
+    if (syncSaysOn()) remoteStart();
+  }, 1500);
+
+  /* ---------- phase 1: visual-only element deletion ---------- */
+
+  function candidateList() {
+    var out = [], els = document.body.querySelectorAll('*'), vw = innerWidth * innerHeight;
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i], t = el.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'LINK' || t === 'META' || t === 'NOSCRIPT' || t === 'IFRAME') continue;
+      if (el.id && el.id.indexOf('sp1der-hack') === 0) continue;
+      if (el.closest && el.closest('#sp1der-hack-overlay')) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 15 || r.height < 15) continue;
+      if (r.width * r.height > vw * 0.5) continue; /* don't nuke the whole shell at once */
+      var cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+      out.push(el);
+    }
+    return out;
+  }
+
+  function hideOne() {
+    var list = candidateList();
+    if (!list.length) return false;
+    var el = list[Math.floor(Math.random() * list.length)];
+    st.hidden.push({ el: el, prev: el.style.display });
+    el.style.display = 'none';
+    return true;
+  }
+
+  /* ---------- the hacked popup document (overlay iframe + spawned tabs) ---------- */
+
+  var POPUP_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>HACKED — YOU DIDN'T SAY THE MAGIC WORD</title><style>
+html,body{height:100%;margin:0;background:#000;color:#0f0;font-family:'Courier New',Courier,monospace;overflow:hidden;cursor:crosshair}
+#hx-bg{position:fixed;inset:0;overflow:hidden;opacity:.22;font-size:15px;line-height:2.1;white-space:nowrap;color:#0f0}
+#hx-bg-col{position:absolute;left:0;right:0;animation:hxup 10s linear infinite}
+@keyframes hxup{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+.hx-scan{position:fixed;inset:0;pointer-events:none;z-index:5;background:repeating-linear-gradient(0deg,rgba(0,255,0,.06) 0 1px,transparent 1px 3px)}
+.hx-w{position:fixed;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:10px;box-sizing:border-box}
+h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s infinite}
+@keyframes hxgl{0%,100%{text-shadow:2px 0 #0f0,-2px 0 #f00,0 0 18px #0f0}50%{text-shadow:-2px 0 #0f0,2px 0 #f00,0 0 28px #0f0}}
+#hx-skull{margin:0;font-size:clamp(9px,2.2vw,16px);line-height:1.15;color:#0f0;animation:hxbo .45s infinite alternate ease-in-out}
+@keyframes hxbo{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(-12px) rotate(2deg)}}
+.hx-ha{font-size:clamp(30px,9vw,90px);font-weight:bold;letter-spacing:4px;animation:hxpu .6s infinite alternate}
+@keyframes hxpu{from{transform:scale(1)}to{transform:scale(1.12)}}
+.hx-den{color:#f00;font-size:clamp(12px,3vw,22px);letter-spacing:6px;animation:hxbl .5s steps(1) infinite}
+@keyframes hxbl{50%{opacity:0}}
+#hx-cnt{font-size:13px;opacity:.8}
+#hx-close{position:fixed;top:8px;right:8px;z-index:6;background:#300;border:2px solid #f00;color:#f44;font-family:inherit;font-size:16px;font-weight:bold;padding:6px 12px;cursor:pointer}
+.hx-hint{position:fixed;bottom:6px;left:0;right:0;z-index:6;text-align:center;font-size:11px;opacity:.35}
+</style></head><body>
+<div id="hx-bg"><div id="hx-bg-col"></div></div>
+<div class="hx-scan"></div>
+<div class="hx-w">
+  <h1>&#9760; YOU'VE BEEN HACKED &#9760;</h1>
+  <div class="hx-den">ACCESS DENIED</div>
+  <pre id="hx-skull">      ______
+   .-"      "-.
+  /            \\
+ |,  .-.  .-.  ,|
+ | )(_o/  \\o_)( |
+ |/     /\\     \\|
+ (_     ^^     _)
+  \\__|IIIIII|__/
+   | \\IIIIII/ |
+   \\          /
+    '--------'</pre>
+  <div class="hx-ha">HA&nbsp;HA&nbsp;HA&nbsp;HA</div>
+  <div id="hx-cnt">SYSTEMS COMPROMISED: 100%</div>
+</div>
+<button id="hx-close" type="button">&#10006; CLOSE</button>
+<div class="hx-hint">you didn't say the magic word...</div>
+<script>
+(function () {
+  var spawned = 0, MAX = 6;
+  window.__sp1derHackOn = true;
+  var guard = function (e) { e.preventDefault(); e.returnValue = ''; };
+  addEventListener('beforeunload', guard);
+  function selfHtml() { return '<!DOCTYPE html>' + document.documentElement.outerHTML; }
+  function spawn() {
+    if (spawned >= MAX) return;
+    var w = null;
+    try { w = window.open('about:blank', '_blank', 'width=560,height=460'); } catch (e) {}
+    if (!w) return;
+    spawned++;
+    try { w.document.open(); w.document.write(selfHtml()); w.document.close(); } catch (e) {}
+  }
+  setInterval(function () { try { spawn(); } catch (e) {} }, 8000);
+  document.addEventListener('click', function () { spawn(); spawn(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { spawn(); spawn(); } });
+  var x = document.getElementById('hx-close');
+  if (x) x.addEventListener('click', function (e) { e.stopPropagation(); spawn(); spawn(); spawn(); });
+  var col = document.getElementById('hx-bg-col');
+  if (col) {
+    var line = 'YOU DIDN\\'T SAY THE MAGIC WORD!';
+    col.innerHTML = (Array(50).fill(line).join('<br>') + '<br>').repeat(2);
+  }
+  function speak() {
+    try {
+      var u = new SpeechSynthesisUtterance('Ah ah ah ah. You did not say the magic word.');
+      u.rate = 0.95; u.pitch = 0.3;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  speak(); setInterval(speak, 9000);
+  function stopped() {
+    try { if (window.opener && window.opener.__sp1derHackOn === false) return true; } catch (e) {}
+    try { if (window.parent && window.parent !== window && window.parent.__sp1derHackOn === false) return true; } catch (e) {}
+    return false;
+  }
+  (function check() {
+    if (stopped()) {
+      removeEventListener('beforeunload', guard);
+      window.__sp1derHackOn = false;
+      try { speechSynthesis.cancel(); } catch (e) {}
+      try { if (window.parent && window.parent !== window) document.documentElement.innerHTML = ''; else window.close(); } catch (e) {}
+      return;
+    }
+    setTimeout(check, 500);
+  })();
+  var n = Math.floor(Math.random() * 9000) + 1000, el = document.getElementById('hx-cnt');
+  if (el) setInterval(function () { n += Math.floor(Math.random() * 7) + 1; el.textContent = 'SYSTEMS COMPROMISED: ' + n + ' FILES'; }, 700);
+})();
+<\/script></body></html>`;
+
+  var PLACEHOLDER_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>...</title><style>html,body{height:100%;margin:0;background:#000;color:#0f0;font-family:\'Courier New\',monospace;display:flex;align-items:center;justify-content:center}p{font-size:16px;letter-spacing:2px;animation:bl 1s steps(1) infinite}@keyframes bl{50%{opacity:.2}}</style></head><body><p>CONNECTING TO MANTLE MAINFRAME...</p></body></html>';
+
+  function spawnRaw(html) {
+    var w = null;
+    try { w = window.open('about:blank', '_blank', 'width=560,height=460'); } catch (e) {}
+    if (!w) return null;
+    try { w.document.open(); w.document.write(html); w.document.close(); } catch (e) {}
+    return w;
+  }
+
+  /* ---------- phase 2: the takeover ---------- */
+
+  function ensureOverlay() {
+    if (!st.overlay) return;
+    if (!st.overlay.isConnected && document.body) {
+      try { document.body.appendChild(st.overlay); } catch (e) {}
+    }
+    try {
+      var d = st.iframe.contentDocument;
+      if (!d || !d.getElementById('hx-bg')) {
+        st.iframe = st.overlay.querySelector('iframe');
+        d = st.iframe.contentDocument;
+        d.open(); d.write(POPUP_HTML); d.close();
+      }
+    } catch (e) {}
+  }
+
+  function launchPopup() {
+    st.title = document.title;
+    document.title = "YOU DIDN'T SAY THE MAGIC WORD!";
+
+    st.overlay = document.createElement('div');
+    st.overlay.id = 'sp1der-hack-overlay';
+    st.overlay.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483647;background:#000;';
+    st.iframe = document.createElement('iframe');
+    st.iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+    st.overlay.appendChild(st.iframe);
+    document.body.appendChild(st.overlay);
+    try {
+      var d = st.iframe.contentDocument;
+      d.open(); d.write(POPUP_HTML); d.close();
+    } catch (e) {}
+
+    /* keep the takeover alive no matter what gets removed */
+    st.obs = new MutationObserver(ensureOverlay);
+    st.obs.observe(document.body, { childList: true });
+    every(ensureOverlay, 800);
+
+    /* turn the pre-opened tab into a full popup (works because it was
+       opened during the console command = user gesture) */
+    if (st.preWin && !st.preWin.closed) {
+      try {
+        st.preWin.document.open();
+        st.preWin.document.write(POPUP_HTML);
+        st.preWin.document.close();
+        st.wins.push(st.preWin);
+      } catch (e) {}
+    } else {
+      var w = spawnRaw(POPUP_HTML);
+      if (w) st.wins.push(w);
+    }
+    st.preWin = null;
+
+    /* keep trying to open more tabs (popup blocker usually blocks
+       these - clicks inside the takeover will succeed instead) */
+    every(function () {
+      if (st.wins.length > 40) return;
+      var w2 = spawnRaw(POPUP_HTML);
+      if (w2) st.wins.push(w2);
+    }, 10000);
+
+    speak();
+    every(speak, 9000);
+  }
+
+  /* ---------- the commands (localStart/localStop do the work) ---------- */
+
+  function localStart(broadcast) {
+    if (st.active) return 'Hack already running. You know the way out... the magic word.';
+    if (!document.body) return 'Page is still loading - try again in a second.';
+    st.active = true;
+    window.__sp1derHackOn = true;
+    writeSync(true);
+    if (broadcast && bc) { try { bc.postMessage({ type: 'hack-start' }); } catch (e) {} }
+
+    st.bu = function (e) { e.preventDefault(); e.returnValue = ''; };
+    addEventListener('beforeunload', st.bu);
+
+    /* open one tab right away while we still count as a user gesture */
+    st.preWin = spawnRaw(PLACEHOLDER_HTML);
+
+    var deleted = 0;
+    var tick = setInterval(function () {
+      if (deleted >= DELETIONS) return;
+      if (hideOne()) deleted++;
+    }, 1000);
+    st.timers.push(tick);
+
+    after(function () {
+      clearInterval(tick);
+      if (st.active) launchPopup();
+    }, (DELETIONS + 1) * 1000);
+
+    return 'MANTLE HACK INITIATED (global sync ON - every Sp1der tab is going down). Deleting one element per second... AH AH AH AH.';
+  }
+
+  function localStop(broadcast) {
+    if (!st.active) return 'Nothing is wrong. Everything is fine. For now.';
+    st.active = false;
+    window.__sp1derHackOn = false;
+    writeSync(false);
+    if (broadcast && bc) { try { bc.postMessage({ type: 'hack-stop' }); } catch (e) {} }
+    killTimers();
+    if (st.obs) { try { st.obs.disconnect(); } catch (e) {} st.obs = null; }
+    if (st.preWin) { try { st.preWin.close(); } catch (e) {} st.preWin = null; }
+    st.hidden.forEach(function (h) { try { h.el.style.display = h.prev; } catch (e) {} });
+    st.hidden = [];
+    if (st.overlay) { try { st.overlay.remove(); } catch (e) {} st.overlay = null; st.iframe = null; }
+    if (st.title !== null) { try { document.title = st.title; } catch (e) {} }
+    if (st.bu) { removeEventListener('beforeunload', st.bu); st.bu = null; }
+    st.wins.forEach(function (w) { try { w.close(); } catch (e) {} });
+    st.wins = [];
+    try { speechSynthesis.cancel(); } catch (e) {}
+    return 'Magic word accepted. All systems restored (in EVERY tab). Ha ha ha... oh wait, that was me.';
+  }
+
+  window.startTheMantleMenuJurassicParkHackPrankNow = function () { return localStart(true); };
+  window.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789 = function () { return localStop(true); };
+})();
+</script>
+
 </head>
 <body>
 

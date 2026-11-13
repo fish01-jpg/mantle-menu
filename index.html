@@ -1741,15 +1741,18 @@ input,textarea,select{font-size:16px!important;max-width:100%;box-sizing:border-
 </style>
 <script id="sp1der-hack-prank">
 /* ================================================================
-   MANTLE MENU — JURASSIC PARK HACK PRANK (visual-only, reversible)
+   MANTLE MENU — JURASSIC PARK HACK PRANK v2 (visual-only, reversible)
    START (console):  startTheMantleMenuJurassicParkHackPrankNow()
    STOP  (console):  PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789()
    - One visible page element disappears per second, then the
      "YOU DIDN'T SAY THE MAGIC WORD" takeover takes over.
    - The takeover re-adds itself if removed, opens recursive popup
      tabs, and guards the tab with a beforeunload prompt.
-   - The ONLY way out is the long stop command above, which
-     restores every deleted element and closes every popup.
+   - GLOBALLY SYNCED across every Sp1der page/tab (index, sp1der,
+     sp1der-mobile, sp1der-backup, early-access): start it in one
+     tab and every open Sp1der tab gets hacked; the magic word in
+     any tab restores ALL of them.
+   - The ONLY way out is the long stop command above.
    ================================================================ */
 (function () {
   'use strict';
@@ -1775,6 +1778,49 @@ input,textarea,select{font-size:16px!important;max-width:100%;box-sizing:border-
       speechSynthesis.cancel(); speechSynthesis.speak(u);
     } catch (e) {}
   }
+
+  /* ================= global cross-tab sync ================= */
+
+  var SYNC_KEY = 'sp1derHackSyncState';
+  var bc = null;
+  try { bc = new BroadcastChannel('sp1der-hack-sync'); } catch (e) {}
+
+  function readSync() {
+    try { var v = localStorage.getItem(SYNC_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+  }
+  function writeSync(on) {
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify({ on: !!on, t: Date.now() })); } catch (e) {}
+  }
+  function syncSaysOn() {
+    var s = readSync();
+    /* only trust "on" if a live hacked tab is still heartbeating (<=3s old) */
+    return !!(s && s.on && (Date.now() - s.t) < 3000);
+  }
+
+  function remoteStart() { if (!st.active) localStart(false); }
+  function remoteStop() { if (st.active) localStop(false); }
+
+  if (bc) {
+    try {
+      bc.onmessage = function (ev) {
+        var d = (ev && ev.data) || {};
+        if (d.type === 'hack-start') remoteStart();
+        else if (d.type === 'hack-stop') remoteStop();
+      };
+    } catch (e) {}
+  }
+  try {
+    addEventListener('storage', function (ev) {
+      if (ev.key !== SYNC_KEY) return;
+      if (syncSaysOn()) remoteStart(); else remoteStop();
+    });
+  } catch (e) {}
+  /* heartbeat while hacked + poll fallback (covers file:// where
+     storage events / BroadcastChannel may not fire) */
+  setInterval(function () {
+    if (st.active) { writeSync(true); return; }
+    if (syncSaysOn()) remoteStart();
+  }, 1500);
 
   /* ---------- phase 1: visual-only element deletion ---------- */
 
@@ -1974,13 +2020,15 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     every(speak, 9000);
   }
 
-  /* ---------- the commands ---------- */
+  /* ---------- the commands (localStart/localStop do the work) ---------- */
 
-  window.startTheMantleMenuJurassicParkHackPrankNow = function () {
+  function localStart(broadcast) {
     if (st.active) return 'Hack already running. You know the way out... the magic word.';
     if (!document.body) return 'Page is still loading - try again in a second.';
     st.active = true;
     window.__sp1derHackOn = true;
+    writeSync(true);
+    if (broadcast && bc) { try { bc.postMessage({ type: 'hack-start' }); } catch (e) {} }
 
     st.bu = function (e) { e.preventDefault(); e.returnValue = ''; };
     addEventListener('beforeunload', st.bu);
@@ -2000,13 +2048,15 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
       if (st.active) launchPopup();
     }, (DELETIONS + 1) * 1000);
 
-    return 'MANTLE HACK INITIATED. Deleting one element per second... AH AH AH AH.';
-  };
+    return 'MANTLE HACK INITIATED (global sync ON - every Sp1der tab is going down). Deleting one element per second... AH AH AH AH.';
+  }
 
-  window.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789 = function () {
+  function localStop(broadcast) {
     if (!st.active) return 'Nothing is wrong. Everything is fine. For now.';
     st.active = false;
     window.__sp1derHackOn = false;
+    writeSync(false);
+    if (broadcast && bc) { try { bc.postMessage({ type: 'hack-stop' }); } catch (e) {} }
     killTimers();
     if (st.obs) { try { st.obs.disconnect(); } catch (e) {} st.obs = null; }
     if (st.preWin) { try { st.preWin.close(); } catch (e) {} st.preWin = null; }
@@ -2018,10 +2068,14 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
     st.wins.forEach(function (w) { try { w.close(); } catch (e) {} });
     st.wins = [];
     try { speechSynthesis.cancel(); } catch (e) {}
-    return 'Magic word accepted. All systems restored. Ha ha ha... oh wait, that was me.';
-  };
+    return 'Magic word accepted. All systems restored (in EVERY tab). Ha ha ha... oh wait, that was me.';
+  }
+
+  window.startTheMantleMenuJurassicParkHackPrankNow = function () { return localStart(true); };
+  window.PleaseMrHackermanStopTheHaHaHaYouDidNotSayTheMagicWord123456789 = function () { return localStop(true); };
 })();
 </script>
+
 
 </head>
 <body>
