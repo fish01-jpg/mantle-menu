@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d0221">
+<title>Aegis World — Early Access</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0221; --bg-2: #140631; --bg-3: #1a0a3a;
+    --border: rgba(125, 87, 239, 0.28); --border-hi: rgba(125, 87, 239, 0.55);
+    --text: #f2ecff; --text-dim: #b0a8cc; --text-faint: #7d7699;
+    --accent: #7d57ef; --accent-2: #9b6dff; --gold: #f5b83d;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text); overflow: hidden;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  }
+  #scene { position: fixed; inset: 0; display: block; }
+
+  /* ---------- top bar ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 18px;
+    background: linear-gradient(180deg, rgba(13,2,33,0.85), transparent);
+    pointer-events: none;
+  }
+  header > * { pointer-events: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-orb {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    background: radial-gradient(circle at 32% 30%, #c9b5ff, var(--accent) 60%, #2c1670);
+    box-shadow: 0 0 18px rgba(125, 87, 239, 0.55), inset 0 0 8px rgba(255,255,255,0.25);
+  }
+  h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.2px; }
+  h1 small { display: block; font-size: 0.62rem; font-weight: 800; letter-spacing: 2.2px; text-transform: uppercase; color: var(--gold); }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.6px;
+    color: var(--text-dim);
+    background: rgba(20, 6, 49, 0.8); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 14px;
+  }
+  .status-pill .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex: none;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .status-pill.live .dot { background: #57e8a4; box-shadow: 0 0 10px rgba(87, 232, 164, 0.9); }
+  .status-pill.live { color: var(--text); border-color: rgba(87, 232, 164, 0.4); }
+  .stats { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .stat {
+    font-size: 0.7rem; color: var(--text-dim); text-align: center; min-width: 58px;
+    background: rgba(20, 6, 49, 0.8); border: 1px solid var(--border); border-radius: 10px;
+    padding: 5px 10px;
+  }
+  .stat b { display: block; color: var(--text); font-size: 0.95rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  /* ---------- thought panel ---------- */
+  #panel {
+    position: fixed; top: 76px; right: 16px; z-index: 10;
+    width: 340px; max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 96px);
+    display: flex; flex-direction: column;
+    background: rgba(20, 6, 49, 0.72);
+    border: 1px solid var(--border); border-radius: 16px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  #panel-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 13px 16px 11px; border-bottom: 1px solid var(--border);
+    font-size: 0.66rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  #panel-head .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 8px var(--accent-2); animation: pulse 1.8s infinite; flex: none; }
+  @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+  #feed { overflow-y: auto; padding: 10px 12px 14px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  #feed::-webkit-scrollbar { width: 6px; }
+  #feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .entry { padding: 8px 10px; border-radius: 10px; margin-bottom: 6px; animation: rise 0.45s var(--ease); }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .entry .meta { font-size: 0.62rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 3px; display: flex; gap: 8px; }
+  .entry .time { color: var(--text-faint); font-weight: 600; letter-spacing: 0.4px; }
+  .entry .txt { font-size: 0.84rem; line-height: 1.5; color: var(--text); }
+  .entry.thought { background: rgba(125, 87, 239, 0.08); border: 1px solid rgba(125, 87, 239, 0.16); }
+  .entry.thought .meta { color: var(--accent-2); }
+  .entry.said { background: rgba(245, 184, 61, 0.08); border: 1px solid rgba(245, 184, 61, 0.28); }
+  .entry.said .meta { color: var(--gold); }
+  .entry.said .txt { font-style: italic; }
+  .placeholder { color: var(--text-faint); font-size: 0.8rem; line-height: 1.6; padding: 14px 6px; }
+  .placeholder b { color: var(--text-dim); }
+
+  /* ---------- hint / mobile ---------- */
+  #hint {
+    position: fixed; left: 18px; bottom: 14px; z-index: 10;
+    font-size: 0.68rem; color: var(--text-faint); letter-spacing: 0.4px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8); pointer-events: none;
+  }
+  #toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px);
+    z-index: 20; opacity: 0; pointer-events: none;
+    background: rgba(20, 6, 49, 0.92); border: 1px solid var(--border-hi);
+    color: var(--text); font-size: 0.8rem; border-radius: 999px; padding: 9px 18px;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (max-width: 640px) {
+    #panel { top: auto; bottom: 0; right: 0; left: 0; width: auto; max-height: 42vh; border-radius: 16px 16px 0 0; }
+    #hint { display: none; }
+    .stats { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<header>
+  <div class="brand">
+    <div class="brand-orb" aria-hidden="true"></div>
+    <h1>Aegis World <small>✦ Early Access</small></h1>
+  </div>
+  <div class="status-pill" id="status"><span class="dot"></span><span id="status-text">connecting…</span></div>
+  <div class="stats">
+    <div class="stat"><b id="stat-tick">–</b>tick</div>
+    <div class="stat"><b id="stat-objects">–</b>objects</div>
+    <div class="stat"><b id="stat-fx">–</b>sky</div>
+    <div class="stat"><b id="stat-updated">–</b>updated</div>
+  </div>
+</header>
+
+<aside id="panel">
+  <div id="panel-head"><span class="pulse"></span>Aegis — inner thoughts</div>
+  <div id="feed">
+    <div class="placeholder">Connecting to the world…<br><br>If nothing appears, no <b>Open World</b> session is running. Start one from the <b>Aegis Community Assistant</b> workflow on GitHub with the early-access checkbox ticked.</div>
+  </div>
+</aside>
+
+<div id="hint">drag to orbit · scroll to zoom</div>
+<div id="toast"></div>
+
+<script type="importmap">
+{ "imports": { "three": "https://esm.sh/three@0.169.0" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================== config ============================== */
+const SERVERS = ['database-1-ec196', 'database-2-a5b32', 'database-3-9462a', 'database-4-51de2', 'database-5-a3d2d'];
+const FS = 'https://firestore.googleapis.com/v1/projects/';
+const POLL_MS = 5000;
+
+/* ============================== three scene ============================== */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0221);
+scene.fog = new THREE.Fog(0x0d0221, 40, 140);
+let skyTex = null;
+
+function skyTexture(top, bottom) {
+  const c = document.createElement('canvas'); c.width = 2; c.height = 256;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, top); g.addColorStop(1, bottom);
+  x.fillStyle = g; x.fillRect(0, 0, 2, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
+let camTheta = 0.9, camPhi = 1.05, camDist = 34;
+let camThetaTarget = camTheta, camPhiTarget = camPhi, camDistTarget = camDist;
+let lastInteract = 0;
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+/* lights */
+const ambient = new THREE.AmbientLight(0x8f7bd8, 0.55);
+scene.add(ambient);
+const key = new THREE.DirectionalLight(0xcdbaff, 1.6);
+key.position.set(30, 50, 20);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x7d57ef, 0.8);
+rim.position.set(-40, 18, -30);
+scene.add(rim);
+
+/* ground: dark plane + soft grid */
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(120, 64),
+  new THREE.MeshStandardMaterial({ color: 0x11042a, roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+const grid = new THREE.GridHelper(160, 80, 0x7d57ef, 0x2a1855);
+grid.material.transparent = true;
+grid.material.opacity = 0.28;
+grid.position.y = 0.02;
+scene.add(grid);
+/* faint horizon ring */
+const horizon = new THREE.Mesh(
+  new THREE.RingGeometry(58, 60, 96),
+  new THREE.MeshBasicMaterial({ color: 0x7d57ef, transparent: true, opacity: 0.22, side: THREE.DoubleSide })
+);
+horizon.rotation.x = -Math.PI / 2;
+horizon.position.y = 0.05;
+scene.add(horizon);
+
+/* starfield (shown when Aegis turns the 'stars' effect on) */
+const starfield = new THREE.Group();
+scene.add(starfield);
+{
+  const g = new THREE.BufferGeometry();
+  const n = 700, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 120 + Math.random() * 120, t = Math.random() * Math.PI * 2, p = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = r * Math.sin(p) * Math.cos(t);
+    pos[i * 3 + 1] = Math.abs(r * Math.cos(p)) * 0.6 + 6;
+    pos[i * 3 + 2] = r * Math.sin(p) * Math.sin(t);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  starfield.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xb9a6ff, size: 0.7, transparent: true, opacity: 0.7 })));
+}
+starfield.visible = false;
+
+/* ============================== world entities ============================== */
+const GEOMETRIES = {
+  cube: () => new THREE.BoxGeometry(1, 1, 1),
+  sphere: () => new THREE.SphereGeometry(0.55, 24, 18),
+  cone: () => new THREE.ConeGeometry(0.55, 1, 24),
+  cylinder: () => new THREE.CylinderGeometry(0.45, 0.45, 1, 24),
+  torus: () => new THREE.TorusGeometry(0.45, 0.18, 16, 40),
+  pyramid: () => new THREE.ConeGeometry(0.62, 1, 4),
+  ring: () => new THREE.TorusGeometry(0.5, 0.06, 8, 48),
+  star: () => { // extruded 5-point star
+    const s = new THREE.Shape();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 0.24 : 0.6, a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      i === 0 ? s.moveTo(r * Math.cos(a), r * Math.sin(a)) : s.lineTo(r * Math.cos(a), r * Math.sin(a));
+    }
+    return new THREE.ExtrudeGeometry(s, { depth: 0.22, bevelEnabled: false });
+  }
+};
+
+const objectGroup = new THREE.Group();
+scene.add(objectGroup);
+const labelGroup = new THREE.Group();
+scene.add(labelGroup);
+
+function labelSprite(text, color) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const x = c.getContext('2d');
+  x.font = '700 30px "Segoe UI", Arial, sans-serif';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.shadowColor = 'rgba(0,0,0,0.9)'; x.shadowBlur = 8;
+  x.fillStyle = color;
+  x.fillText(text.length > 18 ? text.slice(0, 17) + '…' : text, 128, 32);
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.scale.set(4, 1, 1);
+  return sp;
+}
+
+function makeMesh(e) {
+  const geo = (GEOMETRIES[e.shape] || GEOMETRIES.cube)();
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(e.color || '#7d57ef'),
+    roughness: 0.35, metalness: 0.15,
+    emissive: new THREE.Color(e.color || '#7d57ef').multiplyScalar(0.18)
+  });
+  const m = new THREE.Mesh(geo, mat);
+  const s = Math.max(0.2, Math.min(6, +e.size || 1));
+  m.scale.setScalar(s);
+  m.position.set(+e.x || 0, (+e.y || 0) + s / 2, +e.z || 0);
+  m.userData = e;
+  return m;
+}
+
+let bodyGroup = null;   // Aegis's avatar
+let speechSprite = null;
+let lastSay = null;
+
+function clearGroup(g) {
+  if (!g) return;
+  for (const child of [...g.children]) {
+    g.remove(child);
+    if (child.geometry) child.geometry.dispose();
+    if (child.material) {
+      if (child.material.map) child.material.map.dispose();
+      child.material.dispose();
+    }
+  }
+}
+
+/* ============================== environment (Aegis-controlled) ============================== */
+const DEFAULT_ENV = {
+  skyTop: '#0d0221', skyBottom: '#2b1258', fogColor: '#1a0a3a', fogDensity: 0.35,
+  lightColor: '#cdbaff', lightIntensity: 1, groundColor: '#11042a', effects: []
+};
+const fxGroup = new THREE.Group();
+scene.add(fxGroup);
+let fxKey = '';
+
+function makeRain() {
+  const n = 500, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 140;
+    pos[i * 3 + 1] = Math.random() * 34;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 140;
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  fxGroup.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xa8c4ff, size: 0.14, transparent: true, opacity: 0.55, depthWrite: false })));
+  return (t, dt) => {
+    const a = g.attributes.position;
+    for (let i = 0; i < n; i++) a.setY(i, a.getY(i) - 30 * dt < 0 ? 34 : a.getY(i) - 30 * dt);
+    a.needsUpdate = true;
+  };
+}
+
+function makeSnow() {
+  const n = 420, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 140;
+    pos[i * 3 + 1] = Math.random() * 34;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 140;
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  fxGroup.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, transparent: true, opacity: 0.85, depthWrite: false })));
+  return (t, dt) => {
+    const a = g.attributes.position;
+    for (let i = 0; i < n; i++) {
+      a.setY(i, a.getY(i) - 4.5 * dt < 0 ? 34 : a.getY(i) - 4.5 * dt);
+      a.setX(i, a.getX(i) + Math.sin(t + i) * 0.35 * dt);
+    }
+    a.needsUpdate = true;
+  };
+}
+
+function makeAurora() {
+  const colors = [0x37ffb0, 0x7d57ef, 0x37d8ff, 0xb18cff], strips = [];
+  for (let i = 0; i < 4; i++) {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(150, 22),
+      new THREE.MeshBasicMaterial({ color: colors[i], transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+    );
+    m.position.set((i - 1.5) * 22, 30 + i * 3, -30 - i * 14);
+    m.rotation.x = -0.35;
+    m.rotation.z = (Math.random() - 0.5) * 0.3;
+    fxGroup.add(m); strips.push(m);
+  }
+  return (t) => {
+    strips.forEach((m, i) => {
+      m.position.x = (i - 1.5) * 22 + Math.sin(t * 0.12 + i * 1.7) * 26;
+      m.material.opacity = 0.07 + 0.05 * (0.5 + Math.sin(t * 0.4 + i));
+    });
+  };
+}
+
+function makeFireflies() {
+  const n = 70, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), seeds = [];
+  for (let i = 0; i < n; i++) {
+    const r = Math.sqrt(Math.random()) * 55, a = Math.random() * Math.PI * 2;
+    seeds.push({ x: Math.cos(a) * r, y: 0.5 + Math.random() * 8, z: Math.sin(a) * r, ph: Math.random() * Math.PI * 2, sp: 0.3 + Math.random() * 0.5 });
+    pos[i * 3] = seeds[i].x; pos[i * 3 + 1] = seeds[i].y; pos[i * 3 + 2] = seeds[i].z;
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  fxGroup.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xf5b83d, size: 0.34, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })));
+  return (t) => {
+    const a = g.attributes.position;
+    for (let i = 0; i < n; i++) {
+      const s = seeds[i];
+      a.setX(i, s.x + Math.sin(t * s.sp + s.ph) * 4);
+      a.setY(i, s.y + Math.sin(t * s.sp * 0.7 + s.ph * 2) * 1.5);
+      a.setZ(i, s.z + Math.cos(t * s.sp + s.ph) * 4);
+    }
+    a.needsUpdate = true;
+  };
+}
+
+function buildEffects(fx) {
+  clearGroup(fxGroup);
+  fxGroup.userData.anims = [];
+  const add = (name, fn) => { if (fx.includes(name)) fxGroup.userData.anims.push(fn()); };
+  add('rain', makeRain);
+  add('snow', makeSnow);
+  add('aurora', makeAurora);
+  add('fireflies', makeFireflies);
+}
+
+function applyEnv(world) {
+  const e = Object.assign({}, DEFAULT_ENV, world.env || {});
+  if (skyTex) skyTex.dispose();
+  skyTex = skyTexture(e.skyTop, e.skyBottom);
+  scene.background = skyTex;
+  scene.fog.color.set(e.fogColor);
+  scene.fog.near = 10 + e.fogDensity * 30;
+  scene.fog.far = 150 - e.fogDensity * 100;
+  key.color.set(e.lightColor);
+  key.intensity = 1.6 * e.lightIntensity;
+  ambient.intensity = 0.55 * (0.6 + e.lightIntensity * 0.4);
+  ground.material.color.set(e.groundColor);
+  const fx = (Array.isArray(e.effects) ? e.effects : []).slice(0, 3);
+  if (fx.join(',') !== fxKey) {
+    fxKey = fx.join(',');
+    buildEffects(fx);
+  }
+  starfield.visible = fx.includes('stars');
+}
+
+function syncWorld(world) {
+  applyEnv(world);
+  clearGroup(objectGroup); clearGroup(labelGroup);
+  for (const e of world.entities || []) {
+    const m = makeMesh(e);
+    objectGroup.add(m);
+  }
+  clearGroup(bodyGroup);
+  if (world.body && world.body.form) {
+    bodyGroup = new THREE.Group();
+    const b = world.body;
+    const avatar = makeMesh({ ...b, shape: b.form, y: b.y, size: b.size });
+    avatar.material.emissive = new THREE.Color(b.color || '#9b6dff').multiplyScalar(0.55);
+    avatar.material.roughness = 0.2;
+    const glow = new THREE.PointLight(new THREE.Color(b.color || '#9b6dff'), 30, 26, 1.6);
+    glow.position.y = 1;
+    const halo = new THREE.Mesh(
+      new THREE.SphereGeometry(0.9, 20, 16),
+      new THREE.MeshBasicMaterial({ color: b.color || '#9b6dff', transparent: true, opacity: 0.14 })
+    );
+    halo.scale.setScalar(Math.max(0.2, +b.size || 1) * 1.4);
+    const label = labelSprite('AEGIS', '#f5b83d');
+    label.position.y = Math.max(0.9, +b.size || 1) + 1.4;
+    bodyGroup.add(avatar, glow, halo, label);
+    bodyGroup.position.set(+b.x || 0, 0, +b.z || 0);
+    bodyGroup.userData = b;
+    scene.add(bodyGroup);
+    if (lastSay && Date.now() - lastSay.at < 30000) attachSpeech(lastSay.text);
+  }
+}
+
+function attachSpeech(text) {
+  if (speechSprite) { scene.remove(speechSprite); speechSprite = null; }
+  if (!bodyGroup || !text) return;
+  speechSprite = labelSprite('“' + text + '”', 'rgba(245, 232, 190, 0.96)');
+  const b = bodyGroup.userData || {};
+  speechSprite.position.set(+b.x || 0, (+b.y || 2) + Math.max(1.6, +b.size || 1) + 2.2, +b.z || 0);
+  speechSprite.scale.set(10, 2.5, 1);
+  scene.add(speechSprite);
+}
+
+/* ============================== camera controls ============================== */
+canvas.addEventListener('mousemove', (e) => {
+  if (e.buttons !== 1) return;
+  camThetaTarget -= e.movementX * 0.0042;
+  camPhiTarget = Math.max(0.15, Math.min(1.5, camPhiTarget - e.movementY * 0.0038));
+  lastInteract = performance.now();
+});
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  camDistTarget = Math.max(8, Math.min(120, camDistTarget * (1 + Math.sign(e.deltaY) * 0.09)));
+  lastInteract = performance.now();
+}, { passive: false });
+let touchLast = null;
+canvas.addEventListener('touchstart', (e) => { touchLast = e.touches[0]; }, { passive: true });
+canvas.addEventListener('touchmove', (e) => {
+  const t = e.touches[0];
+  if (touchLast) {
+    camThetaTarget -= (t.clientX - touchLast.clientX) * 0.006;
+    camPhiTarget = Math.max(0.15, Math.min(1.5, camPhiTarget - (t.clientY - touchLast.clientY) * 0.005));
+  }
+  touchLast = t;
+  lastInteract = performance.now();
+}, { passive: true });
+canvas.addEventListener('touchend', () => { touchLast = null; }, { passive: true });
+
+/* ============================== render loop ============================== */
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const t = clock.elapsedTime;
+  for (const fn of fxGroup.userData.anims || []) fn(t, dt);
+  // idle auto-orbit
+  if (performance.now() - lastInteract > 6000) camThetaTarget += 0.0016;
+  camTheta += (camThetaTarget - camTheta) * 0.08;
+  camPhi += (camPhiTarget - camPhi) * 0.08;
+  camDist += (camDistTarget - camDist) * 0.1;
+  camera.position.set(
+    Math.sin(camTheta) * Math.cos(camPhi) * camDist,
+    Math.sin(camPhi) * camDist,
+    Math.cos(camTheta) * Math.cos(camPhi) * camDist
+  );
+  camera.lookAt(0, 2.5, 0);
+
+  for (const m of objectGroup.children) {
+    const e = m.userData || {};
+    if (e.spin) m.rotation.y += e.spin * 0.02;
+    if (e.orbit && e.orbit.radius != null) {
+      const a = t * (e.orbit.speed || 1) * 0.6;
+      const s = Math.max(0.2, Math.min(6, +e.size || 1));
+      m.position.set(
+        (e.orbit.cx || 0) + Math.cos(a) * e.orbit.radius,
+        ((e.orbit.cy || 0)) + s / 2,
+        (e.orbit.cz || 0) + Math.sin(a) * e.orbit.radius
+      );
+    }
+  }
+  if (bodyGroup) {
+    bodyGroup.position.y = Math.sin(t * 1.4) * 0.25; // gentle bob
+    if (bodyGroup.children[2]) bodyGroup.children[2].scale.setScalar((Math.max(0.2, +bodyGroup.userData?.size || 1) * 1.4) * (1 + Math.sin(t * 2) * 0.06));
+  }
+  renderer.render(scene, camera);
+}
+animate();
+
+/* ============================== firestore polling ============================== */
+function unpack(v) {
+  if (!v || typeof v !== 'object') return v;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return parseInt(v.integerValue, 10);
+  if ('doubleValue' in v) return +v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('nullValue' in v) return null;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(unpack);
+  if ('mapValue' in v) {
+    const out = {};
+    for (const [k, val] of Object.entries(v.mapValue.fields || {})) out[k] = unpack(val);
+    return out;
+  }
+  return v;
+}
+
+async function fetchDoc(path) {
+  const r = await fetch(FS + path);
+  if (!r.ok) return null;
+  const doc = await r.json();
+  const out = {};
+  for (const [k, v] of Object.entries(doc.fields || {})) out[k] = unpack(v);
+  return out;
+}
+
+const toastEl = document.getElementById('toast');
+let toastTimer = null;
+function toast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3200);
+}
+
+let lastWorld = null;
+const statusEl = document.getElementById('status');
+const statusText = document.getElementById('status-text');
+const feed = document.getElementById('feed');
+let lastFeedKey = '';
+
+function fmtAgo(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (!isFinite(s)) return '–';
+  if (s < 5) return 'now';
+  if (s < 60) return Math.floor(s) + 's ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  return Math.floor(s / 3600) + 'h ago';
+}
+
+function renderFeed(world) {
+  const thoughts = (world.thoughts || []).slice(-14).reverse();
+  const says = (world.speech || []).slice(-6).reverse();
+  const items = [];
+  for (const s of says) items.push({ kind: 'said', t: s.t, text: s.text });
+  for (const th of thoughts) items.push({ kind: 'thought', t: th.t, text: th.text });
+  items.sort((a, b) => new Date(b.t) - new Date(a.t));
+  const top = items.slice(0, 16);
+  const key = top.map(i => i.t + i.text).join('|');
+  if (key === lastFeedKey) return;
+  lastFeedKey = key;
+  feed.innerHTML = '';
+  if (!top.length) {
+    const d = document.createElement('div');
+    d.className = 'placeholder';
+    d.innerHTML = 'The world is quiet. Aegis has not thought anything yet — the first ticks are always shy.';
+    feed.appendChild(d);
+    return;
+  }
+  for (const i of top) {
+    const d = document.createElement('div');
+    d.className = 'entry ' + i.kind;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = '<span>' + (i.kind === 'said' ? 'said' : 'thought') + '</span><span class="time">' + fmtAgo(i.t) + '</span>';
+    const txt = document.createElement('div');
+    txt.className = 'txt';
+    txt.textContent = i.text;
+    d.append(meta, txt);
+    feed.appendChild(d);
+  }
+}
+
+async function poll() {
+  try {
+    const results = await Promise.all(SERVERS.map(s =>
+      fetchDoc(s + '/databases/(default)/documents/system/aegisWorld').catch(() => null)
+    ));
+    const worlds = results.filter(w => w && w.updatedAt);
+    if (!worlds.length) {
+      statusEl.classList.remove('live');
+      statusText.textContent = 'world not started';
+      return;
+    }
+    worlds.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    const world = worlds[0];
+    lastWorld = world;
+    syncWorld(world);
+    renderFeed(world);
+    const fresh = Date.now() - new Date(world.updatedAt).getTime() < 3 * 60000;
+    statusEl.classList.toggle('live', fresh);
+    statusText.textContent = fresh
+      ? 'Aegis is ' + ((world.tick || 0) ? 'building — tick ' + world.tick : 'waking up')
+      : 'world idle · last tick ' + fmtAgo(world.updatedAt);
+    document.getElementById('stat-tick').textContent = world.tick ?? '–';
+    document.getElementById('stat-objects').textContent = (world.entities || []).length;
+    const fx = (world.env && Array.isArray(world.env.effects)) ? world.env.effects : [];
+    document.getElementById('stat-fx').textContent = fx.length ? fx.join(' · ') : 'clear';
+    document.getElementById('stat-updated').textContent = fmtAgo(world.updatedAt);
+    const say = (world.speech || []).filter(s => s.text)[0];
+    if (say && Date.now() - new Date(say.t).getTime() < 30000) {
+      if (!lastSay || lastSay.text !== say.text) { lastSay = { text: say.text, at: Date.now() }; attachSpeech(say.text); }
+    }
+  } catch (e) {
+    statusText.textContent = 'connection error';
+  }
+}
+poll();
+setInterval(poll, POLL_MS);
+setInterval(() => {
+  // keep relative times fresh
+  if (lastWorld && lastFeedKey) { lastFeedKey = ''; renderFeed(lastWorld); }
+}, 30000);
+</script>
+</body>
+</html>
