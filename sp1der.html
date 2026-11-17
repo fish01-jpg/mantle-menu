@@ -4675,23 +4675,10 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
 
         async function openFishesArcadeGate() {
+            /* arcade verification removed — signed-in users go straight in */
             if (!currentUser) { openAuth(); return; }
             try { const t = $('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {} /* the tour overlay sits above modals and eats their clicks */
-            const st = await getArcadeGateStatus();
-            if (st.allDone && st.riskAccepted) { openFishesArcade(); return; }
-            const m = $('arcadeGateModal'); if (!m) return;
-            const list = $('arcadeGateList'), risk = $('arcadeGateRisk'), go = $('arcadeGateGo'), refresh = $('arcadeGateRefresh');
-            list.innerHTML = st.items.map(i => '<div style="display:flex;gap:8px;"><span>' + (i.done ? '✅' : '⬜') + '</span><span>' + i.label + (i.detail ? ' <span style="color:var(--text-faint);font-family:var(--font-mono);font-size:0.76rem;">(' + i.detail + ')</span>' : '') + '</span></div>').join('');
-            if (st.allDone) {
-                risk.style.display = 'block';
-                go.style.display = 'inline-flex';
-                refresh.style.display = 'none';
-            } else {
-                risk.style.display = 'none';
-                go.style.display = 'none';
-                refresh.style.display = 'inline-flex';
-            }
-            m.classList.add('active');
+            openFishesArcade();
         }
         function closeArcadeGate() {
             const m = $('arcadeGateModal'); if (m) m.classList.remove('active');
@@ -5959,7 +5946,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 var msgLimit = tierCfg.dailyMessages === Infinity ? '∞' : tierCfg.dailyMessages;
                 var accountRows = pfRow('Role', roleLabel(accountRole(p)))
                     + pfRow('Tier', tierCfg.label + ' — ' + msgLimit + ' msgs/day, ' + tierCfg.syncs + (tierCfg.syncs === Infinity ? ' ∞' : '') + ' profile syncs/day')
-                    + pfRow('Verified', verified ? 'Yes — arcade unlocked' : 'No — run /verify in chat to unlock the arcade')
+                    + pfRow('Verified', verified ? 'Yes' : 'No — not required for the arcade')
                     + pfRow('Account', currentUser.email || '')
                     + arcadeStatsSectionHtml(p);
                 var editFields =
