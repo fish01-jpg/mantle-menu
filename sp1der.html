@@ -1027,8 +1027,8 @@
             font-size: 0.8rem; margin-top: 4px; padding: 6px 10px; border: 1px solid rgba(16,185,129,0.3);
             border-radius: var(--radius-sm); background: rgba(16,185,129,0.06);
         }
-        .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.93); z-index: 99999990; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
-        .lightbox.show { display: flex; }
+        .lightbox { overflow:auto; padding:70px 16px; box-sizing:border-box; position: fixed; inset: 0; background: rgba(0,0,0,0.93); z-index: 99999990; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+        .lightbox.show, .lightbox.active { display: flex; }
         .lightbox img { max-width: 92vw; max-height: 92vh; border-radius: var(--radius); }
 
         /* FULLSCREEN BUTTON (now in topbar as topbar-btn) */
@@ -3154,7 +3154,18 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
                         <input type="text" id="prefDisplayName" placeholder="Enter new display name" style="flex:1;font-size:0.85rem;padding:8px 10px;">
                         <button class="composer-btn primary" onclick="changeDisplayName()" style="padding:8px 14px;font-size:0.78rem;">Update</button>
                     </div>
-                    <div id="displayNameStatus" style="font-size:0.72rem;color:var(--text-faint);margin-bottom:12px;"></div>
+                    <div id="displayNameStatus" style="font-size:0.72rem;color:var(--text-faint);margin-bottom:12px;"></div><div id="accountLinkSection" style="border-top:1px solid var(--border);padding:14px 0;">
+<h3>Link account to email</h3>
+<p id="accountLinkStatus" role="status"></p>
+<p>Link and confirm an email before entering Fishes Arcade or using self-verification. Linking keeps your account UID, profile, and moderation history.</p>
+<form onsubmit="linkAccountEmail(event)" style="display:grid;gap:8px;">
+<label>Email <input id="accountLinkEmail" type="email" autocomplete="email" required="" style="width:100%;box-sizing:border-box;"></label>
+<label>Password <input id="accountLinkPassword" type="password" autocomplete="new-password" minlength="6" required="" style="width:100%;box-sizing:border-box;"></label>
+<button class="composer-btn" type="submit">Link / send confirmation email</button>
+</form>
+<button class="composer-btn" type="button" onclick="checkLinkedEmail(this)" style="margin-top:8px;">Check confirmation</button>
+<p style="font-size:0.8rem;">An email already used by another account cannot be attached here. Your password is sent to Firebase Authentication, not saved in your profile.</p>
+</div>
                     <button class="composer-btn" onclick="signOutUser()" style="width:100%;padding:10px;border-color:var(--danger);color:var(--danger);font-size:0.85rem;">Sign Out</button>
                 </div>
             </details>
@@ -3558,7 +3569,8 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 
     <!-- IMAGE LIGHTBOX -->
     <div class="lightbox" id="imageLightbox" onclick="closeLightbox()">
-        <img id="lightboxImg" alt="">
+        <div style="position:fixed;top:18px;right:18px;display:flex;gap:8px;" onclick="event.stopPropagation()"><button class="composer-btn" onclick="downloadLightboxImage()">Download</button><button class="composer-btn" onclick="closeLightbox()">Close</button></div>
+        <img id="lightboxImg" alt="Enlarged image" onclick="event.stopPropagation();this.style.maxWidth=this.style.maxWidth?'':'none';this.style.maxHeight=this.style.maxHeight?'':'none';" style="cursor:zoom-in;">
     </div>
 
     <!-- ONBOARDING TOUR OVERLAY -->
@@ -4634,6 +4646,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             try { const v = JSON.parse(localStorage.getItem(ARCADE_RISK_LOCAL_KEY) || ''); return !!(v && v.uid && currentUser && v.uid === currentUser.uid); } catch (e) { return false; }
         }
         async function getArcadeGateStatus() {
+            if (!accountHasLinkedEmail()) return { signedIn: !!currentUser, allDone: false, riskAccepted: false, items: [{done:false, label:'Link and confirm your email in Settings → Account'}] };
             if (!currentUser) return { signedIn: false, allDone: false, riskAccepted: false, items: [] };
             /* push anything still banked locally before reading, so the checklist is current.
                The flush is fire-and-forget: the checklist merges the local queue either way, so
@@ -4675,6 +4688,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
 
         async function openFishesArcadeGate() {
+            if (!requireLinkedEmail()) return;
             if (!currentUser) { openAuth(); return; }
             try { const t = $('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {} /* the tour overlay sits above modals and eats their clicks */
             const st = await getArcadeGateStatus();
@@ -4736,6 +4750,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
         let verifyState = null;
         function openVerifyFlow() {
+            if (!requireLinkedEmail()) return;
             if (!currentUser) { openAuth(); return; }
             try { const t = $('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {} /* the tour overlay sits above modals and eats their clicks */
             verifyState = { step: 'terms', progress: 0, queue: null, challenge: null, savedCloud: false };
@@ -5035,6 +5050,7 @@ Furball found a sunbeam and is not moving for anyone.`;
             }
         }
         async function verifyFinish() {
+            if (!requireLinkedEmail()) return;
             let saved = false;
             try {
                 await dbOpTimeout(db.collection('users').doc(currentUser.uid).set({ sp1derVerified: true, sp1derVerifiedAt: Date.now(), arcadeRiskAccepted: true, arcadeRiskAcceptedAt: Date.now() }, { merge: true }), 8000);
@@ -5116,6 +5132,7 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
         const ARCADE_FREE_DAILY_OPENS = 4;
         async function openFishesArcade() {
+            if (!requireLinkedEmail()) return;
             /* free-tier daily arcade-open limit */
             try {
                 const t = tierCurrent();
@@ -5333,15 +5350,16 @@ Furball found a sunbeam and is not moving for anyone.`;
         function saveLocalProfile(p) { normalizeAccountDisplayName(p); try { const uid = (p && p.uid) || (currentUser && currentUser.uid); localStorage.setItem(profileKey(uid), JSON.stringify(stripPrivilegedFields(stripPersistenceFields(Object.assign({}, p || {}))))); } catch (e) {} }
         function getOldLocalProfile() { try { return stripPrivilegedFields(JSON.parse(localStorage.getItem('aa_profile_v3') || '{}')); } catch (e) { return {}; } }
         async function fetchUsersList(limitCount) {
+            const found = {}; const add = u => { if (u && u.uid && !found[u.uid]) found[u.uid] = u; };
             // Try users collection first
-            try { const snap = await db.collection('users').limit(limitCount || 200).get(); if (!snap.empty) return snap.docs.map(doc => { const u = doc.data() || {}; u.uid = doc.id; return normalizeAccountDisplayName(u); }); }
+            try { const snap = await db.collection('users').limit(limitCount || 200).get(); snap.docs.forEach(doc => { const u = doc.data() || {}; u.uid = doc.id; add(u); }); }
             catch (e) { console.warn('users collection failed, trying presence:', e.message); }
             // Fallback: try presence collection
-            try { const snap = await db.collection('presence').limit(limitCount || 200).get(); if (!snap.empty) return snap.docs.map(doc => { const u = doc.data() || {}; u.uid = doc.id; return normalizeAccountDisplayName(u); }); }
+            try { const snap = await db.collection('presence').limit(limitCount || 200).get(); snap.docs.forEach(doc => { const u = doc.data() || {}; u.uid = doc.id; add(u); }); }
             catch (e) { console.warn('presence collection failed:', e.message); }
             /* v4.7.3: main account database over quota — fall back to the account mirror and a scan of
                EVERY message server (not just the selected one), so offline accounts still show up. */
-            const found = {}; const add = (u) => { if (u && u.uid && !found[u.uid]) found[u.uid] = u; };
+
             try { const mirror = await ACCT_MIRROR.list(limitCount || 300); Object.keys(mirror).forEach(uid => add(mirror[uid])); } catch (e) {}
             for (let i = 0; i < msgDbs.length; i++) {
                 if (exhaustedDbs.has(i) || readExhaustedDbs.has(i)) continue;
@@ -5354,9 +5372,31 @@ Furball found a sunbeam and is not moving for anyone.`;
             return Object.values(found).map(u => normalizeAccountDisplayName(u));
         }
         async function findUserByEmailOrName(term) {
-            const q = String(term || '').trim().toLowerCase(); if (!q) return null;
-            const users = await fetchUsersList(300);
-            return users.find(u => String(u.email||'').toLowerCase() === q || String(u.username||'').toLowerCase() === q || String(u.displayName||'').toLowerCase() === q || String(u.uid||'').toLowerCase() === q) || null;
+            const raw = String(term || '').trim().replace(/^@/, '');
+            if (!raw || raw.includes('/')) return null;
+            const direct = await getUserDocAnywhere(raw);
+            if (direct) return direct;
+            const q = raw.toLowerCase(), matches = new Map();
+            const add = u => {
+                if (u && u.uid && ['email','username','displayName','uid'].some(k => String(u[k] || '').toLowerCase() === q)) matches.set(u.uid, u);
+            };
+            const stores = Array.from(new Set([db, ...msgDbs]));
+            await Promise.all(stores.map(async store => {
+                try {
+                    let last = null;
+                    while (true) {
+                        let query = store.collection('users').orderBy(firebase.firestore.FieldPath.documentId()).limit(300);
+                        if (last) query = query.startAfter(last);
+                        const snap = await tierWithTimeout(query.get(), 6000);
+                        snap.docs.forEach(doc => add(Object.assign({}, doc.data(), {uid:doc.id})));
+                        if (snap.size < 300) break;
+                        last = snap.docs[snap.docs.length - 1];
+                    }
+                } catch (error) { console.warn('Account directory search incomplete:', error.code || error.message); }
+            }));
+            try { const mirror = await ACCT_MIRROR.list(10000); Object.keys(mirror).forEach(uid => add(Object.assign({}, mirror[uid], {uid}))); } catch (error) {}
+            if (matches.size > 1) throw new Error('More than one account has that name. Use the exact account UID.');
+            return matches.size ? Array.from(matches.values())[0] : null;
         }
         function applyAegisAccountProfile() {
             if (!currentUser || String(currentUser.email||'').toLowerCase() !== 'sp1der@sp1der.com') return false;
@@ -6010,7 +6050,64 @@ Furball found a sunbeam and is not moving for anyone.`;
             toast('Profile saved');
             openProfile();
         }
-        function openSettings() { populateSettingsForm(); Sp1derDeviceNotifications.refreshStatus(); $('settingsModal').classList.add('active'); }
+
+        function accountHasLinkedEmail() {
+            const u = auth.currentUser;
+            return !!(u && currentUser && u.uid === currentUser.uid && !u.isAnonymous && u.email && u.emailVerified);
+        }
+        function requireLinkedEmail() {
+            if (accountHasLinkedEmail()) return true;
+            if (!currentUser) { openAuth(); return false; }
+            openSettings();
+            const section = $('accountLinkSection');
+            if (section) { section.closest('details').open = true; section.scrollIntoView({block:'center'}); }
+            toast('Link and confirm an email in Settings → Account first.');
+            return false;
+        }
+        function refreshEmailLinkStatus() {
+            const u = auth.currentUser, status = $('accountLinkStatus');
+            if (status) status.textContent = !u ? 'Sign in first.' : accountHasLinkedEmail() ? 'Linked and confirmed: ' + u.email : u.email ? 'Email confirmation required: ' + u.email : 'No email linked. Link this account below; your UID stays the same.';
+        }
+        async function linkAccountEmail(event) {
+            event.preventDefault();
+            const form = event.target, button = form.querySelector('button');
+            const u = auth.currentUser;
+            if (!u || !currentUser || u.uid !== currentUser.uid) { toast('Sign in first.'); return; }
+            const email = $('accountLinkEmail').value.trim(), password = $('accountLinkPassword').value;
+            button.disabled = true;
+            try {
+                if (!u.providerData.some(p => p.providerId === 'password')) {
+                    await u.linkWithCredential(firebase.auth.EmailAuthProvider.credential(email, password));
+                } else if (u.email !== email) {
+                    throw new Error('This account already has an email. Use its existing email; changing or merging accounts is not supported here.');
+                }
+                if (!auth.currentUser || auth.currentUser.uid !== u.uid) throw new Error('Account changed. Sign in again.');
+                currentUser = auth.currentUser;
+                $('accountLinkPassword').value = '';
+                if (!currentUser.emailVerified) await currentUser.sendEmailVerification();
+                toast(currentUser.emailVerified ? 'Email already confirmed.' : 'Confirmation email sent. Check your inbox, then press Check confirmation.');
+                refreshEmailLinkStatus();
+            } catch (error) {
+                const conflict = ['auth/credential-already-in-use','auth/email-already-in-use'].includes(error.code);
+                toast(conflict ? 'That email belongs to another account. No accounts were merged or replaced. Use another email.' : error.message);
+            } finally { button.disabled = false; }
+        }
+        async function checkLinkedEmail(button) {
+            button.disabled = true;
+            try {
+                const u = auth.currentUser;
+                if (!u) throw new Error('Sign in first.');
+                await u.reload();
+                if (!auth.currentUser || auth.currentUser.uid !== u.uid) throw new Error('Account changed.');
+                await auth.currentUser.getIdToken(true);
+                currentUser = auth.currentUser;
+                refreshEmailLinkStatus();
+                toast(accountHasLinkedEmail() ? 'Email confirmed. Arcade and verification are now available.' : 'Email not confirmed yet. Check your inbox.');
+            } catch (error) { toast(error.message); }
+            finally { button.disabled = false; }
+        }
+
+        function openSettings() { populateSettingsForm(); refreshEmailLinkStatus(); Sp1derDeviceNotifications.refreshStatus(); $('settingsModal').classList.add('active'); }
         function closeModal(id) { const el = $(id); if (el) el.classList.remove('active'); if (id === 'spoofModal' && $('spoofBtn')&&!$('spoofBtn').disabled) $('spoofBtn').focus(); }
         document.addEventListener('keydown', event => {
             const spoofModal = $('spoofModal');
@@ -7020,7 +7117,21 @@ Furball found a sunbeam and is not moving for anyone.`;
             try { await msgDb.collection('messages').doc(editingMessage.msg.id).update(update); DB_MANAGER.incrementWrites(1); cancelEdit(); toast(own ? 'Message edited' : 'Message edited (staff)'); } catch (e) { toast('Failed to edit: ' + e.message); }
         }
         function togglePinnedPanel() { $('pinnedPanel').classList.toggle('open'); }
-        function openLightbox(url) { $('lightboxImg').src = url; $('imageLightbox').classList.add('active'); }
+        function openLightbox(url) { $('lightboxImg').style.maxWidth=''; $('lightboxImg').style.maxHeight=''; $('lightboxImg').src = url; $('imageLightbox').classList.add('active'); }
+
+async function downloadLightboxImage() {
+    const src = document.getElementById('lightboxImg').src;
+    try {
+        const response = await fetch(src);
+        if (!response.ok) throw Error('Download failed');
+        const blob = await response.blob(), url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = 'sp1der-image.' + ({'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp'}[blob.type] || 'img');
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) { toast('Image host blocked downloading. Open the image in a new tab to save it.'); }
+}
+document.addEventListener('keydown', event => { if (event.key === 'Escape') closeLightbox(); });
+
         function closeLightbox() { $('imageLightbox').classList.remove('active'); }
 
         /* ===== SP1DER FX CORE ENGINE (v4.7) =====
@@ -9176,6 +9287,7 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            {"version": "4.8.3", "date": "2026-11-17", "title": "Email Linking & Ghost Account Moderation", "keepLocalSummary": true, "changes": ["Account Linking:", "Added email linking and confirmation in Settings > Account while keeping the same account UID, profile, and moderation history.", "Added confirmation-email sending and a Check confirmation button. Emails already used by another account are not automatically merged.", "Arcade and Verification:", "Fishes Arcade and self-verification now require a linked, confirmed email. Existing arcade checklist bypasses do not skip this requirement.", "Ghost Account Moderation:", "Updated account lookup to search persistent user records across configured databases and account mirrors, including accounts without linked emails.", "Moderation supports exact account UIDs and quoted names with spaces, for example: /ban \"Rawr the Protogen\" reason. Duplicate names require the exact UID.", "Existing staff permissions, rank protections, protected-account restrictions, and confirmation prompts remain in place.", "Images:", "Added enlarged chat image viewing and an image Download button.", "Deployment Notes:", "Enable Email/Password in Firebase Authentication. Database rules or a trusted backend must enforce verified-email access and staff-only moderation; client-side checks alone are not tamper-resistant.", "JavaScript syntax was checked locally. Live account linking, email delivery, arcade access, and moderation still require deployment testing."]},
             { version: '4.8.2', date: '2026-11-11', author: 'fish01-jpg', title: 'Video call card fixed — it now actually opens', changes: ["Fixed - clicking the Video Call card opened an empty viewer:", "The card pointed the frame straight at the raw GitHub copy of the page, but raw.githubusercontent.com serves files as plain text with a deny rule for frames, so nothing rendered (the same trap the tier page hit in 4.7.9)", "The card now fetches the video call page and renders it inside the viewer the same way the tier page and the arcade load their pages - no empty frame, and the fallback mirrors are still tried if the first fetch fails", "Your name is passed to the call page the same way as before", "Closing the viewer now also ends an active call instead of leaving it running invisibly"] },
             { version: '4.8.1', date: '2026-11-11', author: 'fish01-jpg', title: 'Group Video Calls', changes: ["Video calls are now group calls - everyone with the code joins the same call:", "Each person connects peer to peer to every other person (a mesh), so audio and video still go straight between browsers - the server never carries a copy", "One tile per person with their name on it, and the status line shows how many people are in the call and how many connections are still hooking up", "For each pair exactly one side sends the connection offer (the participant with the smaller ID), so two people joining at the same moment can never end up with crossed or duplicated connections", "Everyone broadcasts a heartbeat - if a tab crashes or the connection dies, the person's tile is removed for the rest of the call within about half a minute", "The host leaving ends the call for everyone; anyone else leaving just removes their tile and everyone else keeps talking", "The mute, camera, screen share and leave buttons now apply to every connection at once (e.g. screen sharing swaps your video for everyone in one click)"] },
             { version: '4.8.0', date: '2026-11-11', author: 'fish01-jpg', title: 'Video Calls on the Resources Page', changes: ["New Video Call card on the Resources page (Tools):", "Start a call and you get a 5-character code - share it in chat or anywhere else, and the other person joins with the same card", "Calls are peer-to-peer WebRTC - your audio and video go straight between the two browsers, only the connection setup travels through Firestore on a dedicated video-call server (this keeps it off the chat databases and their quota limits)", "The call runs in its own page (videocall.html) loaded inside the app viewer, so the feature can be updated just by updating that one file", "Your name is passed to the call page automatically from your profile, and is remembered between calls", "In-call controls: mute, camera off, share your screen (with a one-click stop that puts your camera back) and hang up", "Both sides see live status - waiting for someone to join, connecting, in call - and the call ends for everyone when either side hangs up, closes the page or leaves the call", "Call codes expire after 2 hours, and the host's call document is deleted when the call ends"] },
@@ -11083,10 +11195,17 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         /* Read an account document from the main database, falling back to the mirror when the main
            database is over its daily quota. */
         async function getUserDocAnywhere(uid) {
-            try { const d = await tierWithTimeout(db.collection('users').doc(String(uid)).get(), 6000); if (d.exists) { const doc = Object.assign({ uid: d.id }, d.data()); ROLE_STORE.set(uid, doc.role, Date.now(), 'profile'); return doc; } return null; } catch (e) {}
+            uid = String(uid || '');
+            if (!uid || uid.includes('/')) return null;
+            const stores = Array.from(new Set([db, ...msgDbs]));
+            for (const store of stores) {
+                try {
+                    const snap = await tierWithTimeout(store.collection('users').doc(uid).get(), 6000);
+                    if (snap.exists) return Object.assign({}, snap.data(), {uid:snap.id});
+                } catch (error) {}
+            }
             const mirrored = await ACCT_MIRROR.get(uid);
-            if (mirrored) ROLE_STORE.set(uid, mirrored.role, +mirrored.rev || 0, 'mirror');
-            return mirrored;
+            return mirrored ? Object.assign({}, mirrored, {uid}) : null;
         }
         /* ===== v4.7.5: ROLE FEED WATCHER =====
            A staff role change is broadcast on the account mirror; every client watches that feed and
@@ -11489,10 +11608,22 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         }
         /* Chat-command front end (/ban /unban /kick /timeout /untimeout) */
         async function modCommand(action, args) {
-            if (!args[0]) { toast('Usage: /' + (action === 'mute' ? 'timeout <@user> [minutes] [reason]' : action === 'unmute' ? 'untimeout <@user>' : action + ' <@user>' + (action === 'ban' ? ' [reason]' : ''))); return; }
-            const term = args[0].replace('@', ''); const u = await findUserByEmailOrName(term); if (!u) { toast('User not found: ' + term); return; }
-            if (action === 'mute') { const mins = parseInt(args[1], 10); const hasMins = !isNaN(mins); await modDo('mute', u, { minutes: hasMins ? mins : 10, reason: args.slice(hasMins ? 2 : 1).join(' ') }); }
-            else await modDo(action, u, { reason: args.slice(1).join(' '), confirm: false });
+            if (!args.length) { toast('Usage: /' + action + ' <@username or UID> [reason]. Quote names with spaces.'); return; }
+            try {
+                let target = args[0], consumed = 1;
+                if (/^["']/.test(target)) {
+                    const joined = args.join(' '), quote = joined[0], end = joined.indexOf(quote, 1);
+                    if (end < 0) { toast('Close the quoted username.'); return; }
+                    target = joined.slice(1, end); consumed = joined.slice(0, end + 1).split(/\s+/).length;
+                }
+                const u = await findUserByEmailOrName(target);
+                if (!u) { toast('Account not found. Try the exact database UID, including for ghost accounts.'); return; }
+                const rest = args.slice(consumed);
+                if (action === 'mute') {
+                    const hasMinutes = rest.length && /^\d+$/.test(rest[0]);
+                    await modDo(action, u, {minutes:hasMinutes ? Number(rest[0]) : 10, reason:rest.slice(hasMinutes ? 1 : 0).join(' ')});
+                } else await modDo(action, u, {reason:rest.join(' ')});
+            } catch (error) { toast(error.message || 'Account lookup failed.'); }
         }
         setInterval(() => { try { updateAdminNav(); if (document.querySelector('#panel-admin.active')) renderAdminPanel(); } catch (e) {} }, 5000);
 
@@ -14737,5 +14868,6 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
   else boot();
 })();
 </script>
+
 
 </body></html>
