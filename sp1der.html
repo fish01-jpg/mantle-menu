@@ -11906,7 +11906,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             {cmd:'@summarizing',desc:'AI summarizing'}, {cmd:'@deploying',desc:'AI deploying'}, {cmd:'@monitoring',desc:'AI monitoring'}
         ];
         let currentPersonality = 'default';
-        const PERSONALITY_PRESETS = { default:{desc:'Standard helpful AI assistant'}, wizard:{desc:'Mystical wizard'}, pirate:{desc:'Pirate captain'}, robot:{desc:'Cold logical AI'}, therapist:{desc:'Empathetic counselor'}, coach:{desc:'Motivational coach'}, detective:{desc:'Investigative detective'}, chef:{desc:'Culinary expert'}, poet:{desc:'Romantic poet'}, gamer:{desc:'Gamer bro'}, :{desc:'Spooky ghost'} };
+        const PERSONALITY_PRESETS = { default:{desc:'Standard helpful AI assistant'}, wizard:{desc:'Mystical wizard'}, pirate:{desc:'Pirate captain'}, robot:{desc:'Cold logical AI'}, therapist:{desc:'Empathetic counselor'}, coach:{desc:'Motivational coach'}, detective:{desc:'Investigative detective'}, chef:{desc:'Culinary expert'}, poet:{desc:'Romantic poet'}, gamer:{desc:'Gamer bro'}, ghost:{desc:'Spooky ghost'} };
         async function executeAICommand(cmd, args) {
             if (!isAegisUser()) return false;
             const chId = selectedChannelId || 'global';
@@ -14737,5 +14737,6 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
   else boot();
 })();
 </script>
+
 
 </body></html>
