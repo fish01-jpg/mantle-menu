@@ -2405,6 +2405,37 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 }
 </style>
 <!-- sp1der-phone:end -->
+
+<style id="aegis-user-theme-buttons">
+/* Scoped to Aegis; follows the user's current theme, including live changes. */
+#panel-aegis button,
+#panel-aegis .channel-item {
+ color: var(--primary) !important;
+ border-color: var(--primary) !important;
+ background: var(--bg-1) !important;
+ background: color-mix(in srgb, var(--primary) 12%, var(--bg-1)) !important;
+}
+#panel-aegis button:hover:not(:disabled),
+#panel-aegis .channel-item:hover {
+ background: color-mix(in srgb, var(--primary) 24%, var(--bg-1)) !important;
+ box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+#panel-aegis button.primary,
+#panel-aegis button.active,
+#panel-aegis .channel-item.active,
+#panel-aegis button[aria-selected="true"] {
+ color: var(--text) !important;
+ background: color-mix(in srgb, var(--primary) 35%, var(--bg-1)) !important;
+ border-color: var(--primary) !important;
+}
+#panel-aegis button:focus-visible,
+#panel-aegis .channel-item:focus-visible {
+ outline: 2px solid var(--primary) !important;
+ outline-offset: 3px;
+}
+#panel-aegis button:disabled { opacity: .5; cursor: not-allowed; }
+#panel-aegis button svg { color: inherit; }
+</style>
 <style data-fishes-viewport="">html{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}body{width:100%!important;min-width:0!important;max-width:none!important;height:100%!important;min-height:100%!important;margin:0!important;box-sizing:border-box!important}#root,#app,#__next{width:100%;min-height:100%;max-width:none;box-sizing:border-box}</style></head>
 <body>
 
@@ -6598,8 +6629,12 @@ Furball found a sunbeam and is not moving for anyone.`;
                 delBtn.onclick = async () => { delBtn.disabled = true; try { await deleteMessage(msg.id, channelId, deleteServerIndex); } finally { delBtn.disabled = false; } };
                 actions.appendChild(delBtn);
             }
+            // Aegis has its own database and must not use Community's channel lookup.
+            const canEditHere = channelId === aegisChannelId
+                ? isConversationAccountMember() && (isMe || isStaffUser())
+                : !conversationReadOnly(channelId) && (isMe || isStaffUser());
+            if (canEditHere) { const editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'composer-btn'; editBtn.textContent = 'Edit'; editBtn.onclick = () => startEditMessage(msg, channelId); actions.appendChild(editBtn); }
             if (!conversationReadOnly(channelId)) {
-            if (isMe || isStaffUser()) { const editBtn = document.createElement('button'); editBtn.className = 'composer-btn'; editBtn.textContent = 'Edit'; editBtn.onclick = () => startEditMessage(msg, channelId); actions.appendChild(editBtn); }
             if (currentUser && !isMe) { const replyBtn = document.createElement('button'); replyBtn.className = 'composer-btn'; replyBtn.textContent = 'Reply'; replyBtn.onclick = () => { if (channelId === aegisChannelId) { startAegisReply(msg); } else { startReply(msg); } }; actions.appendChild(replyBtn); }
             if (isStaffUser()) { const pinBtn = document.createElement('button'); pinBtn.className = 'composer-btn'; pinBtn.textContent = 'Pin'; pinBtn.onclick = () => pinMessage(msg, channelId); actions.appendChild(pinBtn); }
             if (currentUser && msg.id) { const reactBtn = document.createElement('button'); reactBtn.className = 'composer-btn'; reactBtn.textContent = '😊 React'; reactBtn.title = 'Add an emoji reaction'; reactBtn.onclick = ev => openEmojiPicker(ev.currentTarget, msg, channelId); actions.appendChild(reactBtn); }
@@ -14848,5 +14883,94 @@ h1{margin:0;font-size:clamp(20px,7vw,46px);letter-spacing:3px;animation:hxgl .7s
 })();
 </script>
 
+
+<script id="aegis-rooms-and-edit-fix">
+(()=>{
+'use strict';
+let editing=null,rooms=[],off=null,watchKey='';
+const originalEdit=startEditMessage,originalSend=sendAegisMessage,originalInit=initAegisChat,originalRender=renderAegisServers;
+const bar=document.createElement('div');bar.className='edit-bar';bar.style.display='none';bar.id='aegisEditBar';
+const label=document.createElement('span');label.textContent='Editing message';bar.appendChild(label);
+const cancel=document.createElement('button');cancel.className='composer-btn';cancel.textContent='Cancel';cancel.type='button';bar.appendChild(cancel);$('aegisFeed').before(bar);
+function clear(){editing=null;bar.style.display='none';$('aegisInput').value='';autoResize($('aegisInput'));}cancel.onclick=clear;
+startEditMessage=function(msg,ch){
+ if(ch!==aegisChannelId)return originalEdit(msg,ch);
+ if(!currentUser||!isConversationAccountMember()||(msg.uid!==currentUser.uid&&!isStaffUser())){toast('Edit permission denied.');return;}
+ cancelAegisReply();editing={id:msg.id,ch,index:aegisServerIndex,uid:currentUser.uid};
+ label.textContent=msg.uid===currentUser.uid?'Editing message':'Editing message (staff)';bar.style.display='flex';$('aegisInput').value=msg.content||'';$('aegisInput').focus();autoResize($('aegisInput'));
+};
+function room(){return rooms.find(r=>r.id===aegisChannelId);}
+function permitted(r){return !!currentUser&&r&&Array.isArray(r.requiredMembers)&&r.requiredMembers.length===2&&r.requiredMembers.every(uid=>(r.members||[]).includes(uid))&&(r.type==='channel'||(r.members||[]).includes(currentUser.uid));}
+sendAegisMessage=async function(){
+ if(aegisChannelId!=='aegis-ai'&&!permitted(room())){toast('Conversation access unavailable.');return;}
+ if(!editing)return originalSend();
+ if(aegisSending)return;
+ if(!isConversationAccountMember()||modBlockSend(''))return;
+ if(window.SIGMA&&(!SIGMA.canInteract()||SIGMA.chatLocked())){toast('Chat is paused or locked by Sigma.');return;}
+ const e=editing,content=$('aegisInput').value.trim();if(!content)return;
+ if(!currentUser||currentUser.uid!==e.uid||aegisServerIndex!==e.index||aegisChannelId!==e.ch){clear();toast('Account or conversation changed.');return;}
+ aegisSending=true;
+ try{
+  await authenticateAegisServer(e.index);
+  const database=aegisApps[e.index].firestore(),ref=database.collection('messages').doc(e.id);
+  await database.runTransaction(async tx=>{
+   const snap=await tx.get(ref);if(!snap.exists)throw new Error('Message no longer exists.');const m=snap.data();
+   if(!currentUser||currentUser.uid!==e.uid||!isConversationAccountMember()||aegisServerIndex!==e.index||aegisChannelId!==e.ch||m.channelId!==e.ch)throw new Error('Account or conversation changed.');
+   const own=m.uid===currentUser.uid;if(!own&&!isStaffUser())throw new Error('Edit permission denied.');
+   const update={content,edited:true,editedAt:sv(),editedBy:currentUser.uid,editedByStaff:!own};
+   if(!own){update.originalContent=m.originalContent||m.content||'';update.editedByName=userProfile.username||currentUser.displayName||'Staff';}
+   tx.update(ref,update);
+  });
+  if(editing===e)clear();toast('Message edited');
+ }catch(error){toast('Failed to edit: '+error.message);}finally{aegisSending=false;}
+};
+$('aegisInput').addEventListener('keydown',e=>{if(e.key==='Escape'&&editing){e.preventDefault();clear();}});
+function btn(text,fn){const b=document.createElement('button');b.type='button';b.className='channel-item';b.textContent=text;b.onclick=fn;return b;}
+function select(id){if(aegisSending){toast('Wait for the current send to finish.');return;}clear();cancelAegisReply();aegisChannelId=id;initAegisChat();}
+renderAegisServers=function(){
+ originalRender();const list=$('aegisChannels');if(!list)return;
+ list.querySelectorAll('button').forEach(b=>{const prev=b.onclick;if(prev)b.onclick=()=>{clear();aegisChannelId='aegis-ai';prev();};});
+ const note=document.createElement('div');note.style.cssText='padding:10px;font-size:11px;color:var(--text-dim)';note.textContent='All conversations include Aegis + P1xelF1n, including DMs.';list.appendChild(note);
+ list.appendChild(btn('Aegis AI Chat',()=>select('aegis-ai')));
+ for(const type of ['channel','group','dm']){
+  const head=document.createElement('div');head.style.cssText='padding:12px 8px 4px;font-size:11px;text-transform:uppercase';head.textContent={channel:'Channels',group:'Groups',dm:'DMs'}[type];list.appendChild(head);
+  list.appendChild(btn('+ New '+type,()=>create(type)));
+  rooms.filter(r=>r.type===type&&permitted(r)).forEach(r=>{const b=btn((type==='channel'?'# ':'')+r.name,()=>select(r.id));b.classList.toggle('active',r.id===aegisChannelId);list.appendChild(b);});
+ }
+ if(room())$('aegisChanTitle').textContent=room().name+' — Aegis + P1xelF1n';
+};
+async function resolve(email){const snap=await db.collection('users').where('email','==',email).get();if(snap.size!==1)throw new Error('Cannot uniquely resolve '+email);return snap.docs[0].id;}
+async function create(type){
+ if(!isConversationAccountMember()){toast('Member sign-in required.');return;}
+ const name=prompt('Name for this '+type+':');if(!name||!name.trim())return;
+ const extra=type==='channel'?'':prompt('Additional participant emails, comma-separated. Aegis and P1xelF1n are always included.','');if(extra===null)return;
+ const uid=currentUser.uid,index=aegisServerIndex;
+ try{
+  const required=await Promise.all(['sp1der@sp1der.com','allison.bennett2@outlook.com'].map(resolve));
+  const others=await Promise.all([...new Set(extra.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean))].map(resolve));
+  await authenticateAegisServer(index);
+  if(!currentUser||currentUser.uid!==uid||index!==aegisServerIndex)throw new Error('Account or server changed.');
+  const ref=await aegisApps[index].firestore().collection('aegisConversations').add({name:name.trim().slice(0,80),type,members:[...new Set([...required,uid,...others])],requiredMembers:required,createdBy:uid,createdAt:sv()});
+  aegisChannelId=ref.id;initAegisChat();toast('Conversation created');
+ }catch(e){toast('Unable to create conversation: '+e.message);}
+}
+function watch(){
+ const uid=currentUser&&currentUser.uid||'',index=aegisServerIndex,key=uid+':'+index;
+ if(key===watchKey&&off)return;
+ if(off)off();off=null;rooms=[];watchKey=key;if(!uid)return;
+ off=aegisApps[index].firestore().collection('aegisConversations').onSnapshot(snap=>{
+  if(!currentUser||currentUser.uid!==uid||aegisServerIndex!==index)return;
+  rooms=snap.docs.map(d=>({...d.data(),id:d.id}));
+  if(aegisChannelId!=='aegis-ai'&&!permitted(room())){aegisChannelId='aegis-ai';initAegisChat();return;}
+  renderAegisServers();
+ },e=>toast('Conversation list: '+e.message));
+}
+initAegisChat=async function(){
+ const key=(currentUser&&currentUser.uid||'')+':'+aegisServerIndex;
+ if(watchKey!==key){clear();aegisChannelId='aegis-ai';}
+ await originalInit();watch();
+};
+})();
+</script>
 
 </body></html>
