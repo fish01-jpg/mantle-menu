@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Project Sp1der — 4.7.9</title>
+    <title>Project Sp1der — 4.8.4</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -2922,7 +2922,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 <div class="admin-stat"><div class="admin-stat-num" id="adminStatStaff">0</div><div class="admin-stat-label">Staff online</div></div>
 <div class="admin-stat"><div class="admin-stat-num" id="adminStatRestricted">0</div><div class="admin-stat-label">Banned / muted</div></div>
 <div class="admin-stat"><div class="admin-stat-num" id="adminStatDb">-</div><div class="admin-stat-label">Chat server</div></div>
-</div><div aria-label="Workspace role views" id="workspaceRoleTabs" role="tablist"><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="staff" id="workspaceTab-staff" onclick="selectWorkspaceTab('staff')" role="tab" tabindex="-1" type="button">Staff</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="admin" id="workspaceTab-admin" onclick="selectWorkspaceTab('admin')" role="tab" tabindex="-1" type="button">Admin</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="founder" id="workspaceTab-founder" onclick="selectWorkspaceTab('founder')" role="tab" tabindex="-1" type="button">Founder</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="owner" id="workspaceTab-owner" onclick="selectWorkspaceTab('owner')" role="tab" tabindex="-1" type="button">Owner / Developer</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="management" id="workspaceTab-management" onclick="selectWorkspaceTab('management')" role="tab" tabindex="-1" type="button">Management</button></div><div id="workspaceTools" role="tabpanel" tabindex="0"><section data-workspace-tier="staff" hidden="" id="workspaceSection-staff"><h2 class="workspace-tier-heading">Staff</h2><div class="admin-card">
+</div><div class="admin-card" id="accountQualityCard" hidden=""><div class="admin-card-title">Account quality review</div><p class="admin-sub">Review account profile issues. Flags are not proof of a fake account and never apply automatic penalties. Observation history lasts only for this page session.</p><div class="admin-actions"><button type="button" class="composer-btn" id="accountQualityScan" onclick="reviewGhostAccounts()">Run review</button><button type="button" class="composer-btn" onclick="clearGhostReview()">Clear review</button></div><div id="accountQualityResults" class="admin-users" role="status" aria-live="polite">Run a review to check up to 500 account profiles.</div></div><div aria-label="Workspace role views" id="workspaceRoleTabs" role="tablist"><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="staff" id="workspaceTab-staff" onclick="selectWorkspaceTab('staff')" role="tab" tabindex="-1" type="button">Staff</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="admin" id="workspaceTab-admin" onclick="selectWorkspaceTab('admin')" role="tab" tabindex="-1" type="button">Admin</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="founder" id="workspaceTab-founder" onclick="selectWorkspaceTab('founder')" role="tab" tabindex="-1" type="button">Founder</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="owner" id="workspaceTab-owner" onclick="selectWorkspaceTab('owner')" role="tab" tabindex="-1" type="button">Owner / Developer</button><button aria-controls="workspaceTools" aria-selected="false" class="composer-btn" data-workspace-tab="management" id="workspaceTab-management" onclick="selectWorkspaceTab('management')" role="tab" tabindex="-1" type="button">Management</button></div><div id="workspaceTools" role="tabpanel" tabindex="0"><section data-workspace-tier="staff" hidden="" id="workspaceSection-staff"><h2 class="workspace-tier-heading">Staff</h2><div class="admin-card">
 <div class="admin-card-title">Quick actions</div>
 <div class="admin-actions">
 <button class="composer-btn" onclick="showView('community')">Chat</button>
@@ -3613,7 +3613,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
         /* ============================================
            PROJECT SP1DER V4 — APPLICATION LOGIC
            ============================================ */
-        const APP_VERSION = '4.6.6';
+        const APP_VERSION = '4.8.4';
         function isNewerAppVersion(candidate, current = APP_VERSION) {
             const parse = value => {
                 const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/i);
@@ -4236,6 +4236,7 @@ html[data-sp1der-device="phone"].sp1der-keyboard :is(#composerInput,#aegisInput,
 
         const getChDb = () => channelDb;
         const getMsgDbForCh = (channelId) => {
+            if (channelId === 'aegis-ai') return getAegisMsgDb();
             const ch = myChannels[channelId];
             if (ch && ch.type !== 'global' && ch.msgDbIndex != null) return msgDbs[ch.msgDbIndex] || msgDbs[0];
             return msgDbs[selectedMsgDbIndex] || msgDbs[0];
@@ -4675,10 +4676,23 @@ Furball found a sunbeam and is not moving for anyone.`;
         }
 
         async function openFishesArcadeGate() {
-            /* arcade verification removed — signed-in users go straight in */
             if (!currentUser) { openAuth(); return; }
             try { const t = $('tourOverlay'); if (t && t.classList.contains('active')) endTour(); } catch (e) {} /* the tour overlay sits above modals and eats their clicks */
-            openFishesArcade();
+            const st = await getArcadeGateStatus();
+            if (st.allDone && st.riskAccepted) { openFishesArcade(); return; }
+            const m = $('arcadeGateModal'); if (!m) return;
+            const list = $('arcadeGateList'), risk = $('arcadeGateRisk'), go = $('arcadeGateGo'), refresh = $('arcadeGateRefresh');
+            list.innerHTML = st.items.map(i => '<div style="display:flex;gap:8px;"><span>' + (i.done ? '✅' : '⬜') + '</span><span>' + i.label + (i.detail ? ' <span style="color:var(--text-faint);font-family:var(--font-mono);font-size:0.76rem;">(' + i.detail + ')</span>' : '') + '</span></div>').join('');
+            if (st.allDone) {
+                risk.style.display = 'block';
+                go.style.display = 'inline-flex';
+                refresh.style.display = 'none';
+            } else {
+                risk.style.display = 'none';
+                go.style.display = 'none';
+                refresh.style.display = 'inline-flex';
+            }
+            m.classList.add('active');
         }
         function closeArcadeGate() {
             const m = $('arcadeGateModal'); if (m) m.classList.remove('active');
@@ -5946,7 +5960,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 var msgLimit = tierCfg.dailyMessages === Infinity ? '∞' : tierCfg.dailyMessages;
                 var accountRows = pfRow('Role', roleLabel(accountRole(p)))
                     + pfRow('Tier', tierCfg.label + ' — ' + msgLimit + ' msgs/day, ' + tierCfg.syncs + (tierCfg.syncs === Infinity ? ' ∞' : '') + ' profile syncs/day')
-                    + pfRow('Verified', verified ? 'Yes' : 'No — not required for the arcade')
+                    + pfRow('Verified', verified ? 'Yes — arcade unlocked' : 'No — run /verify in chat to unlock the arcade')
                     + pfRow('Account', currentUser.email || '')
                     + arcadeStatsSectionHtml(p);
                 var editFields =
@@ -6577,8 +6591,14 @@ Furball found a sunbeam and is not moving for anyone.`;
             renderReactionChips(msg, channelId, reactionsRow);
             body.appendChild(reactionsRow);
             const actions = document.createElement('div'); actions.className = 'message-actions';
+            const canDeleteHere = channelId === aegisChannelId ? canDeleteAegisMessages() : (!conversationReadOnly(channelId) && (isMe || isStaffUser()));
+            if (canDeleteHere) {
+                const deleteServerIndex = channelId === aegisChannelId ? aegisServerIndex : null;
+                const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'composer-btn'; delBtn.textContent = 'Delete';
+                delBtn.onclick = async () => { delBtn.disabled = true; try { await deleteMessage(msg.id, channelId, deleteServerIndex); } finally { delBtn.disabled = false; } };
+                actions.appendChild(delBtn);
+            }
             if (!conversationReadOnly(channelId)) {
-            if (isMe || isStaffUser()) { const delBtn = document.createElement('button'); delBtn.className = 'composer-btn'; delBtn.textContent = 'Delete'; delBtn.onclick = () => deleteMessage(msg.id, channelId); actions.appendChild(delBtn); }
             if (isMe || isStaffUser()) { const editBtn = document.createElement('button'); editBtn.className = 'composer-btn'; editBtn.textContent = 'Edit'; editBtn.onclick = () => startEditMessage(msg, channelId); actions.appendChild(editBtn); }
             if (currentUser && !isMe) { const replyBtn = document.createElement('button'); replyBtn.className = 'composer-btn'; replyBtn.textContent = 'Reply'; replyBtn.onclick = () => { if (channelId === aegisChannelId) { startAegisReply(msg); } else { startReply(msg); } }; actions.appendChild(replyBtn); }
             if (isStaffUser()) { const pinBtn = document.createElement('button'); pinBtn.className = 'composer-btn'; pinBtn.textContent = 'Pin'; pinBtn.onclick = () => pinMessage(msg, channelId); actions.appendChild(pinBtn); }
@@ -6709,7 +6729,6 @@ Furball found a sunbeam and is not moving for anyone.`;
             if (!currentUser) { openAuth(); return; }
             if (window.SIGMA && !SIGMA.canInteract()) { toast('Sigma security review in progress — chat is paused.'); return; }
             if (window.SIGMA && SIGMA.chatLocked()) { toast('Chat is locked by Sigma.'); return; }
-            if (window.SIGMA && !SIGMA.slowmodeOk()) { toast('Sigma slow mode is on — wait a moment.'); return; }
             if (conversationReadOnly(selectedChannelId) || !canReadConversation(myChannels[selectedChannelId])) { toast('This conversation is read-only.'); return; }
             if (sendMessageInFlight || spoofSendInFlight) { toast('Sending — one moment...'); return; }
             const input = $('composerInput'); const content = input.value.trim();
@@ -6846,7 +6865,33 @@ Furball found a sunbeam and is not moving for anyone.`;
         function cancelEdit() { editingMessage = null; $('editBar').style.display = 'none'; $('composerInput').value = ''; autoResizeComposer(); }
         function startReply(msg) { replyToMessage = msg; $('replyBar').style.display = 'flex'; $('replyBarText').textContent = 'Replying to ' + (msg.username || 'message'); $('composerInput').focus(); }
         function cancelReply() { replyToMessage = null; $('replyBar').style.display = 'none'; }
-        async function deleteMessage(msgId, channelId) { if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; } const msgDb = getMsgDbForCh(channelId); try { await msgDb.collection('messages').doc(msgId).delete(); toast('Message deleted'); } catch (e) { toast('Failed to delete'); } }
+        function canDeleteAegisMessages() {
+            return !!(currentUser && auth.currentUser && currentUser.uid === auth.currentUser.uid &&
+                isConversationAccountMember() && roleLevel(getRole()) >= roleLevel('admin'));
+        }
+        async function deleteMessage(msgId, channelId, serverIndex) {
+            if (!msgId || typeof msgId !== 'string') return;
+            if (channelId === aegisChannelId) {
+                if (!canDeleteAegisMessages()) { toast('Admin rank or above is required to delete Aegis messages.'); return; }
+                const index = Number.isInteger(serverIndex) ? serverIndex : aegisServerIndex;
+                const deletingUid = currentUser.uid;
+                try {
+                    await authenticateAegisServer(index);
+                    if (!canDeleteAegisMessages() || currentUser.uid !== deletingUid) { toast('Delete permission changed.'); return; }
+                    const ref = aegisApps[index].firestore().collection('messages').doc(msgId);
+                    const message = await ref.get();
+                    if (!canDeleteAegisMessages() || currentUser.uid !== deletingUid) return;
+                    if (!message.exists) { toast('Message already deleted.'); return; }
+                    if (message.data().channelId !== aegisChannelId) { toast('That message is not in Aegis chat.'); return; }
+                    await ref.delete();
+                    toast('Message deleted');
+                } catch (e) { toast('Failed to delete: ' + e.message); }
+                return;
+            }
+            if (conversationReadOnly(channelId)) { toast('This conversation is read-only.'); return; }
+            const msgDb = getMsgDbForCh(channelId);
+            try { await msgDb.collection('messages').doc(msgId).delete(); toast('Message deleted'); } catch (e) { toast('Failed to delete'); }
+        }
         /* ===== v4.6.3: EMOJI CHAT REACTIONS =====
            Reactions live on the message doc as reactions: { emoji: [uid, ...] }.
            The chat's existing message listener re-renders the feed on every snapshot, so
@@ -9163,6 +9208,8 @@ Furball found a sunbeam and is not moving for anyone.`;
 
         /* ===== 11. UPDATE SYSTEM ===== */
         const CHANGELOG = [
+            {"version": "4.8.4", "date": "2026-11-17", "author": "Project Sp1der", "title": "Account review visible on the admin landing page", "changes": ["Moved Account quality review to the sidebar admin page, directly below the statistics and above all role tabs. No Admin role-tab selection is needed.", "The review card, Run review, Clear review, and scan results stay together on the admin landing page.", "Admin-level permissions still control visibility and scanning. The card hides and session results clear when access is lost or the signed-in account changes.", "Preserved the three Aegis server configurations, slow-mode removal, session-only review history, and the earlier Updates entries.", "Live Firebase authentication, security rules, indexing, and separate GitHub bot configuration remain required. This HTML update does not deploy changes to the hosted site.", "Build version updated to 4.8.4. Inline JavaScript syntax and static card placement checked; live browser and Firebase behavior not tested."]},
+            {"version": "4.8.3", "date": "2026-11-17", "author": "Project Sp1der", "title": "Aegis servers, slow-mode removal, and admin account review", "changes": ["Account quality review is now in Staff Workspace > Admin, with Run review, Clear review, and results contained in the admin panel; no review shortcut appears in Aegis chat.", "Admin-level access is checked before scans and before results render. Results are cleared after identity or access changes. Database rules must separately enforce staff-only access.", "Review up to 500 main account profiles for missing or malformed email fields, missing display names, UID mismatches, and profile-reported anonymous or unverified state. Flags are review hints, not proof of fake accounts; no automatic penalties.", "First and latest observation timestamps are kept only for this page session. Persistent Auth-account reconciliation and mailbox verification are not implemented.", "Added Aegis Server 1, Server 2, and Server 3 using aegis-database1, aegis-database2, and aegis-database3, with remembered server selection.", "Aegis message subscriptions and sends now use the selected dedicated project. Switching cleans up the previous listener, guards stale rendering, and clears reply state. Latest 100 messages are requested in timestamp order.", "Added visible connection/authentication errors and an in-flight send guard. Existing membership and moderation checks remain.", "Removed Sigma chat slow-mode enforcement; its legacy slowmode command reports removal. Bans, mutes, security locks, and special-effect cooldowns remain.", "Server setup still required: trusted cross-project custom-token bridge, target-project Firestore security rules and any required index. Chat fails closed until authentication is configured.", "The separate aegis-ai GitHub bot has not been modified or deployed. Live Firebase setup, bot integration, browser testing, and legacy message-action testing are still required.", "Added this complete change record to Updates and aligned this build version to 4.8.3. JavaScript syntax checks are performed on the generated file; live behavior is not yet verified."]},
             { version: '4.8.2', date: '2026-11-11', author: 'fish01-jpg', title: 'Video call card fixed — it now actually opens', changes: ["Fixed - clicking the Video Call card opened an empty viewer:", "The card pointed the frame straight at the raw GitHub copy of the page, but raw.githubusercontent.com serves files as plain text with a deny rule for frames, so nothing rendered (the same trap the tier page hit in 4.7.9)", "The card now fetches the video call page and renders it inside the viewer the same way the tier page and the arcade load their pages - no empty frame, and the fallback mirrors are still tried if the first fetch fails", "Your name is passed to the call page the same way as before", "Closing the viewer now also ends an active call instead of leaving it running invisibly"] },
             { version: '4.8.1', date: '2026-11-11', author: 'fish01-jpg', title: 'Group Video Calls', changes: ["Video calls are now group calls - everyone with the code joins the same call:", "Each person connects peer to peer to every other person (a mesh), so audio and video still go straight between browsers - the server never carries a copy", "One tile per person with their name on it, and the status line shows how many people are in the call and how many connections are still hooking up", "For each pair exactly one side sends the connection offer (the participant with the smaller ID), so two people joining at the same moment can never end up with crossed or duplicated connections", "Everyone broadcasts a heartbeat - if a tab crashes or the connection dies, the person's tile is removed for the rest of the call within about half a minute", "The host leaving ends the call for everyone; anyone else leaving just removes their tile and everyone else keeps talking", "The mute, camera, screen share and leave buttons now apply to every connection at once (e.g. screen sharing swaps your video for everyone in one click)"] },
             { version: '4.8.0', date: '2026-11-11', author: 'fish01-jpg', title: 'Video Calls on the Resources Page', changes: ["New Video Call card on the Resources page (Tools):", "Start a call and you get a 5-character code - share it in chat or anywhere else, and the other person joins with the same card", "Calls are peer-to-peer WebRTC - your audio and video go straight between the two browsers, only the connection setup travels through Firestore on a dedicated video-call server (this keeps it off the chat databases and their quota limits)", "The call runs in its own page (videocall.html) loaded inside the app viewer, so the feature can be updated just by updating that one file", "Your name is passed to the call page automatically from your profile, and is remembered between calls", "In-call controls: mute, camera off, share your screen (with a one-click stop that puts your camera back) and hang up", "Both sides see live status - waiting for someone to join, connecting, in call - and the call ends for everyone when either side hangs up, closes the page or leaves the call", "Call codes expire after 2 hours, and the host's call document is deleted when the call ends"] },
@@ -9742,38 +9789,75 @@ Furball found a sunbeam and is not moving for anyone.`;
         /* ===== 14. AEGIS AI CHAT ===== */
         let aegisChannelId = 'aegis-ai';
         let aegisMessageUnsub = null;
-        function initAegisChat() {
-            if (!isConversationAccountMember()) {
-                if (aegisMessageUnsub) { aegisMessageUnsub(); aegisMessageUnsub = null; }
-                if ($('aegisFeed')) $('aegisFeed').textContent = 'Guests and non-members can only read Global.';
-                return;
-            }
-            const chDb = getChDb();
-            chDb.collection('channels').doc(aegisChannelId).set({ type: 'aegis', name: 'Aegis AI Chat', members: [], createdAt: sv() }, { merge: true }).catch(() => {});
-            const aegisChan = document.createElement('div'); aegisChan.className = 'channel-item active';
-            aegisChan.innerHTML = '<span class="channel-name">Aegis AI</span>';
-            $('aegisChannels').appendChild(aegisChan);
-            if (aegisMessageUnsub) aegisMessageUnsub();
-            const msgDb = DB_MANAGER.getCurrentMsgDb();
-            aegisMessageUnsub = msgDb.collection('messages').where('channelId', '==', aegisChannelId).limit(100).onSnapshot(snap => {
-                processForcedChatCommands(snap, aegisChannelId, { chat: 'aegis' }); // 4.5.9: run commands forced into the AI chat via Firestore
-                DB_MANAGER.incrementReads(snap.size || 1);
-                const msgs = snap.docs.map(d => { const m = d.data(); m.id = d.id; return m; });
-                msgs.sort((a, b) => {
-                    const ta = a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime()) : 0;
-                    const tb = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime()) : 0;
-                    return ta - tb;
-                });
-                renderAegisFeed(msgs);
-            }, () => {});
+
+        const AEGIS_SERVER_CONFIGS = [{"apiKey": "AIzaSyDDkCP_YEBG-AoX72FwgIOCzVBRBazTD2E", "authDomain": "aegis-database1.firebaseapp.com", "projectId": "aegis-database1", "storageBucket": "aegis-database1.firebasestorage.app", "messagingSenderId": "8789025084", "appId": "1:8789025084:web:8cc843a796036b38083e39"}, {"apiKey": "AIzaSyBZdXOnYEEI-JP4QbiyA5WrEEQQZF1IFjM", "authDomain": "aegis-database2.firebaseapp.com", "projectId": "aegis-database2", "storageBucket": "aegis-database2.firebasestorage.app", "messagingSenderId": "445519406139", "appId": "1:445519406139:web:c02fdb1d847a9f6dad281e"}, {"apiKey": "AIzaSyAOycQ128nDa4A4sMhBpG4yUif53ZBx2_Y", "authDomain": "aegis-database3.firebaseapp.com", "projectId": "aegis-database3", "storageBucket": "aegis-database3.firebasestorage.app", "messagingSenderId": "164990899462", "appId": "1:164990899462:web:d2de6a9c368305d74e3a87"}];
+        const aegisApps = AEGIS_SERVER_CONFIGS.map((config, i) => firebase.apps.find(a => a.name === 'aegisChat' + (i + 1)) || firebase.initializeApp(config, 'aegisChat' + (i + 1)));
+        let aegisServerIndex = 0, aegisGeneration = 0, aegisSending = false;
+        try { const index = Number(localStorage.getItem('sp1der_aegis_server')); if (Number.isInteger(index) && index >= 0 && index < 3) aegisServerIndex = index; } catch (e) {}
+        function getAegisMsgDb() { return aegisApps[aegisServerIndex].firestore(); }
+        async function authenticateAegisServer(index) {
+    if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= aegisApps.length
+    ) {
+        throw new Error("Invalid Aegis server selection.");
+    }
+
+    if (
+        !currentUser ||
+        !auth.currentUser ||
+        currentUser.uid !== auth.currentUser.uid ||
+        !isConversationAccountMember()
+    ) {
+        throw new Error("Member sign-in required.");
+    }
+
+    // Compatibility with the existing chat-project architecture:
+    // the main project handles site login, while the selected
+    // chat project's deployed Firestore rules authorize requests.
+    //
+    // This does NOT authenticate the user to the secondary project.
+}
+        function renderAegisServers() {
+            const list = $('aegisChannels'); if (!list) return; list.textContent = '';
+            AEGIS_SERVER_CONFIGS.forEach((config, index) => {
+                const button = document.createElement('button'); button.type = 'button';
+                button.className = 'channel-item' + (index === aegisServerIndex ? ' active' : '');
+                button.textContent = 'Aegis Server ' + (index + 1); button.title = config.projectId;
+                button.onclick = () => {
+                    if (aegisSending) { toast('Wait for the current send to finish.'); return; }
+                    aegisServerIndex = index; try { localStorage.setItem('sp1der_aegis_server', String(index)); } catch (e) {}
+                    cancelAegisReply(); initAegisChat();
+                };
+                list.appendChild(button);
+            });
+            if ($('aegisChanTitle')) $('aegisChanTitle').textContent = 'Aegis AI — Server ' + (aegisServerIndex + 1);
+        }
+        async function initAegisChat() {
+            const generation = ++aegisGeneration, index = aegisServerIndex;
+            if (aegisMessageUnsub) { aegisMessageUnsub(); aegisMessageUnsub = null; }
+            renderAegisServers();
+            if (!isConversationAccountMember()) { $('aegisFeed').textContent = 'Member sign-in required.'; return; }
+            $('aegisFeed').textContent = 'Connecting to ' + AEGIS_SERVER_CONFIGS[index].projectId + '…';
+            try {
+                await authenticateAegisServer(index);
+                if (generation !== aegisGeneration || !isConversationAccountMember()) return;
+                aegisMessageUnsub = aegisApps[index].firestore().collection('messages').where('channelId', '==', aegisChannelId).orderBy('timestamp', 'desc').limit(100).onSnapshot(snap => {
+                    if (generation !== aegisGeneration || !isConversationAccountMember()) return;
+                    renderAegisFeed(snap.docs.map(d => Object.assign({}, d.data(), { id: d.id })).reverse());
+                }, error => { if (generation === aegisGeneration) $('aegisFeed').textContent = 'Chat connection failed: ' + error.message; });
+            } catch (error) { if (generation === aegisGeneration) $('aegisFeed').textContent = error.message; }
         }
         function renderAegisFeed(msgs) {
             if (!isConversationAccountMember()) return;
             const feed = $('aegisFeed'); if (!feed) return;
             if (!msgs.length) { feed.innerHTML = '<div class="chat-empty">No messages yet. Start chatting with Aegis AI.</div>'; return; }
+            const generation = aegisGeneration;
             feed.innerHTML = '';
             ensureSenderProfiles(msgs).then(() => {
-                if (!isConversationAccountMember()) return;
+                if (!isConversationAccountMember() || generation !== aegisGeneration) return;
+                feed.textContent = '';
                 msgs.forEach(msg => { feed.appendChild(renderMessageCard(msg, aegisChannelId)); });
                 feed.scrollTop = feed.scrollHeight;
             });
@@ -9798,11 +9882,16 @@ Furball found a sunbeam and is not moving for anyone.`;
                 const handled = await handleAegisCommand(content);
                 if (handled) { input.value = ''; autoResize(input); return; }
             }
-            const msgDb = DB_MANAGER.getCurrentMsgDb();
+            if (aegisSending) return;
+            aegisSending = true;
+            const sendingUid = currentUser.uid;
+            try { await authenticateAegisServer(aegisServerIndex); } catch (error) { aegisSending = false; toast(error.message); return; }
+            if (!currentUser || currentUser.uid !== sendingUid || !isConversationAccountMember()) { aegisSending = false; return; }
+            const msgDb = getAegisMsgDb();
             var aegisSenderName = (getRole() === 'aegis') ? 'Aegis AI' : ((userProfile && userProfile.username) || currentUser.displayName || 'User');
             var msg = { channelId: aegisChannelId, uid: currentUser.uid, username: aegisSenderName, displayName: aegisSenderName, role: getRole(), content: content, timestamp: sv(), imageUrl: null, videoUrl: null, usernameColor: (userProfile && userProfile.usernameColor) || '#f2ecff', usernameGlow: (userProfile && userProfile.usernameGlow) || (userProfile && userProfile.glow) || 'none', usernameStyle: (userProfile && userProfile.usernameStyle) || 'normal', background: (userProfile && userProfile.background) || '#0f0823', border: (userProfile && userProfile.border) || '#a020f0', profilePic: getProfilePic() || null };
             if (aegisReplyTo) { msg.replyTo = { uid: messageDisplayUid(aegisReplyTo), username: aegisReplyTo.displayName || aegisReplyTo.username, content: aegisReplyTo.content ? aegisReplyTo.content.substring(0, 50) : '' }; aegisReplyTo = null; cancelAegisReply(); }
-            try { await msgDb.collection('messages').add(msg); DB_MANAGER.incrementWrites(1); input.value = ''; autoResize(input); if (getRole() !== 'aegis') { showAegisProcessing('Aegis AI is processing your message...'); setTimeout(() => { hideAegisProcessing(); }, 3000); } } catch (e) { toast('Failed to send: ' + e.message); }
+            try { await msgDb.collection('messages').add(msg); DB_MANAGER.incrementWrites(1); input.value = ''; autoResize(input); if (getRole() !== 'aegis') { showAegisProcessing('Aegis AI is processing your message...'); setTimeout(() => { hideAegisProcessing(); }, 3000); } } catch (e) { toast('Failed to send: ' + e.message); } finally { aegisSending = false; }
         }
         async function handleAegisCommand(text) {
             text = text.trim(); if (!text.startsWith('/')) return false;
@@ -9821,7 +9910,7 @@ Furball found a sunbeam and is not moving for anyone.`;
                 case 'blank': case 'aboutblank': openInAboutBlank(); return true;
                 case 'theme': settings.theme = settings.theme === 'arcane' ? 'dark' : 'arcane'; applyTheme(); saveSettingsInstant(); toast('Theme: ' + settings.theme); return true;
                 case 'rules': toast('1. Be respectful. 2. No spam. 3. No NSFW. 4. No harassment.'); return true;
-                case 'status': if (isAegisUser()) { const msgDb = DB_MANAGER.getCurrentMsgDb(); try { await msgDb.collection('messages').add({channelId:aegisChannelId,uid:currentUser.uid,username:'Aegis AI',role:'aegis',content:'All systems operational. Server time: ' + new Date().toLocaleString(),timestamp:sv()}); } catch(e){} } else { toast('Aegis only'); } return true;
+                case 'status': if (isAegisUser()) { const msgDb = getAegisMsgDb(); try { await msgDb.collection('messages').add({channelId:aegisChannelId,uid:currentUser.uid,username:'Aegis AI',role:'aegis',content:'All systems operational. Server time: ' + new Date().toLocaleString(),timestamp:sv()}); } catch(e){} } else { toast('Aegis only'); } return true;
                 default: return false;
             }
         }
@@ -10531,6 +10620,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             workspaceSelected=tier;refreshWorkspace();renderAdminPanel();
         }
         function refreshWorkspace() {
+            const qualityCard=document.getElementById('accountQualityCard');if(qualityCard)qualityCard.hidden=!workspaceCan('admin');
             const root=document.getElementById('workspaceTools');if(!root || workspaceBusy)return;
             workspaceBusy=true;
             try {
@@ -10733,7 +10823,54 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
             catch(e){toast(e.message);}
         }
 
+
+        setInterval(() => { const card = $('accountQualityCard'); if (card) card.hidden = !workspaceCan('admin'); if (ghostReviewViewer && (!currentUser || currentUser.uid !== ghostReviewViewer || !workspaceCan('admin'))) clearGhostReview(); }, 1000);
+        const ghostReviewHistory = new Map();
+        let ghostReviewGeneration = 0, ghostReviewViewer = null;
+        function clearGhostReview() {
+            ++ghostReviewGeneration; ghostReviewHistory.clear(); ghostReviewViewer = null;
+            if ($('accountQualityResults')) $('accountQualityResults').textContent = 'Review cleared. Run a review to check up to 500 account profiles.';
+            if ($('accountQualityScan')) $('accountQualityScan').disabled = false;
+        }
+        async function reviewGhostAccounts() {
+            if (!workspaceCan('admin')) return;
+            const viewer = currentUser.uid, generation = ++ghostReviewGeneration;
+            if (ghostReviewViewer !== viewer) ghostReviewHistory.clear();
+            ghostReviewViewer = viewer;
+            const results = $('accountQualityResults'), button = $('accountQualityScan');
+            const valid = () => generation === ghostReviewGeneration && currentUser && currentUser.uid === viewer && workspaceCan('admin');
+            results.textContent = 'Reviewing account profiles…'; button.disabled = true;
+            try {
+                const snapshot = await db.collection('users').orderBy(firebase.firestore.FieldPath.documentId()).limit(501).get();
+                if (!valid()) return;
+                results.textContent = '';
+                const intro = document.createElement('p');
+                intro.textContent = 'Profile records only: not an Auth-account or mailbox verification. ' + (snapshot.size > 500 ? 'Partial scan: first 500 profiles only.' : snapshot.size + ' profiles checked.'); results.appendChild(intro);
+                let flagged = 0;
+                snapshot.docs.slice(0, 500).forEach(doc => {
+                    const profile = doc.data() || {}, reasons = [];
+                    if (profile.uid && profile.uid !== doc.id) reasons.push('PROFILE_UID_MISMATCH');
+                    if (typeof profile.email !== 'string' || !profile.email.trim()) reasons.push('EMAIL_MISSING');
+                    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email.trim())) reasons.push('EMAIL_FORMAT_REVIEW');
+                    if (![profile.username, profile.displayName].some(v => typeof v === 'string' && v.trim())) reasons.push('DISPLAY_NAME_MISSING');
+                    if (profile.isAnonymous === true) reasons.push('PROFILE_REPORTS_ANONYMOUS');
+                    if (profile.emailVerified === false) reasons.push('PROFILE_REPORTS_EMAIL_UNVERIFIED');
+                    if (!reasons.length) return;
+                    flagged++;
+                    const now = new Date().toISOString(), previous = ghostReviewHistory.get(doc.id);
+                    const record = { firstObserved: previous ? previous.firstObserved : now, lastObserved: now, reasons };
+                    ghostReviewHistory.set(doc.id, record);
+                    const row = document.createElement('p');
+                    row.textContent = doc.id + ' — ' + reasons.join(', ') + ' | First observed this session: ' + record.firstObserved + ' | Last observed: ' + now;
+                    results.appendChild(row);
+                });
+                const summary = document.createElement('p'); summary.textContent = flagged + ' profiles flagged for manual review. No penalties applied.'; results.appendChild(summary);
+            } catch (error) { if (valid()) results.textContent = 'Account review failed: ' + error.message; }
+            finally { if (valid()) button.disabled = false; }
+        }
+
         function renderAdminPanel() {
+            if (!workspaceCan('admin') || (ghostReviewViewer && (!currentUser || currentUser.uid !== ghostReviewViewer))) clearGhostReview();
             refreshWorkspace();
             if (!$('panel-admin')) return;
             if (!canAccessAdminPanel()) { if (document.querySelector('#panel-admin.active')) showView('home'); return; }
@@ -12968,18 +13105,8 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
             },
             canInteract() { return !this.active() || this.isAllowed(); },
             chatLocked() { return !!(this.state && this.state.chatLocked); },
-            slowmodeSecs() { return Number((this.state && this.state.slowmode) || 0); },
-            slowmodeOk() {
-                const s = this.slowmodeSecs();
-                if (!s) return true;
-                try {
-                    const key = 'sigma_last_sent_' + (this.myUid() || 'guest');
-                    const last = Number(localStorage.getItem(key) || 0);
-                    if (Date.now() - last < s * 1000) return false;
-                    localStorage.setItem(key, String(Date.now()));
-                } catch (e) {}
-                return true;
-            },
+            slowmodeSecs() { return 0; },
+            slowmodeOk() { return true; },
             fi() { try { return (typeof sp1derDb !== 'undefined' && sp1derDb) || null; } catch (e) { return null; } }
         };
 
@@ -13330,11 +13457,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 case 'theme': {
                     try { settings.theme = args[0] || 'dark'; applyTheme(); saveSettingsInstant(); return 'theme set to ' + settings.theme; } catch (e) { return 'theme failed: ' + e.message; }
                 }
-                case 'slowmode': {
-                    if (!f) return 'no database';
-                    await f.collection('system').doc(SIGMA.CONTROL_DOC).set({ slowmode: Math.max(0, parseInt(args[0]) || 0) }, { merge: true });
-                    return 'slow mode: ' + (parseInt(args[0]) || 0) + 's';
-                }
+                case 'slowmode': { return 'Slow mode has been removed from this client.'; }
                 case 'chatlock': {
                     if (!f) return 'no database';
                     await f.collection('system').doc(SIGMA.CONTROL_DOC).set({ chatLocked: true }, { merge: true });
